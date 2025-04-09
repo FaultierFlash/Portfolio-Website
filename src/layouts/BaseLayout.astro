@@ -1,0 +1,40 @@
+---
+// src/layouts/BaseLayout.astro
+import { useTranslations, type Locale } from "../i18n/utils"; // Import translation utilities
+import LanguageSwitcher from "../components/LanguageSwitcher.astro";
+import Header from "../components/Header.astro"; // Assuming you have these
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string; // Allow overriding title per page
+}
+
+const { title } = Astro.props;
+const lang = Astro.currentLocale as Locale; // Get current language
+const t = useTranslations(lang); // Get the translation function for this language
+
+const pageTitle = title || t("site.title"); // Use specific title or default site title
+---
+
+<!doctype html>
+<html lang={lang} dir={lang === "de" ? "ltr" : "ltr"}>
+  {/* Adjust dir if needed */}
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>{pageTitle}</title>
+  {/* Add other meta tags, links etc. */}
+
+  <body>
+    <Header />
+    {/* Pass 't' or 'lang' if Header needs translations */}
+    <LanguageSwitcher />
+    <main>
+      <slot />
+      {/* Page content injected here */}
+    </main>
+    <Footer />
+    {/* Pass 't' or 'lang' if Footer needs translations */}
+  </body>
+</html>

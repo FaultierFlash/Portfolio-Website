@@ -1,0 +1,47 @@
+---
+// src/components/LanguageSwitcher.astro
+import { getRelativeLocaleUrl } from "astro:i18n"; // Astro's built-in helper
+
+const locales = Astro.locals as Array<"en" | "de">; // From astro.config.mjs
+const currentLocale = Astro.currentLocale as "en" | "de";
+---
+
+<nav aria-label="Sprachauswahl | Language selection">
+  <ul>
+    {
+      locales.map((locale) => {
+        const label = locale === "de" ? "Deutsch" : "English";
+        const isCurrent = locale === currentLocale;
+        // Generate the URL for the *current page* in the *target locale*
+        const url = getRelativeLocaleUrl(locale);
+
+        return (
+          <li>
+            <a
+              href={url}
+              aria-current={isCurrent ? "page" : undefined}
+              hreflang={locale}
+              lang={locale}
+            >
+              {label}
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+  <style>
+    /* Basic styling */
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      gap: 0.5rem;
+    }
+    a[aria-current="page"] {
+      font-weight: bold;
+      text-decoration: none;
+    }
+  </style>
+</nav>

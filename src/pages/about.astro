@@ -1,0 +1,79 @@
+---
+import Layout from "../layouts/BaseLayout.astro";
+
+const pageTitle = "About Me";
+---
+
+<Layout title={pageTitle}>
+  <section class="about-section">
+    <div class="container">
+      <h1 class="title">{pageTitle}</h1>
+      <p class="intro">
+        Hello! I'm a passionate web developer with a love for creating beautiful
+        and functional websites. With a strong background in modern web
+        technologies, I strive to deliver exceptional user experiences.
+      </p>
+      <h2 class="subtitle">My Journey</h2>
+      <p>
+        I started my journey in web development several years ago, exploring the
+        endless possibilities of the web. Over time, I have honed my skills in
+        HTML, CSS, JavaScript, and frameworks like Astro, React, and more.
+      </p>
+      <h2 class="subtitle">What I Do</h2>
+      <ul class="skills-list">
+        <li>Build responsive and accessible websites</li>
+        <li>Develop performant and scalable web applications</li>
+        <li>
+          Collaborate with designers and developers to bring ideas to life
+        </li>
+        <li>
+          Continuously learn and stay updated with the latest technologies
+        </li>
+      </ul>
+      <h2 class="subtitle">Get in Touch</h2>
+      <p>
+        I'm always open to new opportunities and collaborations. Feel free to <a
+          href="/contact">reach out</a
+        > if you'd like to work together or just say hello!
+      </p>
+    </div>
+  </section>
+
+  <style>
+    .about-section {
+      padding: 2rem 1rem;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .title {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .intro {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 1.8rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+    .skills-list {
+      list-style: disc;
+      margin-left: 1.5rem;
+    }
+    a {
+      color: #007acc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</Layout>

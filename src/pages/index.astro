@@ -1,0 +1,16 @@
+---
+// src/pages/index.astro
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { useTranslations, type Locale } from "../i18n/utils";
+
+const lang = Astro.currentLocale as Locale;
+const t = useTranslations(lang);
+---
+
+<BaseLayout title={t("page.home.title")}>
+  <h1>{t("page.home.title")}</h1>
+  <p>{t("page.home.description")}</p>
+
+  <a href="/about">{t("nav.about")}</a>
+  {/* Standard link */}
+</BaseLayout>

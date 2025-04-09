@@ -1,0 +1,9 @@
+{
+    "site.title": "Meine Astro Seite",
+    "nav.home": "Startseite",
+    "nav.about": "Über Uns",
+    "nav.contact": "Kontakt",
+    "page.home.title": "Willkommen!",
+    "page.home.description": "Dies ist die Startseite.",
+    "page.about.title": "Über Uns"
+  }
