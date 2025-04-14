@@ -4,6 +4,8 @@ import { useTranslations, type Locale } from "../i18n/utils"; // Import translat
 import LanguageSwitcher from "../components/LanguageSwitcher.astro";
 import Header from "../components/Header.astro"; // Assuming you have these
 import Footer from "../components/Footer.astro";
+import ThemeToggle from "../components/ThemeToggle.astro"; // Assuming you have this
+import ThemeScript from "../components/ThemeScript.astro"; // Assuming you have this
 
 interface Props {
   title?: string; // Allow overriding title per page
@@ -18,18 +20,25 @@ const pageTitle = title || t("site.title"); // Use specific title or default sit
 
 <!doctype html>
 <html lang={lang} dir={lang === "de" ? "ltr" : "ltr"}>
-  {/* Adjust dir if needed */}
+  <head>
+    {/* Adjust dir if needed */}
 
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <title>{pageTitle}</title>
-  {/* Add other meta tags, links etc. */}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{pageTitle}</title>
+    <ThemeScript />
+    {/* Add other meta tags, links etc. */}
+  </head>
 
   <body>
     <Header />
     {/* Pass 't' or 'lang' if Header needs translations */}
-    <LanguageSwitcher />
+    <div class="nav-controls">
+      <LanguageSwitcher />
+      <ThemeToggle />
+      {/* LanguageSwitcher and ThemeToggle components */}
+    </div>
     <main>
       <slot />
       {/* Page content injected here */}

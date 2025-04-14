@@ -1,0 +1,30 @@
+/* src/styles/global.css */
+
+:root {
+    /* Light-Mode Variablen (Standard) */
+    --color-bg: #ffffff;
+    --color-text: #111827;
+    --color-primary: #2563eb;
+    --color-secondary: #4b5563;
+    --color-accent: #8b5cf6;
+    --color-border: #e5e7eb;
+  }
+  
+  /* Dark-Mode Variablen */
+  .dark {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-primary: #3b82f6;
+    --color-secondary: #9ca3af;
+    --color-accent: #a78bfa;
+    --color-border: #374151;
+  }
+  
+  /* Basis-Styles mit Variablen */
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Weitere Styles mit Variablen */

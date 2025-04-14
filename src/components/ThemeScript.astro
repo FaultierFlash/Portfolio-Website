@@ -1,0 +1,31 @@
+---
+// src/components/ThemeScript.astro
+---
+
+<script is:inline>
+  // Sofort ausgeführtes Skript für Theme-Erkennung und -Anwendung
+  function applyTheme() {
+    // Bereits gespeichertes Theme abrufen, falls vorhanden
+    const storedTheme = localStorage.getItem("theme");
+
+    // Theme basierend auf Präferenz oder System-Einstellung ermitteln
+    const getTheme = () => {
+      if (storedTheme) return storedTheme;
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        return "dark";
+      return "light";
+    };
+
+    // Theme-Entscheidung
+    const theme = getTheme();
+
+    // Theme anwenden
+    document.documentElement.classList.toggle("dark", theme === "dark");
+
+    // Für spätere Verwendung speichern
+    window.theme = theme;
+  }
+
+  // Sofort ausführen
+  applyTheme();
+</script>
