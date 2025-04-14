@@ -1,57 +1,89 @@
 ---
 // src/components/LanguageSwitcher.astro
-const currentLocale = Astro.currentLocale || "de";
+const locales = ["de", "en"] as const; // Define available locales
+type Locale = (typeof locales)[number];
+
+const currentLocale = (Astro.currentLocale as Locale) || "de"; // Default to 'de' if undefined
 const currentPath = Astro.url.pathname;
 
-// Pfad ohne Sprachpräfix extrahieren
-function getPathWithoutLocale(path, locale) {
-  if (path.startsWith(`/${locale}/`)) {
-    return path.substring(locale.length + 2);
+// Determine the target locale and its abbreviation
+const targetLocale: Locale = currentLocale === "de" ? "en" : "de";
+const targetAbbreviation = targetLocale.toUpperCase(); // "EN" or "DE"
+
+// Helper function to get path without the locale prefix
+function getPathWithoutLocale(path: string, locale: Locale): string {
+  const prefix = `/${locale}`;
+  // Handle root path with locale prefix explicitly
+  if (path === prefix) {
+    return "/";
   }
+  // Handle other paths with locale prefix
+  if (path.startsWith(`${prefix}/`)) {
+    // Keep the leading slash for subpaths
+    return path.substring(prefix.length);
+  }
+  // Handle root path without locale prefix (should ideally not happen if default locale isn't prefixed)
+  if (path === "/") {
+    return "/";
+  }
+  // If path doesn't start with the locale prefix, return it as is (or handle default locale logic if needed)
   return path;
 }
 
-// Einfache manuelle URL-Generierung
+// Generate the URL for the target language
 const pathWithoutLocale = getPathWithoutLocale(currentPath, currentLocale);
-const deUrl = `/de/${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`;
-const enUrl = `/en/${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`;
+// Ensure the target URL doesn't end up with double slashes like /en//somepage
+const targetPathSegment =
+  pathWithoutLocale === "/"
+    ? ""
+    : pathWithoutLocale.startsWith("/")
+      ? pathWithoutLocale
+      : `/${pathWithoutLocale}`;
+const targetUrl = `/${targetLocale}${targetPathSegment}`;
 ---
 
-<nav aria-label="Sprachauswahl | Language selection">
-  <ul>
-    <li>
-      <a
-        href={deUrl}
-        aria-current={currentLocale === "de" ? "page" : undefined}
-        hreflang="de"
-        lang="de"
-      >
-        Deutsch
-      </a>
-    </li>
-    <li>
-      <a
-        href={enUrl}
-        aria-current={currentLocale === "en" ? "page" : undefined}
-        hreflang="en"
-        lang="en"
-      >
-        English
-      </a>
-    </li>
-  </ul>
-</nav>
+<a
+  href={targetUrl}
+  class="language-switcher-button"
+  aria-label={`Switch language to ${targetLocale === "de" ? "German" : "English"}`}
+  hreflang={targetLocale}
+  lang={targetLocale}
+  title={`Switch to ${targetLocale === "de" ? "Deutsch" : "English"}`}
+>
+  {targetAbbreviation}
+</a>
 
 <style>
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    gap: 0.5rem;
+  .language-switcher-button {
+    display: inline-flex; /* Use flexbox for easy centering */
+    align-items: center; /* Center content vertically */
+    justify-content: center; /* Center content horizontally */
+    width: 2.5rem; /* Adjust size as needed */
+    height: 2.5rem; /* Make width and height equal for a circle */
+    border-radius: 50%; /* Make it round */
+    background-color: var(--color-primary); /* Use primary color variable */
+    color: var(--color-text); /* Use text color variable */
+    font-family: "Raleway", sans-serif; /* Use Raleway font */
+    font-weight: 800; /* Use the heavier weight */
+    font-size: 0.9rem; /* Adjust text size as needed */
+    text-decoration: none; /* Remove underline from link */
+    text-align: center;
+    cursor: pointer;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease; /* Smooth transition */
+    border: 1px solid transparent; /* Optional: reserve space for potential focus ring */
   }
-  a[aria-current="page"] {
-    font-weight: bold;
-    text-decoration: none;
+
+  .language-switcher-button:hover,
+  .language-switcher-button:focus {
+    transform: scale(1.05); /* Slight scale effect on hover/focus */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Optional shadow */
+  }
+
+  /* Optional: Style for focus state for accessibility */
+  .language-switcher-button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 </style>

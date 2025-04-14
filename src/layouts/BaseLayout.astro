@@ -1,49 +1,354 @@
 ---
 // src/layouts/BaseLayout.astro
-import { useTranslations, type Locale } from "../i18n/utils"; // Import translation utilities
+import { useTranslations, type Locale } from "../i18n/utils";
 import LanguageSwitcher from "../components/LanguageSwitcher.astro";
-import Header from "../components/Header.astro"; // Assuming you have these
 import Footer from "../components/Footer.astro";
-import ThemeToggle from "../components/ThemeToggle.astro"; // Assuming you have this
-import ThemeScript from "../components/ThemeScript.astro"; // Assuming you have this
+import ThemeToggle from "../components/ThemeToggle.astro";
+import ThemeScript from "../components/ThemeScript.astro";
+import "../styles/global.css";
+import { ViewTransitions } from "astro:transitions"; // Import it
 
 interface Props {
-  title?: string; // Allow overriding title per page
+  title?: string;
 }
 
 const { title } = Astro.props;
-const lang = Astro.currentLocale as Locale; // Get current language
-const t = useTranslations(lang); // Get the translation function for this language
+const lang = (Astro.currentLocale as Locale) || "de";
+const t = useTranslations(lang);
 
-const pageTitle = title || t("site.title"); // Use specific title or default site title
+const pageTitle = title || t("site.title");
+
+// Define links here for easier management
+const navLinks = [
+  { href: "/projects", text: "Projects" }, // Replace with translation keys if needed: t('nav.projects')
+  { href: "/contact", text: "Contact" }, // Replace with translation keys if needed: t('nav.contact')
+];
 ---
 
 <!doctype html>
-<html lang={lang} dir={lang === "de" ? "ltr" : "ltr"}>
+<html lang={lang} dir="ltr">
   <head>
-    {/* Adjust dir if needed */}
-
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{pageTitle}</title>
     <ThemeScript />
-    {/* Add other meta tags, links etc. */}
+    {/*<ClientRouter />*/}
+    {/* Add the component here */}
   </head>
 
   <body>
-    <Header />
-    {/* Pass 't' or 'lang' if Header needs translations */}
-    <div class="nav-controls">
-      <LanguageSwitcher />
-      <ThemeToggle />
-      {/* LanguageSwitcher and ThemeToggle components */}
-    </div>
+    <header class="top-bar">
+      <div class="logo-area">
+        <a href="/" aria-label="Homepage">~/professional</a>
+      </div>
+
+      {/* Navigation Area */}
+      <div class="navigation-container">
+        {/* Hamburger Button (Visible only on narrow screens) */}
+        <button
+          class="hamburger-button"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+          aria-controls="mobile-menu"
+        >
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+
+        {/* Links and Controls Wrapper */}
+        <nav
+          class="navigation-area"
+          id="mobile-menu"
+          aria-label="Main navigation"
+        >
+          {/* Links (conditionally displayed based on screen size via CSS) */}
+          <div class="desktop-links">
+            {navLinks.map((link) => <a href={link.href}>{link.text}</a>)}
+          </div>
+          {/* Controls (always visible within the nav area) */}
+          <div class="controls">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
+        </nav>
+      </div>
+    </header>
+
     <main>
       <slot />
-      {/* Page content injected here */}
     </main>
+
     <Footer />
-    {/* Pass 't' or 'lang' if Footer needs translations */}
+
+    {/* JavaScript for Hamburger Toggle */}
+    <script>
+      const hamburgerButton = document.querySelector(".hamburger-button");
+      const mobileMenu = document.querySelector("#mobile-menu");
+      const menuStateKey = "hamburgerMenuState"; // Key for sessionStorage
+
+      function openMenu() {
+        if (!hamburgerButton || !mobileMenu) return;
+        hamburgerButton.setAttribute("aria-expanded", "true");
+        mobileMenu.classList.add("menu-open");
+        hamburgerButton.classList.add("is-active");
+        sessionStorage.setItem(menuStateKey, "open"); // Remember state
+        // Optional: Prevent body scroll
+        // document.body.classList.add('no-scroll');
+      }
+
+      function closeMenu() {
+        if (!hamburgerButton || !mobileMenu) return;
+        hamburgerButton.setAttribute("aria-expanded", "false");
+        mobileMenu.classList.remove("menu-open");
+        hamburgerButton.classList.remove("is-active");
+        sessionStorage.setItem(menuStateKey, "closed"); // Remember state (or use removeItem)
+        // Optional: Allow body scroll
+        // document.body.classList.remove('no-scroll');
+      }
+
+      // --- On Page Load ---
+      if (hamburgerButton && mobileMenu) {
+        const savedState = sessionStorage.getItem(menuStateKey);
+        if (savedState === "open") {
+          openMenu();
+          // Optional: Only re-open once after reload, then clear state
+          // sessionStorage.removeItem(menuStateKey);
+          // --> Keep the line above commented if you want the menu to stay open
+          //     even if the user manually reloads the page while it's open.
+          //     Uncomment it if you ONLY want it to reopen immediately after
+          //     clicking a link inside it (like the language switcher).
+        }
+
+        // --- Hamburger Button Click Listener ---
+        hamburgerButton.addEventListener("click", () => {
+          const isExpanded =
+            hamburgerButton.getAttribute("aria-expanded") === "true";
+          if (isExpanded) {
+            closeMenu();
+          } else {
+            openMenu();
+          }
+        });
+
+        // --- Close Menu on Outside Click ---
+        document.addEventListener("click", (event) => {
+          const isMenuOpen = mobileMenu.classList.contains("menu-open");
+          if (
+            isMenuOpen &&
+            !mobileMenu.contains(event.target as Node) &&
+            !hamburgerButton.contains(event.target as Node)
+          ) {
+            closeMenu();
+          }
+        });
+
+        // --- Close Menu When Link Inside is Clicked (Optional but good UX) ---
+        // Add event listener to the menu itself
+        mobileMenu.addEventListener("click", (event) => {
+          // Check if the clicked element is a link inside the menu, but NOT the language/theme controls
+          if (
+            event.target instanceof HTMLAnchorElement &&
+            !event.target.closest(".controls")
+          ) {
+            // If it's a regular nav link, close the menu after clicking
+            // We DON'T close if it's the language switcher causing the reload
+            // (unless sessionStorage is handling the reopen)
+            // closeMenu(); // You might want this for internal page links
+          }
+        });
+      } // end if (hamburgerButton && mobileMenu)
+    </script>
   </body>
 </html>
+
+<style is:global>
+  /* Use is:global carefully or scope styles */
+  /* Prevent scroll when mobile menu might be open */
+  body.no-scroll {
+    overflow: hidden;
+  }
+</style>
+
+<style>
+  /* --- Base Top Bar Styles --- */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
+  }
+
+  .logo-area a {
+    color: var(--color-text);
+    text-decoration: none;
+    font-family: "Raleway", monospace, sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+  }
+
+  .navigation-container {
+    display: flex;
+    align-items: center;
+  }
+
+  /* --- Hamburger Button Styles --- */
+  .hamburger-button {
+    display: none; /* Hidden on desktop by default */
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    z-index: 1001;
+    margin-left: 1rem; /* Add some space if needed before nav area collapses */
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: var(--color-text);
+    margin: 5px 0;
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  /* Hamburger animation to 'X' */
+  .hamburger-button.is-active .hamburger-line:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+  .hamburger-button.is-active .hamburger-line:nth-child(2) {
+    opacity: 0;
+  }
+  .hamburger-button.is-active .hamburger-line:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  /* --- Desktop Navigation Styles (Default) --- */
+  .navigation-area {
+    display: flex; /* Shown on desktop */
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .desktop-links {
+    display: flex; /* Show links inline on desktop */
+    gap: 1.5rem; /* Spacing between desktop links */
+  }
+
+  .desktop-links a {
+    /* Base link styling */
+    color: var(--color-text);
+    text-decoration: none;
+    font-family: "Raleway", sans-serif;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: color 0.2s ease;
+  }
+
+  .desktop-links a:hover,
+  .desktop-links a:focus {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* Spacing between controls */
+  }
+
+  /* --- Mobile Menu Styles (Media Query) --- */
+  @media (max-width: 768px) {
+    /* Adjust this breakpoint */
+    .hamburger-button {
+      display: block; /* Show hamburger */
+    }
+
+    /* Hide the desktop layout for links and controls */
+    .navigation-area {
+      display: none; /* Hide the whole nav area by default on mobile */
+      /* Styles for when it becomes the revealed menu */
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background-color: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-top: none;
+      border-bottom-left-radius: 8px;
+      padding: 1rem;
+      flex-direction: column; /* Stack items vertically */
+      align-items: flex-start; /* Align items left */
+      gap: 0rem; /* Reset gap for vertical layout */
+      min-width: 200px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      z-index: 1000; /* Ensure menu is above content */
+    }
+
+    /* Show the navigation area when the menu is open */
+    .navigation-area.menu-open {
+      display: flex;
+    }
+
+    /* How the links container behaves inside the OPEN mobile menu */
+    .desktop-links {
+      display: flex; /* Make it visible inside the open menu */
+      flex-direction: column; /* Stack links vertically */
+      align-items: flex-start; /* Align links left */
+      width: 100%;
+      gap: 0; /* Remove horizontal gap */
+    }
+
+    /* How individual links look inside the OPEN mobile menu */
+    .desktop-links a {
+      padding: 0.75rem 0.5rem; /* Add padding for tapping */
+      width: 100%; /* Make links take full width */
+      border-bottom: 1px solid var(--color-border); /* Optional separator */
+      font-size: 1.1rem; /* Slightly larger font for mobile menu */
+    }
+    .desktop-links a:last-child {
+      border-bottom: none; /* Remove border from last link */
+    }
+
+    /* How controls look inside the OPEN mobile menu */
+    .controls {
+      flex-direction: row; /* Keep controls horizontal */
+      justify-content: flex-start; /* Align controls left */
+      width: 100%;
+      padding: 1rem 0.5rem 0.5rem; /* Adjust padding */
+      margin-top: 0.5rem;
+      gap: 1.5rem; /* Space out controls */
+      /* Optional: Add border top if desired */
+      /* border-top: 1px solid var(--color-border); */
+    }
+  }
+
+  /* --- Base Layout Styles --- */
+  main {
+    padding: 2rem;
+    padding-top: calc(
+      4rem + 2px
+    ); /* Adjust if header height changes, accounts for padding + border */
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  main {
+    flex-grow: 1;
+  }
+</style>
