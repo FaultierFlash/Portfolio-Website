@@ -23,6 +23,39 @@ const navLinks = [
   { href: "/projects", text: "Projects" }, // Replace with translation keys if needed: t('nav.projects')
   { href: "/contact", text: "Contact" }, // Replace with translation keys if needed: t('nav.contact')
 ];
+
+// --- New Logic for Dynamic Path Display ---
+
+const currentPathname = Astro.url.pathname; // e.g., /en/projects or /de/ or /
+const locale = lang; // Use the existing 'lang' variable for current locale
+
+// Helper function to get path without the locale prefix
+function getPathWithoutLocale(path: string, locale: Locale): string {
+  const localePrefix = `/${locale}`;
+
+  // Handle exact locale prefix match (e.g., /en -> /)
+  if (path === localePrefix) {
+    return "/";
+  }
+  // Handle locale prefix with trailing slash (e.g., /en/ -> /)
+  if (path === `${localePrefix}/`) {
+    return "/";
+  }
+  // Handle prefixed sub-paths (e.g., /en/about -> /about)
+  if (path.startsWith(`${localePrefix}/`)) {
+    return path.substring(localePrefix.length); // Keep leading slash for subpath
+  }
+  // If no prefix matches (e.g., root '/' or default locale without prefix)
+  return path;
+}
+
+// Get the path without the language part
+const basePath = getPathWithoutLocale(currentPathname, locale); // e.g., / or /projects or /about
+
+// Format the display path
+const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
+
+// --- End of New Logic ---
 ---
 
 <!doctype html>
@@ -40,7 +73,8 @@ const navLinks = [
   <body>
     <header class="top-bar">
       <div class="logo-area">
-        <a href="/" aria-label="Homepage">~/professional</a>
+        {/* Use the dynamic displayPath variable here */}
+        <a href="/" aria-label="Homepage">{displayPath}</a>
       </div>
 
       {/* Navigation Area */}
@@ -159,6 +193,64 @@ const navLinks = [
           }
         });
       } // end if (hamburgerButton && mobileMenu)
+
+      // --- Theme Toggle Logic ---
+      // IMPORTANT: Verify '#theme-toggle' matches the actual ID or a unique
+      //            class selector for the button in your ThemeToggle.astro file.
+      const themeToggleButton = document.querySelector("theme-toggle");
+
+      // IMPORTANT: Verify 'theme-preference' matches the actual key used
+      //            in your ThemeScript.astro for localStorage.
+      const themeStorageKey = "theme";
+
+      const htmlElement = document.documentElement; // Target the <html> tag
+
+      // Function to apply the theme class
+      // (Ensures consistency if you change theme application logic later)
+      function applyThemeClass(theme) {
+        if (theme === "dark") {
+          htmlElement.classList.add("dark");
+          // Optional: remove the other class explicitly if needed
+          // htmlElement.classList.remove('light');
+        } else {
+          htmlElement.classList.remove("dark");
+          // Optional: add the light class explicitly if needed
+          // htmlElement.classList.add('light');
+        }
+        // Optionally update button text/icon/aria-label based on the new theme
+        if (themeToggleButton) {
+          themeToggleButton.setAttribute(
+            "aria-label",
+            `Switch to ${theme === "dark" ? "light" : "dark"} theme`
+          );
+        }
+      }
+
+      // Check if the button exists on the page
+      if (themeToggleButton) {
+        // Add the click event listener
+        themeToggleButton.addEventListener("click", () => {
+          // Determine the *new* theme the user wants
+          const isCurrentlyDark = htmlElement.classList.contains("dark");
+          const newTheme = isCurrentlyDark ? "light" : "dark";
+
+          // 1. Apply the new theme class visually
+          applyThemeClass(newTheme);
+
+          // 2. Save the new preference to localStorage
+          localStorage.setItem(themeStorageKey, newTheme);
+        });
+
+        // Optional: Set initial aria-label on page load based on current theme
+        // (ThemeScript.astro should have already set the class correctly)
+        const initialTheme = htmlElement.classList.contains("dark")
+          ? "dark"
+          : "light";
+        themeToggleButton.setAttribute(
+          "aria-label",
+          `Switch to ${initialTheme === "dark" ? "light" : "dark"} theme`
+        );
+      } // end if (themeToggleButton)
     </script>
   </body>
 </html>
@@ -195,6 +287,13 @@ const navLinks = [
     font-family: "Raleway", monospace, sans-serif;
     font-weight: 800;
     font-size: 1.5rem;
+
+    /* === ADD these lines for overflow handling === */
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis if it's too long */
+    max-width: 250px; /* Adjust max-width as needed */
+    /* === End of added lines === */
   }
 
   .navigation-container {
