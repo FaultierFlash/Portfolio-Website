@@ -1,0 +1,401 @@
+---
+// ProjectWheel.astro
+// Define the Project type
+interface Project {
+  title: string;
+  description: string;
+  imageUrl: string;
+  url: string;
+}
+
+// You can pass in projects as a prop
+interface Props {
+  projects: Project[];
+}
+
+const { projects } = Astro.props;
+
+// Sort projects alphabetically by title
+const sortedProjects = [...projects].sort((a, b) =>
+  a.title.localeCompare(b.title)
+);
+
+// Group projects by first letter
+const groupedProjects = sortedProjects.reduce(
+  (acc, project) => {
+    const firstLetter = project.title.charAt(0).toUpperCase();
+    if (!acc[firstLetter]) {
+      acc[firstLetter] = [];
+    }
+    acc[firstLetter].push(project);
+    return acc;
+  },
+  {} as Record<string, Project[]>
+);
+
+// Create wheel sections from grouped projects
+const letters = Object.keys(groupedProjects).sort();
+
+// Flatten the grouped projects with letter dividers
+const wheelItems = [];
+letters.forEach((letter) => {
+  // Add letter divider
+  wheelItems.push({ type: "divider", letter });
+  // Add projects
+  groupedProjects[letter].forEach((project) => {
+    wheelItems.push({ type: "project", ...project });
+  });
+});
+
+// Calculate angle for each item
+const totalItems = wheelItems.length;
+const anglePerItem = 360 / totalItems;
+---
+
+<div class="project-wheel-container">
+  <div id="wheelBox" class="wheel-box">
+    <div class="wheel-outer-border"></div>
+    <div id="projectWheel" class="project-wheel">
+      {
+        wheelItems.map((item, index) => {
+          const angle = index * anglePerItem;
+          const rotateStyle = `rotate(${angle}deg)`;
+
+          return (
+            <div
+              class={`wheel-item ${item.type === "divider" ? "letter-divider" : "project-item"}`}
+              style={`transform: ${rotateStyle}`}
+            >
+              <div
+                class="item-content"
+                style={`transform: rotate(-${angle}deg)`}
+              >
+                {item.type === "divider" ? (
+                  <div class="letter">{item.letter}</div>
+                ) : (
+                  <a href={item.url} class="project-link">
+                    <div class="project-image">
+                      <img src={item.imageUrl} alt={item.title} />
+                    </div>
+                    <h3>{item.title}</h3>
+                    <p>{item.description}</p>
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })
+      }
+    </div>
+    <div id="scrollTrack" class="scroll-track">
+      <div id="scrollHandle" class="scroll-handle"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Client-side JavaScript for wheel rotation
+  document.addEventListener("DOMContentLoaded", () => {
+    // Get all required elements
+    const wheelBox = document.getElementById("wheelBox");
+    const projectWheel = document.getElementById("projectWheel");
+    const scrollHandle = document.getElementById("scrollHandle");
+    const scrollTrack = document.getElementById("scrollTrack");
+    const wheelContainer = document.querySelector(".project-wheel-container");
+
+    if (
+      !wheelBox ||
+      !projectWheel ||
+      !scrollHandle ||
+      !scrollTrack ||
+      !wheelContainer
+    )
+      return;
+
+    // Get the position of the wheel
+    const getWheelPosition = () => {
+      const rect = wheelContainer.getBoundingClientRect();
+      return rect.top + window.scrollY;
+    };
+
+    // Initial wheel position
+    let wheelTopPosition = getWheelPosition();
+
+    // Update wheel position on resize
+    window.addEventListener("resize", () => {
+      wheelTopPosition = getWheelPosition();
+    });
+
+    // Wheel parameters
+    const trackRadius = scrollTrack.offsetWidth / 2;
+    const MAX_ROTATION = 360;
+
+    // In your script section:
+
+    // Update the handleScroll function to ensure proper transformation
+    function handleScroll() {
+      // Current scroll position
+      const scrollPos = window.scrollY;
+      const windowHeight = window.innerHeight;
+
+      // Calculate when wheel should be fully visible (at 50% of wheel height)
+      const wheelFullyVisibleAt = wheelTopPosition - windowHeight * 0.3;
+
+      // Calculate when wheel should start rotating
+      const wheelRotationStartsAt = wheelFullyVisibleAt;
+
+      // Total scroll range for full rotation
+      const SCROLL_RANGE = windowHeight * 1.5;
+
+      // How much have we scrolled past the start of rotation point
+      const scrollPastRotationStart = Math.max(
+        0,
+        scrollPos - wheelRotationStartsAt
+      );
+
+      // Calculate rotation progress (0 to 1)
+      const rotationProgress = Math.min(
+        1,
+        scrollPastRotationStart / SCROLL_RANGE
+      );
+      const currentRotation = rotationProgress * MAX_ROTATION;
+
+      // Only apply rotation when we've scrolled past the starting point
+      if (scrollPos >= wheelRotationStartsAt) {
+        // Calculate rotation
+        projectWheel.style.transform = `translate(-50%, -50%) rotate(-${currentRotation}deg)`;
+
+        // Update handle position
+        const radians = rotationProgress * 2 * Math.PI - Math.PI / 2;
+        const x = Math.cos(radians) * trackRadius;
+        const y = Math.sin(radians) * trackRadius;
+        scrollHandle.style.transform = `translate(${x}px, ${y}px)`;
+      } else {
+        // Reset to starting position
+        projectWheel.style.transform = "translate(-50%, -50%) rotate(0deg)";
+        scrollHandle.style.transform = "translate(0, -" + trackRadius + "px)";
+      }
+
+      // Adjust wheelBox position based on scroll
+      if (scrollPos < wheelFullyVisibleAt) {
+        // Calculate how far the wheel should move up
+        const wheelScrollProgress = Math.max(
+          0,
+          scrollPos / wheelFullyVisibleAt
+        );
+        const translateY = (1 - wheelScrollProgress) * 50;
+        //wheelBox.style.transform = `translateX(-50%) translateY(${translateY}%)`;
+      } else {
+        // Wheel is fully visible
+        //wheelBox.style.transform = "translateX(-50%) translateY(0)";
+      }
+    }
+
+    // Initial positioning
+    handleScroll();
+
+    // Listen for scroll events
+    window.addEventListener("scroll", handleScroll);
+  });
+</script>
+
+<style>
+  /* Container for the whole wheel component */
+  .project-wheel-container {
+    position: relative;
+    width: 100%;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden;
+  }
+
+  // In your CSS section, make these changes:
+
+/* Box that centers and positions the wheel */
+.wheel-box {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-99%) translateY(50%); /* Start with wheel half visible */
+    width: 0; /* Size is controlled by children */
+    height: 0;
+    transition: transform 0.3s ease-out;
+  }
+
+  /* Make sure all elements have the same size and are centered properly */
+  .wheel-outer-border {
+    border: 2px solid red;
+  }
+  ,
+  .project-wheel {
+    border: 2px solid blue;
+  }
+  ,
+  .scroll-track {
+    border: 2px solid green;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+
+  .wheel-outer-border {
+    width: 140vw;
+    height: 140vw;
+    max-width: 140vh;
+    max-height: 140vh;
+    border: 2px solid var(--color-border);
+    z-index: 1;
+  }
+
+  .project-wheel {
+    width: 130vw;
+    height: 130vw;
+    max-width: 130vh;
+    max-height: 130vh;
+    z-index: 2;
+    transform-origin: center center; /* Explicitly set transform origin */
+    transition: transform 0.3s ease;
+  }
+
+  .scroll-track {
+    width: 140vw;
+    height: 140vw;
+    max-width: 140vh;
+    max-height: 140vh;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Individual wheel items (projects and dividers) */
+  .wheel-item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center;
+  }
+
+  /* Content within each wheel item */
+  .item-content {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 16rem;
+    transform-origin: center bottom;
+    background-color: var(--color-bg);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+    font-family: "Raleway", sans-serif;
+    z-index: 3;
+    opacity: 0.9;
+    margin-left: -8rem; /* Center horizontally */
+    padding: 1rem;
+  }
+
+  .item-content:hover {
+    opacity: 1;
+    z-index: 10;
+    transform: rotate(0deg) translateY(-10px) scale(1.05);
+  }
+
+  /* Project links */
+  .project-link {
+    display: block;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  /* Project images */
+  .project-image {
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .project-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Letter dividers styling */
+  .letter-divider .item-content {
+    width: 3rem;
+    height: 3rem;
+    margin-left: -1.5rem; /* Center horizontally */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    font-weight: 800;
+    padding: 0;
+  }
+
+  /* Text styling */
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0.5rem 0;
+    color: var(--color-primary);
+  }
+
+  p {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-secondary);
+    margin: 0;
+  }
+
+  /* Scroll track (circular path for handle) */
+  .scroll-track {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 140vw; /* Match outer border */
+    height: 140vw;
+    max-width: 140vh;
+    max-height: 140vh;
+    border-radius: 50%;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Scroll handle */
+  .scroll-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    margin-left: -1rem;
+    margin-top: -1rem;
+    background-color: var(--color-primary);
+    border: 3px solid white;
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Make sure content stays readable */
+  @media (max-width: 768px) {
+    .item-content {
+      width: 12rem;
+      margin-left: -6rem;
+    }
+
+    .project-image {
+      height: 90px;
+    }
+  }
+</style>
