@@ -206,19 +206,21 @@ const anglePerItem = 360 / totalItems;
     width: 100%;
     height: 100vh; /* Full viewport height */
     overflow: hidden;
+    margin: 0 auto; /* Center horizontally */
   }
 
-  // In your CSS section, make these changes:
+  /* In your CSS section, make these changes: */
 
-/* Box that centers and positions the wheel */
-.wheel-box {
+  /* Box that centers and positions the wheel */
+  .wheel-box {
     position: absolute;
-    bottom: 0;
+    bottom: 0%;
     left: 50%;
-    transform: translateX(-99%) translateY(50%); /* Start with wheel half visible */
+    transform: translateX(-50%) translateY(50%); /* Center horizontally and start with wheel half visible */
     width: 0; /* Size is controlled by children */
     height: 0;
     transition: transform 0.3s ease-out;
+    margin: 0 auto; /* Center horizontally */
   }
 
   /* Make sure all elements have the same size and are centered properly */
@@ -240,21 +242,22 @@ const anglePerItem = 360 / totalItems;
   }
 
   .wheel-outer-border {
-    width: 140vw;
-    height: 140vw;
-    max-width: 140vh;
-    max-height: 140vh;
+    width: 90%;
+    height: 90%;
+    max-width: 90%;
+    max-height: 90%;
     border: 2px solid var(--color-border);
     z-index: 1;
   }
 
   .project-wheel {
-    width: 130vw;
-    height: 130vw;
-    max-width: 130vh;
-    max-height: 130vh;
+    width: 90%;
+    height: 90%;
+    max-width: 90%;
+    max-height: 90%;
     z-index: 2;
     transform-origin: center center; /* Explicitly set transform origin */
+    margin: auto; /* Center inside parent */
     transition: transform 0.3s ease;
   }
 
