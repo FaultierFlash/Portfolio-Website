@@ -33,10 +33,10 @@ const groupedProjects = sortedProjects.reduce(
   {} as Record<string, Project[]>
 );
 
-// Create wheel sections from grouped projects
+/* Create wheel sections from grouped projects */
 const letters = Object.keys(groupedProjects).sort();
 
-// Flatten the grouped projects with letter dividers
+/* Flatten the grouped projects with letter dividers*/
 const wheelItems = [];
 letters.forEach((letter) => {
   // Add letter divider
@@ -128,66 +128,92 @@ const anglePerItem = 360 / totalItems;
 
     // Wheel parameters
     const trackRadius = scrollTrack.offsetWidth / 2;
-    const MAX_ROTATION = 360;
+    const MAX_ROTATION = 720;
 
-    // In your script section:
+    // Track if we've reached the bottom
+    let reachedBottom = false;
+    let wheelRotation = 0;
+    let lastScrollY = window.scrollY;
+    let scrollDelta = 0;
 
-    // Update the handleScroll function to ensure proper transformation
-    function handleScroll() {
+    // Calculate the maximum possible scroll position
+    const getMaxScroll = () => {
+      return document.documentElement.scrollHeight - window.innerHeight;
+    };
+
+    // Function to handle scroll events
+    function handleScroll(e) {
       // Current scroll position
       const scrollPos = window.scrollY;
       const windowHeight = window.innerHeight;
+      const maxScroll = getMaxScroll();
 
-      // Calculate when wheel should be fully visible (at 50% of wheel height)
-      const wheelFullyVisibleAt = wheelTopPosition - windowHeight * 0.3;
+      // Calculate when wheel should be fully visible (when we reach bottom of page)
+      const BOTTOM_THRESHOLD = 5; // Pixels from bottom to consider "reached bottom"
+      const hasReachedBottom = maxScroll - scrollPos <= BOTTOM_THRESHOLD;
 
-      // Calculate when wheel should start rotating
-      const wheelRotationStartsAt = wheelFullyVisibleAt;
+      // If we've reached the bottom and wheel isn't yet visible, make it visible
+      if (hasReachedBottom) {
+        // We've reached the bottom, enable wheel spinning mode
+        if (!reachedBottom) {
+          reachedBottom = true;
+          wheelBox.style.transform = "translateX(-50%) translateY(0)";
 
-      // Total scroll range for full rotation
-      const SCROLL_RANGE = windowHeight * 1.5;
+          // Make sure wheel is fully visible
+          projectWheel.style.transform = "translate(-50%, -50%) rotate(0deg)";
+          scrollHandle.style.transform = "translate(0, -" + trackRadius + "px)";
+        }
 
-      // How much have we scrolled past the start of rotation point
-      const scrollPastRotationStart = Math.max(
-        0,
-        scrollPos - wheelRotationStartsAt
-      );
+        // Calculate scroll delta for wheel rotation when at bottom
+        scrollDelta = lastScrollY - scrollPos;
+        lastScrollY = scrollPos;
 
-      // Calculate rotation progress (0 to 1)
-      const rotationProgress = Math.min(
-        1,
-        scrollPastRotationStart / SCROLL_RANGE
-      );
-      const currentRotation = rotationProgress * MAX_ROTATION;
+        // Update wheel rotation based on scroll delta
+        if (reachedBottom) {
+          // Each scroll delta contributes to rotation
+          const ROTATION_SPEED = 2; // Adjust this value to control rotation speed
+          wheelRotation += scrollDelta * ROTATION_SPEED;
 
-      // Only apply rotation when we've scrolled past the starting point
-      if (scrollPos >= wheelRotationStartsAt) {
-        // Calculate rotation
-        projectWheel.style.transform = `translate(-50%, -50%) rotate(-${currentRotation}deg)`;
+          // Keep rotation within 0-360 range
+          wheelRotation = wheelRotation % 360;
+          if (wheelRotation < 0) wheelRotation += 360;
 
-        // Update handle position
-        const radians = rotationProgress * 2 * Math.PI - Math.PI / 2;
-        const x = Math.cos(radians) * trackRadius;
-        const y = Math.sin(radians) * trackRadius;
-        scrollHandle.style.transform = `translate(${x}px, ${y}px)`;
+          // Apply rotation to wheel
+          projectWheel.style.transform = `translate(-50%, -50%) rotate(${wheelRotation}deg)`;
+
+          // Update handle position - reversed direction
+          const rotationProgress = wheelRotation / 360;
+          const radians = Math.PI / 2 - rotationProgress * 2 * Math.PI;
+          const x = Math.cos(radians) * trackRadius;
+          const y = Math.sin(radians) * trackRadius;
+          scrollHandle.style.transform = `translate(${x}px, ${y}px)`;
+
+          // Prevent default scroll when at bottom
+          if (e && e.preventDefault) {
+            e.preventDefault();
+          }
+        }
       } else {
-        // Reset to starting position
-        projectWheel.style.transform = "translate(-50%, -50%) rotate(0deg)";
-        scrollHandle.style.transform = "translate(0, -" + trackRadius + "px)";
-      }
+        // Not at bottom yet, standard scrolling behavior
+        reachedBottom = false;
 
-      // Adjust wheelBox position based on scroll
-      if (scrollPos < wheelFullyVisibleAt) {
         // Calculate how far the wheel should move up
-        const wheelScrollProgress = Math.max(
-          0,
+        const wheelFullyVisibleAt = maxScroll;
+        const wheelScrollProgress = Math.min(
+          1,
           scrollPos / wheelFullyVisibleAt
         );
         const translateY = (1 - wheelScrollProgress) * 50;
-        //wheelBox.style.transform = `translateX(-50%) translateY(${translateY}%)`;
-      } else {
-        // Wheel is fully visible
-        //wheelBox.style.transform = "translateX(-50%) translateY(0)";
+
+        // Update wheel position based on scroll
+        wheelBox.style.transform = `translateX(-50%) translateY(${translateY}%)`;
+
+        // Reset wheel rotation
+        projectWheel.style.transform = "translate(-50%, -50%) rotate(0deg)";
+        scrollHandle.style.transform = "translate(0, -" + trackRadius + "px)";
+
+        // Update last scroll position
+        lastScrollY = scrollPos;
       }
     }
 
@@ -196,6 +222,35 @@ const anglePerItem = 360 / totalItems;
 
     // Listen for scroll events
     window.addEventListener("scroll", handleScroll);
+
+    // Handle wheel events to control rotation when at bottom
+    window.addEventListener(
+      "wheel",
+      (e) => {
+        if (reachedBottom) {
+          e.preventDefault();
+
+          // Use wheel delta to control rotation
+          const delta = e.deltaY;
+          const WHEEL_SENSITIVITY = 0.1; // Adjust sensitivity
+
+          wheelRotation += delta * WHEEL_SENSITIVITY;
+          wheelRotation = wheelRotation % 360;
+          if (wheelRotation < 0) wheelRotation += 360;
+
+          // Apply rotation to wheel
+          projectWheel.style.transform = `translate(-50%, -50%) rotate(${wheelRotation}deg)`;
+
+          // Update handle position - reversed direction
+          const rotationProgress = wheelRotation / 360;
+          const radians = Math.PI / 2 - rotationProgress * 2 * Math.PI;
+          const x = Math.cos(radians) * trackRadius;
+          const y = Math.sin(radians) * trackRadius;
+          scrollHandle.style.transform = `translate(${x}px, ${y}px)`;
+        }
+      },
+      { passive: false }
+    );
   });
 </script>
 
@@ -208,8 +263,6 @@ const anglePerItem = 360 / totalItems;
     overflow: hidden;
     margin: 0 auto; /* Center horizontally */
   }
-
-  /* In your CSS section, make these changes: */
 
   /* Box that centers and positions the wheel */
   .wheel-box {
@@ -224,16 +277,9 @@ const anglePerItem = 360 / totalItems;
   }
 
   /* Make sure all elements have the same size and are centered properly */
-  .wheel-outer-border {
-    border: 2px solid red;
-  }
-  ,
-  .project-wheel {
-    border: 2px solid blue;
-  }
-  ,
+  .wheel-outer-border,
+  .project-wheel,
   .scroll-track {
-    border: 2px solid green;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -242,30 +288,29 @@ const anglePerItem = 360 / totalItems;
   }
 
   .wheel-outer-border {
-    width: 90%;
-    height: 90%;
-    max-width: 90%;
-    max-height: 90%;
+    width: 90vw;
+    height: 90vw;
+    max-width: 90vh;
+    max-height: 90vh;
     border: 2px solid var(--color-border);
     z-index: 1;
   }
 
   .project-wheel {
-    width: 90%;
-    height: 90%;
-    max-width: 90%;
-    max-height: 90%;
+    width: 85vw; /* Slightly smaller than outer border */
+    height: 85vw;
+    max-width: 85vh;
+    max-height: 85vh;
     z-index: 2;
     transform-origin: center center; /* Explicitly set transform origin */
-    margin: auto; /* Center inside parent */
     transition: transform 0.3s ease;
   }
 
   .scroll-track {
-    width: 140vw;
-    height: 140vw;
-    max-width: 140vh;
-    max-height: 140vh;
+    width: 90vw; /* Match outer border */
+    height: 90vw;
+    max-width: 90vh;
+    max-height: 90vh;
     z-index: 5;
     pointer-events: none;
   }
@@ -357,21 +402,6 @@ const anglePerItem = 360 / totalItems;
     font-weight: 500;
     color: var(--color-secondary);
     margin: 0;
-  }
-
-  /* Scroll track (circular path for handle) */
-  .scroll-track {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 140vw; /* Match outer border */
-    height: 140vw;
-    max-width: 140vh;
-    max-height: 140vh;
-    border-radius: 50%;
-    z-index: 5;
-    pointer-events: none;
   }
 
   /* Scroll handle */
