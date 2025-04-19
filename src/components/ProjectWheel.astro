@@ -4,7 +4,7 @@
 interface Project {
   title: string;
   description: string;
-  imageUrl: string;
+  image: any;
   url: string;
 }
 
@@ -36,20 +36,40 @@ const groupedProjects = sortedProjects.reduce(
 /* Create wheel sections from grouped projects */
 const letters = Object.keys(groupedProjects).sort();
 
-/* Flatten the grouped projects with letter dividers*/
-const wheelItems = [];
+// Calculate total number of sections needed
+let totalProjects = 0;
 letters.forEach((letter) => {
-  // Add letter divider
-  wheelItems.push({ type: "divider", letter });
-  // Add projects
-  groupedProjects[letter].forEach((project) => {
-    wheelItems.push({ type: "project", ...project });
-  });
+  totalProjects += groupedProjects[letter].length;
 });
 
-// Calculate angle for each item
-const totalItems = wheelItems.length;
-const anglePerItem = 360 / totalItems;
+// Calculate angle for each section
+const anglePerSection = 360 / totalProjects;
+
+// Pre-calculate positions for each project
+const wheelItems = [];
+let currentAngle = 0;
+
+letters.forEach((letter) => {
+  // Create section header with letter divider
+  const letterDivider = {
+    type: "divider",
+    letter,
+    angle: currentAngle,
+  };
+  wheelItems.push(letterDivider);
+
+  // Add projects in this section
+  groupedProjects[letter].forEach((project) => {
+    wheelItems.push({
+      type: "project",
+      startAngle: currentAngle,
+      endAngle: currentAngle + anglePerSection,
+      midAngle: currentAngle + anglePerSection / 2,
+      ...project,
+    });
+    currentAngle += anglePerSection;
+  });
+});
 ---
 
 <div class="project-wheel-container">
@@ -57,33 +77,86 @@ const anglePerItem = 360 / totalItems;
     <div class="wheel-outer-border"></div>
     <div id="projectWheel" class="project-wheel">
       {
-        wheelItems.map((item, index) => {
-          const angle = index * anglePerItem;
-          const rotateStyle = `rotate(${angle}deg)`;
-
-          return (
-            <div
-              class={`wheel-item ${item.type === "divider" ? "letter-divider" : "project-item"}`}
-              style={`transform: ${rotateStyle}`}
-            >
+        wheelItems.map((item) => {
+          if (item.type === "divider") {
+            return (
               <div
-                class="item-content"
-                style={`transform: rotate(-${angle}deg)`}
+                class="letter-divider"
+                style={`transform: rotate(${item.angle}deg)`}
               >
-                {item.type === "divider" ? (
+                <div class="letter-content">
                   <div class="letter">{item.letter}</div>
-                ) : (
-                  <a href={item.url} class="project-link">
-                    <div class="project-image">
-                      <img src={item.imageUrl} alt={item.title} />
-                    </div>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </a>
-                )}
+                </div>
+                <div class="divider-line" />
               </div>
-            </div>
-          );
+            );
+          } else {
+            // For project slices
+            return (
+              <div class="project-slice-container">
+                <a href={item.url} class="project-link">
+                  <svg
+                    viewBox="0 0 100 100"
+                    class="project-slice"
+                    style={`transform: rotate(${item.startAngle}deg)`}
+                  >
+                    {/* Create a circular sector/slice */}
+                    <defs>
+                      <clipPath
+                        id={`slice-clip-${item.title.replace(/\s+/g, "-").toLowerCase()}`}
+                      >
+                        <path
+                          d={`M 50,50 L 50,0 A 50,50 0 0,1 ${50 + 50 * Math.sin((anglePerSection * Math.PI) / 180)},${50 - 50 * Math.cos((anglePerSection * Math.PI) / 180)} z`}
+                        />
+                      </clipPath>
+                    </defs>
+
+                    {/* Background slice shape */}
+                    <path
+                      d={`M 50,50 L 50,0 A 50,50 0 0,1 ${50 + 50 * Math.sin((anglePerSection * Math.PI) / 180)},${50 - 50 * Math.cos((anglePerSection * Math.PI) / 180)} z`}
+                      class="slice-shape"
+                    />
+
+                    {/* Project image clipped to slice shape */}
+                    <image
+                      href={item.image.src}
+                      x="50"
+                      y="0"
+                      width="100"
+                      height="100"
+                      preserveAspectRatio="xMidYMid slice"
+                      clip-path={`url(#slice-clip-${item.title.replace(/\s+/g, "-").toLowerCase()})`}
+                      class="project-image"
+                      transform={`rotate(${anglePerSection / 2} 50 50)`}
+                    />
+
+                    {/* Text overlay - positioned in the middle of the slice */}
+                    <g
+                      class="project-text-overlay"
+                      transform={`rotate(${anglePerSection / 2} 50 50)`}
+                    >
+                      <text
+                        x="50"
+                        y="30"
+                        text-anchor="middle"
+                        class="project-title"
+                      >
+                        {item.title}
+                      </text>
+                      <text
+                        x="50"
+                        y="40"
+                        text-anchor="middle"
+                        class="project-description"
+                      >
+                        {item.description}
+                      </text>
+                    </g>
+                  </svg>
+                </a>
+              </div>
+            );
+          }
         })
       }
     </div>
@@ -251,6 +324,17 @@ const anglePerItem = 360 / totalItems;
       },
       { passive: false }
     );
+
+    // Add hover effects for the project slices
+    const projectSlices = document.querySelectorAll(".project-slice");
+    projectSlices.forEach((slice) => {
+      slice.addEventListener("mouseenter", () => {
+        slice.classList.add("slice-hover");
+      });
+      slice.addEventListener("mouseleave", () => {
+        slice.classList.remove("slice-hover");
+      });
+    });
   });
 </script>
 
@@ -315,8 +399,8 @@ const anglePerItem = 360 / totalItems;
     pointer-events: none;
   }
 
-  /* Individual wheel items (projects and dividers) */
-  .wheel-item {
+  /* Letter divider styling */
+  .letter-divider {
     position: absolute;
     top: 0;
     left: 0;
@@ -325,58 +409,12 @@ const anglePerItem = 360 / totalItems;
     transform-origin: center;
   }
 
-  /* Content within each wheel item */
-  .item-content {
+  .letter-content {
     position: absolute;
-    top: 0;
-    left: 50%;
-    width: 16rem;
-    transform-origin: center bottom;
-    background-color: var(--color-bg);
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    font-family: "Raleway", sans-serif;
-    z-index: 3;
-    opacity: 0.9;
-    margin-left: -8rem; /* Center horizontally */
-    padding: 1rem;
-  }
-
-  .item-content:hover {
-    opacity: 1;
-    z-index: 10;
-    transform: rotate(0deg) translateY(-10px) scale(1.05);
-  }
-
-  /* Project links */
-  .project-link {
-    display: block;
-    color: var(--color-text);
-    text-decoration: none;
-  }
-
-  /* Project images */
-  .project-image {
-    width: 100%;
-    height: 120px;
-    overflow: hidden;
-    border-radius: 0.25rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .project-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  /* Letter dividers styling */
-  .letter-divider .item-content {
     width: 3rem;
     height: 3rem;
+    top: 0;
+    left: 50%;
     margin-left: -1.5rem; /* Center horizontally */
     display: flex;
     align-items: center;
@@ -384,24 +422,86 @@ const anglePerItem = 360 / totalItems;
     background-color: var(--color-primary);
     color: white;
     border-radius: 50%;
+    z-index: 6;
+  }
+
+  .divider-line {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 50%;
+    background-color: var(--color-primary);
+    transform-origin: bottom center;
+    z-index: 4;
+  }
+
+  .letter {
     font-size: 1.25rem;
     font-weight: 800;
-    padding: 0;
   }
 
-  /* Text styling */
-  h3 {
-    font-size: 1.2rem;
-    font-weight: 800;
-    margin: 0.5rem 0;
-    color: var(--color-primary);
+  /* Project slice styling */
+  .project-slice-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center;
   }
 
-  p {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--color-secondary);
-    margin: 0;
+  .project-slice {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    transform-origin: center;
+  }
+
+  .slice-shape {
+    fill: rgba(255, 255, 255, 0.2);
+    stroke: var(--color-primary);
+    stroke-width: 0.5;
+  }
+
+  .project-image {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+  }
+
+  .project-text-overlay {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .project-slice:hover .project-image {
+    opacity: 0.5;
+  }
+
+  .project-slice:hover .project-text-overlay {
+    opacity: 1;
+  }
+
+  .project-title {
+    font-size: 3px;
+    font-weight: bold;
+    fill: white;
+    text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  .project-description {
+    font-size: 2px;
+    fill: white;
+    text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Project links */
+  .project-link {
+    display: block;
+    color: var(--color-text);
+    text-decoration: none;
+    width: 100%;
+    height: 100%;
   }
 
   /* Scroll handle */
@@ -420,15 +520,20 @@ const anglePerItem = 360 / totalItems;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
   }
 
-  /* Make sure content stays readable */
+  /* Hover effect for slices */
+  .slice-hover .slice-shape {
+    fill: rgba(255, 255, 255, 0.4);
+    stroke-width: 1;
+  }
+
+  /* Make sure content stays readable on smaller screens */
   @media (max-width: 768px) {
-    .item-content {
-      width: 12rem;
-      margin-left: -6rem;
+    .project-title {
+      font-size: 2.5px;
     }
 
-    .project-image {
-      height: 90px;
+    .project-description {
+      font-size: 1.5px;
     }
   }
 </style>
