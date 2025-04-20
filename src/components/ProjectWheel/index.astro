@@ -1,0 +1,140 @@
+---
+// components/ProjectWheel/index.astro
+import LetterDivider from "./LetterDivider.astro";
+import ProjectSlice from "./ProjectSlice.astro";
+import { sortProjects, groupProjectsByLetter, createWheelItems } from "./utils";
+
+// Define the Project type
+interface Project {
+  title: string;
+  description: string;
+  image: any;
+  url: string;
+}
+
+// You can pass in projects as a prop
+interface Props {
+  projects: Project[];
+}
+
+const { projects } = Astro.props;
+const sortedProjects = sortProjects(projects);
+const groupedProjects = groupProjectsByLetter(sortedProjects);
+
+// Calculate total number of projects
+let totalProjects = 0;
+Object.keys(groupedProjects).forEach((letter) => {
+  totalProjects += groupedProjects[letter].length;
+});
+
+// Calculate angle for each section
+const anglePerSection = 360 / totalProjects;
+
+// Create wheel items from grouped projects
+const wheelItems = createWheelItems(groupedProjects, anglePerSection);
+---
+
+<div class="project-wheel-container">
+  <div id="wheelBox" class="wheel-box">
+    <div class="wheel-outer-border"></div>
+    <div id="projectWheel" class="project-wheel">
+      {
+        wheelItems.map((item) => {
+          if (item.type === "divider") {
+            return <LetterDivider letter={item.letter} angle={item.angle} />;
+          } else {
+            return (
+              <ProjectSlice project={item} anglePerSection={anglePerSection} />
+            );
+          }
+        })
+      }
+    </div>
+    <div id="scrollTrack" class="scroll-track">
+      <div id="scrollHandle" class="scroll-handle"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { initializeWheel } from "./wheel";
+  initializeWheel();
+</script>
+
+<style>
+  /* Container for the whole wheel component */
+  .project-wheel-container {
+    position: relative;
+    width: 100%;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden;
+    margin: 0 auto; /* Center horizontally */
+  }
+
+  /* Box that centers and positions the wheel */
+  .wheel-box {
+    position: absolute;
+    bottom: 0%;
+    left: 50%;
+    transform: translateX(-50%) translateY(50%); /* Center horizontally and start with wheel half visible */
+    width: 0; /* Size is controlled by children */
+    height: 0;
+    transition: transform 0.3s ease-out;
+    margin: 0 auto; /* Center horizontally */
+  }
+
+  /* Make sure all elements have the same size and are centered properly */
+  .wheel-outer-border,
+  .project-wheel,
+  .scroll-track {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+
+  .wheel-outer-border {
+    width: 90vw;
+    height: 90vw;
+    max-width: 90vh;
+    max-height: 90vh;
+    border: 2px solid var(--color-border);
+    z-index: 1;
+  }
+
+  .project-wheel {
+    width: 85vw; /* Slightly smaller than outer border */
+    height: 85vw;
+    max-width: 85vh;
+    max-height: 85vh;
+    z-index: 2;
+    transform-origin: center center; /* Explicitly set transform origin */
+    transition: transform 0.3s ease;
+  }
+
+  .scroll-track {
+    width: 90vw; /* Match outer border */
+    height: 90vw;
+    max-width: 90vh;
+    max-height: 90vh;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Scroll handle */
+  .scroll-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    margin-left: -1rem;
+    margin-top: -1rem;
+    background-color: var(--color-primary);
+    border: 3px solid white;
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  }
+</style>

@@ -1,0 +1,60 @@
+---
+// components/ProjectWheel/LetterDivider.astro
+interface Props {
+  letter: string;
+  angle: number;
+}
+
+const { letter, angle } = Astro.props;
+---
+
+<div class="letter-divider" style={`transform: rotate(${angle}deg)`}>
+  <div class="letter-content">
+    <div class="letter">{letter}</div>
+  </div>
+  <div class="divider-line"></div>
+</div>
+
+<style>
+  /* Letter divider styling */
+  .letter-divider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center;
+  }
+
+  .letter-content {
+    position: absolute;
+    width: 3rem;
+    height: 3rem;
+    top: 0;
+    left: 50%;
+    margin-left: -1.5rem; /* Center horizontally */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    z-index: 6;
+  }
+
+  .divider-line {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 50%;
+    background-color: var(--color-primary);
+    transform-origin: bottom center;
+    z-index: 4;
+  }
+
+  .letter {
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+</style>
