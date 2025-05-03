@@ -1,0 +1,44 @@
+---
+// src/pages/en/contact.astro
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TerminalContactForm from "../../components/TerminalContactForm.astro";
+import { useTranslations } from "../../i18n/utils";
+
+const lang = "en"; // Or Astro.currentLocale
+const t = useTranslations(lang);
+const pageTitle = t("nav.contact") || "Contact";
+
+// Gather all terminal translations
+const terminalTranslations = {
+  title: t("terminal.title"),
+  welcome1: t("terminal.welcome1"),
+  welcome2: t("terminal.welcome2"),
+  promptName: t("terminal.promptName"),
+  promptEmail: t("terminal.promptEmail"),
+  promptMessageInfo: t("terminal.promptMessageInfo"),
+  editorInfo: t("terminal.editorInfo"),
+  promptConfirm: t("terminal.promptConfirm"),
+  errorName: t("terminal.errorName"),
+  errorEmail: t("terminal.errorEmail"),
+  errorMessage: t("terminal.errorMessage"),
+  errorConfirm: t("terminal.errorConfirm"),
+  errorSending: t("terminal.errorSending"), // Pass the template string
+  sending: t("terminal.sending"),
+  sentSuccess: t("terminal.sentSuccess"),
+  cancelled: t("terminal.cancelled"),
+  editInfo: t("terminal.editInfo"),
+  endPrompt: t("terminal.endPrompt"),
+  exitMessage: t("terminal.exitMessage"),
+  confirmDetails: t("terminal.confirmDetails"),
+  confirmName: t("terminal.confirmName"),
+  confirmEmail: t("terminal.confirmEmail"),
+  confirmMessage: t("terminal.confirmMessage"),
+  confirmEnd: t("terminal.confirmEnd"),
+  sendButton: t("terminal.sendButton"),
+};
+---
+
+<BaseLayout title={pageTitle}>
+  {/* Pass translations as a prop */}
+  <TerminalContactForm translations={terminalTranslations} />
+</BaseLayout>

@@ -1,5 +1,6 @@
 ---
 // components/ProjectWheel/index.astro
+// ... (rest of the component script remains the same)
 import LetterDivider from "./LetterDivider.astro";
 import ProjectSlice from "./ProjectSlice.astro";
 import { sortProjects, groupProjectsByLetter, createWheelItems } from "./utils";
@@ -68,6 +69,9 @@ const wheelItems = createWheelItems(groupedProjects, anglePerSection);
     width: 100%;
     height: 100vh; /* Full viewport height */
     overflow: hidden;
+    /* Padding to prevent touching edges */
+    padding: 0 0; /* Keep padding */
+    box-sizing: border-box; /* Ensure padding is included in width */
     margin: 0 auto; /* Center horizontally */
   }
 
@@ -76,14 +80,15 @@ const wheelItems = createWheelItems(groupedProjects, anglePerSection);
     position: absolute;
     bottom: 0%;
     left: 50%;
-    transform: translateX(-50%) translateY(50%); /* Center horizontally and start with wheel half visible */
-    width: 0; /* Size is controlled by children */
+    transform: translateX(-50%) translateY(50%);
+    /* Keep width/height 0, its size is defined by positioned children */
+    width: 0;
     height: 0;
     transition: transform 0.3s ease-out;
-    margin: 0 auto; /* Center horizontally */
+    margin: 0 auto;
   }
 
-  /* Make sure all elements have the same size and are centered properly */
+  /* Base styles for wheel elements */
   .wheel-outer-border,
   .project-wheel,
   .scroll-track {
@@ -92,32 +97,39 @@ const wheelItems = createWheelItems(groupedProjects, anglePerSection);
     left: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
+    /* Use vw units for base size, significantly reduced */
   }
 
   .wheel-outer-border {
-    width: 90vw;
-    height: 90vw;
-    max-width: 90vh;
-    max-height: 90vh;
+    /* Further reduced vw to give more space for padding */
+    width: 75vw;
+    height: 75vw;
+    /* Max size constraints using vh and px */
+    max-width: min(150vh, 1600px); /* Adjusted vh to match vw */
+    max-height: min(150vh, 1600px);
     border: 2px solid var(--color-border);
     z-index: 1;
   }
 
   .project-wheel {
-    width: 85vw; /* Slightly smaller than outer border */
-    height: 85vw;
-    max-width: 85vh;
-    max-height: 85vh;
+    /* Further reduced vw */
+    width: 70vw; /* Slightly smaller than outer border */
+    height: 70vw;
+    /* Max size constraints using vh and px */
+    max-width: min(140vh, 1500px); /* Adjusted vh to match vw */
+    max-height: min(140vh, 1500px);
     z-index: 2;
-    transform-origin: center center; /* Explicitly set transform origin */
+    transform-origin: center center;
     transition: transform 0.3s ease;
   }
 
   .scroll-track {
-    width: 90vw; /* Match outer border */
-    height: 90vw;
-    max-width: 90vh;
-    max-height: 90vh;
+    /* Further reduced vw */
+    width: 75vw; /* Match outer border */
+    height: 75vw;
+    /* Max size constraints using vh and px */
+    max-width: min(150vh, 1600px); /* Adjusted vh to match vw */
+    max-height: min(150vh, 1600px);
     z-index: 5;
     pointer-events: none;
   }
@@ -136,5 +148,7 @@ const wheelItems = createWheelItems(groupedProjects, anglePerSection);
     border-radius: 50%;
     z-index: 10;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    /* Initial position will be set precisely by JS after radius calculation */
+    transform: translate(0px, 0px); /* Default to center, JS will fix */
   }
 </style>

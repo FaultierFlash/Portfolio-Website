@@ -1,0 +1,1031 @@
+---
+// src/components/TerminalContactForm.astro
+import type { FunctionalComponent } from "astro/runtime"; // Optional for typing
+
+// Define the structure of the translations prop
+interface TerminalTranslations {
+  title: string;
+  welcome1: string;
+  welcome2: string;
+  promptName: string;
+  promptEmail: string;
+  promptMessageInfo: string;
+  editorInfo: string;
+  promptConfirm: string;
+  errorName: string;
+  errorEmail: string;
+  errorMessage: string;
+  errorConfirm: string;
+  errorSending: string; // Template string
+  sending: string;
+  sentSuccess: string;
+  cancelled: string;
+  editInfo: string;
+  endPrompt: string;
+  exitMessage: string;
+  confirmDetails: string;
+  confirmName: string;
+  confirmEmail: string;
+  confirmMessage: string;
+  confirmEnd: string;
+  sendButton: string;
+}
+
+interface Props {
+  translations: TerminalTranslations;
+}
+
+const { translations } = Astro.props;
+
+// Prepare translations for the client-side script
+const translationsJson = JSON.stringify(translations);
+---
+
+<div class="component-terminal-wrapper flex items-center justify-center w-full">
+  <div id="terminal" class="terminal-window">
+    <div class="terminal-header">
+      <span class="header-title"
+        >{translations.title || "Contact Terminal"}</span
+      >
+    </div>
+    <div id="output" class="terminal-output"></div>
+    <div id="input-area" class="input-area-container">
+      {/* Command Line Input */}
+      <div id="input-line" class="terminal-input-line focused">
+        {/* Prompt text and color set by JS */}
+        <span id="prompt" class="prompt"></span>
+        <input
+          type="text"
+          id="commandInput"
+          class="terminal-input"
+          autocomplete="off"
+          autofocus
+        />
+        <span class="cursor"></span>
+      </div>
+      {/* Text Area for Message */}
+      <div
+        id="message-editor"
+        class="message-editor-container"
+        style="display: none;"
+      >
+        <div class="editor-info-bar">
+          {
+            translations.editorInfo ||
+              "Enter message (Ctrl+Enter or Button to Send)"
+          }
+        </div>
+        <textarea id="messageInput" class="message-textarea"></textarea>
+        <button id="sendButton" class="send-button">
+          {translations.sendButton || "Send"}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Apply Fira Code font specifically to the terminal wrapper */
+  .component-terminal-wrapper {
+    font-family: "Fira Code", monospace;
+  }
+
+  /* Styles for the floating terminal window */
+  .terminal-window {
+    width: 100%;
+    max-width: 768px; /* md:max-w-3xl */
+    height: 70vh;
+    max-height: 600px;
+    background-color: var(--color-border); /* Use CSS variables */
+    border: 1px solid var(--color-accent);
+    color: var(--color-text);
+    border-radius: 0.5rem; /* rounded-lg */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    overflow: hidden; /* Important for containing elements */
+    display: flex;
+    flex-direction: column;
+    font-size: 0.875rem; /* text-sm */
+    line-height: 1.25rem;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative; /* Needed for absolute positioning */
+  }
+
+  /* Header Style */
+  .terminal-header {
+    background-color: rgba(0, 0, 0, 0.1); /* Slightly transparent black */
+    padding: 0.5rem 0.75rem; /* p-2 px-3 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+    color: var(--color-text);
+    flex-shrink: 0; /* Prevent header from shrinking */
+  }
+  /* Lighter header for light mode */
+  :global(html:not(.dark)) .terminal-header {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  .header-title {
+    text-align: center;
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 600; /* font-semibold */
+  }
+
+  /* Terminal Output Area */
+  .terminal-output {
+    flex-grow: 1; /* Take remaining vertical space */
+    padding: 1rem; /* p-4 */
+    overflow-y: auto; /* Enable vertical scrolling */
+    position: relative; /* Needed for potential future overlays */
+    z-index: 1;
+  }
+
+  /* Input Area Styles */
+  .input-area-container {
+    flex-shrink: 0; /* Prevent input area from shrinking */
+    position: relative; /* Context for absolute elements if needed */
+    z-index: 2; /* Ensure input is above output visually */
+    border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
+  }
+  /* Lighter border for light mode */
+  :global(html:not(.dark)) .input-area-container {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  /* Normal Command Input Line */
+  .terminal-input-line {
+    padding: 0.75rem 1rem; /* p-3 px-4 */
+    display: flex;
+    align-items: center;
+    background-color: var(--color-border); /* Match terminal background */
+    transition: background-color 0.3s ease;
+  }
+  .terminal-input {
+    background-color: transparent;
+    border: none;
+    outline: none; /* Remove default focus outline */
+    color: inherit; /* Use terminal text color */
+    width: 100%; /* Take full width */
+    caret-color: var(--color-text); /* Cursor color */
+    padding: 0;
+    margin: 0;
+    font-family: inherit; /* Use terminal font */
+    font-size: inherit; /* Use terminal font size */
+    flex-grow: 1; /* Allow input to expand */
+  }
+  /* Prompt Symbol Styling (in input line) */
+  .prompt {
+    /* Color set dynamically by JS */
+    font-weight: bold;
+    white-space: pre; /* Keep space */
+  }
+
+  /* Blinking Cursor */
+  .terminal-input-line .cursor {
+    display: inline-block;
+    background-color: var(--color-text);
+    width: 8px; /* Width of the block cursor */
+    height: 1.2em; /* Height relative to font size */
+    animation: blink 1s step-end infinite;
+    margin-left: 2px; /* Small space after input text */
+    vertical-align: bottom; /* Align with text baseline */
+    transition: background-color 0.3s ease;
+  }
+  /* Hide cursor when input line is NOT focused */
+  .terminal-input-line:not(.focused) .cursor {
+    display: none;
+  }
+  /* Hide native caret when using custom cursor */
+  .terminal-input:focus {
+    caret-color: transparent;
+  }
+
+  /* Message Editor Styles */
+  .message-editor-container {
+    background-color: var(--color-border);
+    display: flex; /* Use flex for column layout */
+    flex-direction: column;
+    min-height: 100px; /* Minimum height */
+    max-height: 25vh; /* Maximum height */
+    transition: background-color 0.3s ease;
+    /* Add focus style */
+    outline: none; /* Base state */
+    transition: outline 0.2s ease-in-out;
+    position: relative; /* Needed for send button positioning */
+    padding-bottom: 2.5rem; /* Add padding at the bottom for the button */
+  }
+  .editor-info-bar {
+    font-size: 0.7rem; /* Smaller text for info */
+    padding: 0.25rem 1rem; /* p-1 px-4 */
+    background-color: rgba(0, 0, 0, 0.2); /* Darker background for info */
+    color: var(--color-secondary); /* Secondary text color */
+    text-align: center;
+    flex-shrink: 0; /* Prevent info bar from shrinking */
+  }
+  /* Lighter info bar for light mode */
+  :global(html:not(.dark)) .editor-info-bar {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+  .message-textarea {
+    flex-grow: 1; /* Take available space */
+    background-color: transparent;
+    border: none;
+    outline: none;
+    resize: none; /* Disable manual resizing */
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0.5rem 1rem; /* p-2 px-4 */
+    width: 100%;
+    box-sizing: border-box; /* Include padding in width */
+    caret-color: var(--color-text);
+  }
+  /* Custom Scrollbar for Textarea */
+  .message-textarea::-webkit-scrollbar {
+    width: 6px;
+  }
+  .message-textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .message-textarea::-webkit-scrollbar-thumb {
+    background-color: var(--color-secondary);
+    border-radius: 3px;
+  }
+
+  /* Send Button Style (Positioned inside editor container) */
+  .send-button {
+    position: absolute; /* Position relative to message-editor-container */
+    bottom: 0.5rem; /* bottom-2 */
+    right: 1rem; /* right-4 */
+    background-color: var(--color-primary); /* Primary color */
+    color: white; /* Assuming primary contrasts with white */
+    border: none;
+    padding: 0.3rem 0.8rem; /* Adjust padding */
+    border-radius: 0.25rem; /* rounded-sm */
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 500; /* font-medium */
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      opacity 0.2s ease;
+    z-index: 3; /* Ensure button is above textarea */
+  }
+  .send-button:hover,
+  .send-button:focus {
+    opacity: 0.9;
+  }
+  .send-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Cursor Blink Animation */
+  @keyframes blink {
+    from,
+    to {
+      background-color: transparent;
+    }
+    50% {
+      background-color: var(--color-text);
+    }
+  }
+
+  /* Output line styles */
+  .output-line {
+    white-space: pre-wrap; /* Allow wrapping for normal text */
+    word-break: break-word; /* Break long words */
+    color: var(--color-text);
+    margin-bottom: 0.25rem; /* space-y-1 equivalent */
+    display: flex; /* Use flex for alignment */
+  }
+  /* Styling for the prefix (hostname/prompt) in output lines */
+  .output-line .line-prefix {
+    color: var(--color-primary); /* Use PRIMARY color for hostname/prompt */
+    font-weight: bold;
+    white-space: pre; /* Preserve spaces in prefix */
+    flex-shrink: 0; /* Prevent prefix from shrinking */
+    margin-right: 0.5em; /* Space after prefix */
+  }
+  .output-line .line-text {
+    flex-grow: 1; /* Allow text to take remaining space */
+  }
+  /* Error Text Style */
+  .error-text {
+    color: #f44747;
+  }
+  /* Success Text Style */
+  .success-text {
+    color: var(--color-accent);
+  } /* Keep success as accent */
+  /* User Input Text Style */
+  .user-input-text {
+    /* Style for echoed user input - uses default text color */
+  }
+
+  /* ASCII Art style */
+  .ascii-art {
+    /* color: var(--color-primary); */ /* Color set on line-text now */
+    white-space: pre !important; /* Crucial for ASCII, !important to ensure override */
+    line-height: 1.1; /* Adjust line height for better ASCII rendering */
+    font-size: 0.8rem; /* Slightly smaller font for ASCII */
+    margin-bottom: 0.5rem;
+    /* No prefix needed for ASCII */
+  }
+  .ascii-art .line-prefix {
+    display: none;
+  } /* Hide prefix for ASCII */
+  /* Ensure text span within ASCII also respects 'pre' and gets correct color */
+  .ascii-art .line-text {
+    white-space: pre !important; /* Ensure spaces are preserved */
+    color: var(--color-primary); /* Use PRIMARY color for ASCII art */
+  }
+
+  /* Scrollbar styling for main output */
+  .terminal-output::-webkit-scrollbar {
+    width: 8px;
+  }
+  .terminal-output::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .terminal-output::-webkit-scrollbar-thumb {
+    background-color: var(--color-secondary);
+    border-radius: 4px;
+    border: 2px solid var(--color-border);
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
+  }
+  .terminal-output::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text);
+  }
+</style>
+
+{/* Pass translations to the inline script */}
+<script define:vars={{ translationsJson }}>
+  // --- Client-Side Terminal Logic ---
+
+  // Parse the translations passed from Astro props
+  let translations;
+  try {
+    translations = JSON.parse(translationsJson);
+    if (typeof translations !== "object" || translations === null) {
+      throw new Error("Parsed translations are not a valid object.");
+    }
+  } catch (error) {
+    console.error("CRITICAL: Error parsing translations JSON.", error);
+    translations = null;
+    const outputDiv = document.getElementById("output");
+    if (outputDiv) {
+      outputDiv.innerHTML =
+        '<div class="output-line error-text">Error: Config failed.</div>';
+    }
+  }
+
+  // --- Constants ---
+  const HOSTNAME = "GLaDOS"; // Hostname for prefix
+  const HOSTNAME_SEPARATOR = "~"; // Separator like in bash
+  const PROMPT_SYMBOL = "> "; // Symbol for user input prompt
+  const CONFIRM_PROMPT_SYMBOL = "? "; // Symbol for confirmation prompts
+  const HOSTNAME_PREFIX = `${HOSTNAME}${HOSTNAME_SEPARATOR} `; // Full prefix e.g., "GLaDOS~ "
+
+  // ASCII Art for Aperture Science Logo - Using &nbsp; for preserved spaces
+  const apertureAscii = [
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.,-:;//;:=,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;:H@@@MM@M#H/.,+%;,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;&nbsp;&nbsp;/X+&nbsp;+M@@M@MM%=,-%HMMM@X/,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-+@MM;&nbsp;$M@@MH+-,;XMMMM@MMMM@+-",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;@M@@M-&nbsp;XM@X;.&nbsp;-+XXXXXHHH@M@M#@/.",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;&nbsp;%MM@@MH&nbsp;,&nbsp;@%=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.---=-=:=,.",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-@#@@@MX&nbsp;.,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-%HX$$%%%+;",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=.;/@M@M$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.;@MMMM@MM:",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X@/&nbsp;-$MM/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+MM@@@M$",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;&nbsp;@M@H:&nbsp;:@:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;-X#@@@@-",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;&nbsp;@@@MMX,&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/H-&nbsp;;@M@M=",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;H@@@@M@+,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%MM+..%#$.",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/MMMM@MMH/.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;XM@MH;&nbsp;-;",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/%+%$XHH@$=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;.H@@@@MX,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.=--------.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-%H.,@@@@@MX,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.%MM@@@HHHXX$$$%+-&nbsp;.:$MMX&nbsp;-M@@MM%.",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=XMMM@MM@MM#H;,-+HMM@M+&nbsp;/MMMX=",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=%@M@M#@$-.=$@MM@@@M;&nbsp;%M%=",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;&nbsp;&nbsp;:+$+-,/H#MMMMMMM@-&nbsp;-,",
+    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=++%%%%+/:-.",
+  ];
+
+  // --- Main Initialization Function ---
+  function initializeTerminalContact(translations) {
+    if (!translations) {
+      /* Error handling */ return;
+    }
+
+    // --- DOM Element References ---
+    const terminal = document.getElementById("terminal");
+    const output = document.getElementById("output");
+    const inputAreaContainer = document.getElementById("input-area");
+    const inputLine = document.getElementById("input-line");
+    const promptElement = document.getElementById("prompt");
+    const commandInput = document.getElementById("commandInput");
+    const messageEditorContainer = document.getElementById("message-editor");
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+
+    // --- Guard Clause: Check if DOM Elements Exist ---
+    const elements = {
+      terminal,
+      output,
+      inputAreaContainer,
+      inputLine,
+      promptElement,
+      commandInput,
+      messageEditorContainer,
+      messageInput,
+      sendButton,
+    };
+    if (Object.values(elements).some((el) => !el)) {
+      console.error("One or more terminal elements not found. Aborting.");
+      if (output)
+        output.innerHTML =
+          '<div class="output-line error-text">Error: UI elements missing.</div>';
+      return;
+    }
+
+    // --- State Variables ---
+    let currentStep = 0;
+    const formData = { name: "", email: "", message: "" };
+    let isTyping = false;
+    let isSending = false;
+
+    // --- Validate and Prepare Prompts ---
+    const requiredKeys = [
+      "welcome1",
+      "welcome2",
+      "promptName",
+      "promptEmail",
+      "promptMessageInfo",
+      "editorInfo",
+      "promptConfirm",
+      "errorName",
+      "errorEmail",
+      "errorMessage",
+      "errorConfirm",
+      "errorSending",
+      "sending",
+      "sentSuccess",
+      "cancelled",
+      "editInfo",
+      "endPrompt",
+      "exitMessage",
+      "confirmDetails",
+      "confirmName",
+      "confirmEmail",
+      "confirmMessage",
+      "confirmEnd",
+      "sendButton",
+    ];
+    if (
+      requiredKeys.some(
+        (key) => typeof translations[key] !== "string" || !translations[key]
+      )
+    ) {
+      console.error(
+        "Initialization aborted due to missing or invalid translations."
+      );
+      addOutputLine(
+        "Configuration error: Missing required text.",
+        "error",
+        false
+      );
+      commandInput.disabled = true;
+      messageInput.disabled = true;
+      sendButton.disabled = true;
+      return;
+    }
+    const prompts = [
+      "",
+      translations.promptName,
+      translations.promptEmail,
+      "",
+      translations.promptConfirm,
+      translations.endPrompt,
+    ];
+
+    // --- Core Functions ---
+
+    /** Appends a styled line to the terminal output div. */
+    function addOutputLine(text, type = "info", addPrefix = true) {
+      if (!output) return;
+      const line = document.createElement("div");
+      line.classList.add("output-line");
+
+      let prefixText = "";
+      if (addPrefix) {
+        if (type === "prompt" || type === "user")
+          prefixText = HOSTNAME_PREFIX + PROMPT_SYMBOL;
+        else if (type === "prompt-secondary")
+          prefixText = HOSTNAME_PREFIX + CONFIRM_PROMPT_SYMBOL;
+        else if (type !== "ascii") prefixText = HOSTNAME_PREFIX;
+      }
+
+      const prefixSpan = document.createElement("span");
+      prefixSpan.className = "line-prefix"; // Style applied via CSS
+      prefixSpan.textContent = prefixText;
+      line.appendChild(prefixSpan);
+
+      const textSpan = document.createElement("span");
+      textSpan.className = "line-text";
+
+      // Use innerHTML for ASCII art to render &nbsp;
+      if (type === "ascii") {
+        line.classList.add("ascii-art");
+        textSpan.innerHTML = text; // Use innerHTML here
+      } else {
+        // Sanitize other text types and set via innerHTML for potential styling spans
+        const sanitizedText = String(text)
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        switch (type) {
+          case "error":
+            textSpan.innerHTML = `<span class="error-text">Error: ${sanitizedText}</span>`;
+            break;
+          case "success":
+            textSpan.innerHTML = `<span class="success-text">${sanitizedText}</span>`;
+            break;
+          case "user":
+            textSpan.innerHTML = `<span class="user-input-text">${sanitizedText}</span>`;
+            break;
+          default:
+            textSpan.textContent = sanitizedText;
+            break; // Use textContent for plain info/prompts
+        }
+      }
+
+      line.appendChild(textSpan);
+      output.appendChild(line);
+      scrollToBottom();
+    }
+
+    /** Simulates typing effect for a given text in the output. */
+    function typeWriter(text, callback, promptType = "prompt") {
+      if (typeof text !== "string") text = String(text);
+      if (!commandInput || !messageInput || !output) {
+        if (callback) callback();
+        return;
+      }
+      isTyping = true;
+      commandInput.disabled = true;
+      messageInput.disabled = true;
+
+      let i = 0;
+      const speed = 30;
+      const line = document.createElement("div");
+      line.classList.add("output-line");
+
+      let prefixText = "";
+      if (promptType === "prompt") prefixText = HOSTNAME_PREFIX + PROMPT_SYMBOL;
+      else if (promptType === "prompt-secondary")
+        prefixText = HOSTNAME_PREFIX + CONFIRM_PROMPT_SYMBOL;
+      else prefixText = HOSTNAME_PREFIX;
+
+      const prefixSpan = document.createElement("span");
+      prefixSpan.className = "line-prefix";
+      prefixSpan.textContent = prefixText;
+      line.appendChild(prefixSpan);
+
+      const textSpan = document.createElement("span");
+      textSpan.className = "line-text";
+      line.appendChild(textSpan);
+      output.appendChild(line);
+
+      function type() {
+        try {
+          if (i < text.length) {
+            textSpan.textContent += text.charAt(i);
+            i++;
+            scrollToBottom();
+            setTimeout(type, speed);
+          } else {
+            isTyping = false;
+            if (currentStep === 3) {
+              messageInput.disabled = false;
+              try {
+                messageInput.focus();
+              } catch (e) {}
+            } else if (currentStep < 5) {
+              commandInput.disabled = false;
+              try {
+                commandInput.focus();
+              } catch (e) {}
+            }
+            if (callback) callback();
+          }
+        } catch (error) {
+          console.error("Error during type function:", error);
+          isTyping = false;
+          if (currentStep === 3) messageInput.disabled = false;
+          else if (currentStep < 5) commandInput.disabled = false;
+          if (callback) callback();
+        }
+      }
+      type();
+    }
+
+    /** Scrolls the terminal output div to the bottom smoothly. */
+    function scrollToBottom() {
+      setTimeout(() => {
+        if (output)
+          output.scrollTo({ top: output.scrollHeight, behavior: "smooth" });
+      }, 10);
+    }
+
+    /** Updates the command input prompt symbol and focus state. */
+    function updateCommandPrompt() {
+      // Set the text and color for the prompt span in the input line
+      if (promptElement) {
+        promptElement.textContent = HOSTNAME_PREFIX + PROMPT_SYMBOL;
+        // Use the CSS variable for primary color
+        promptElement.style.color = "var(--color-primary)";
+      }
+      if (inputLine) {
+        if (document.activeElement === commandInput)
+          inputLine.classList.add("focused");
+        else inputLine.classList.remove("focused");
+      }
+    }
+
+    /** Switches the input mode between command line and textarea editor. */
+    function setInputMode(mode) {
+      if (
+        !inputLine ||
+        !messageEditorContainer ||
+        !commandInput ||
+        !messageInput
+      )
+        return;
+      if (mode === "editor") {
+        inputLine.style.display = "none";
+        inputLine.classList.remove("focused");
+        messageEditorContainer.style.display = "flex";
+        messageInput.value = formData.message;
+        messageInput.disabled = false;
+        try {
+          messageInput.focus();
+        } catch (e) {}
+        setTimeout(() => {
+          messageInput.scrollTop = messageInput.scrollHeight;
+        }, 10);
+      } else {
+        messageEditorContainer.style.display = "none";
+        inputLine.style.display = "flex";
+        commandInput.disabled = false;
+        try {
+          commandInput.focus();
+          inputLine.classList.add("focused");
+        } catch (e) {
+          inputLine.classList.remove("focused");
+        }
+        updateCommandPrompt(); // Update prompt text and color
+      }
+    }
+
+    /** Triggered when user finishes message (clicks button or Ctrl+Enter). */
+    function triggerSendConfirmation() {
+      if (currentStep !== 3 || isSending) return;
+      formData.message = messageInput.value.trim();
+      if (!formData.message) {
+        addOutputLine(
+          translations.errorMessage || "Message cannot be empty.",
+          "error"
+        );
+        if (messageEditorContainer) {
+          messageEditorContainer.style.outline = "1px solid red";
+          setTimeout(() => {
+            if (messageEditorContainer)
+              messageEditorContainer.style.outline = "";
+          }, 1500);
+        }
+        try {
+          messageInput.focus();
+        } catch (e) {}
+        return;
+      }
+      setInputMode("command");
+      currentStep = 4;
+      displayConfirmation();
+    }
+
+    /** Handles Enter key press on the command input line. */
+    function handleCommand(event) {
+      if (
+        event.key !== "Enter" ||
+        isTyping ||
+        currentStep === 3 ||
+        !commandInput
+      )
+        return;
+      event.preventDefault();
+      const command = commandInput.value.trim();
+      commandInput.value = "";
+      if (command) addOutputLine(command, "user");
+      else {
+        addOutputLine("", "prompt");
+        return;
+      } // Show new prompt if empty command
+      processInput(command);
+    }
+
+    /** Handles keyboard shortcuts within the message textarea (Ctrl+Enter). */
+    function handleTextareaKeys(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        triggerSendConfirmation();
+      }
+    }
+
+    /** Processes user input from command line based on the current step. */
+    async function processInput(input) {
+      if (!translations) {
+        addOutputLine("Error: Config missing.", "error", false);
+        return;
+      }
+      const lowerInput = input.toLowerCase();
+      if (commandInput) commandInput.disabled = true;
+
+      switch (currentStep) {
+        case 1: // Name
+          if (input) {
+            formData.name = input;
+            currentStep++;
+            typeWriter(prompts[currentStep]);
+          } else {
+            addOutputLine(translations.errorName, "error");
+            typeWriter(prompts[currentStep]);
+          }
+          break;
+        case 2: // Email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (input && emailRegex.test(input)) {
+            formData.email = input;
+            currentStep++;
+            addOutputLine(translations.promptMessageInfo, "info");
+            setInputMode("editor");
+          } else {
+            addOutputLine(translations.errorEmail, "error");
+            typeWriter(prompts[currentStep]);
+          }
+          break;
+        case 4: // Confirmation
+          if (lowerInput === "yes") {
+            addOutputLine(translations.sending, "info");
+            isSending = true;
+            if (sendButton) sendButton.disabled = true;
+            try {
+              const response = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+              });
+              if (!response.ok) {
+                let err = { message: `Server error: ${response.status}` };
+                try {
+                  err = await response.json();
+                } catch (e) {}
+                throw new Error(err.message);
+              }
+              const data = await response.json();
+              addOutputLine(
+                data.message || translations.sentSuccess,
+                "success"
+              );
+              currentStep = 5;
+              typeWriter(prompts[currentStep]);
+            } catch (error) {
+              console.error("Fetch Error:", error);
+              const errorMsg = (
+                translations.errorSending || "Failed: {message}"
+              ).replace("{message}", error.message);
+              addOutputLine(errorMsg, "error");
+              displayConfirmation(); // Allow retry/edit
+            } finally {
+              isSending = false;
+            }
+          } else if (lowerInput === "no") {
+            addOutputLine(translations.cancelled, "info");
+            currentStep = 5;
+            typeWriter(prompts[currentStep]);
+          } else if (lowerInput === "edit") {
+            addOutputLine(translations.editInfo, "info");
+            currentStep = 3;
+            setInputMode("editor");
+          } else {
+            addOutputLine(translations.errorConfirm, "error");
+            addOutputLine(prompts[currentStep], "prompt-secondary"); // Re-ask confirmation question
+            if (commandInput) commandInput.disabled = false;
+            try {
+              commandInput?.focus();
+            } catch (e) {}
+          }
+          break;
+        case 5: // End state
+          if (lowerInput === "reset") {
+            resetTerminal();
+          } else if (lowerInput === "edit" && formData.message) {
+            addOutputLine(translations.editInfo, "info");
+            currentStep = 3;
+            setInputMode("editor");
+          } else if (lowerInput === "exit") {
+            addOutputLine(translations.exitMessage, "info");
+            if (terminal) terminal.style.opacity = "0.7";
+            if (commandInput) commandInput.disabled = true;
+            if (messageInput) messageInput.disabled = true;
+            if (sendButton) sendButton.disabled = true;
+            if (
+              document.activeElement instanceof HTMLElement &&
+              terminal?.contains(document.activeElement)
+            )
+              document.activeElement.blur();
+            if (inputLine) inputLine.classList.remove("focused");
+          } else {
+            addOutputLine(prompts[currentStep], "info"); // Repeat end prompt
+            if (commandInput) commandInput.disabled = false;
+            try {
+              commandInput?.focus();
+            } catch (e) {}
+          }
+          break;
+        default:
+          /* Handle unknown step */ currentStep = 5;
+          addOutputLine("Error. Type 'reset'.", "error");
+          if (commandInput) commandInput.disabled = false;
+      }
+      if (currentStep !== 3) updateCommandPrompt(); // Update prompt unless in editor
+    }
+
+    /** Displays the collected form data for user confirmation. */
+    function displayConfirmation() {
+      if (!translations || !formData) return;
+      const confirmLines = [
+        translations.confirmDetails,
+        `  ${translations.confirmName.padEnd(10)} ${formData.name || "(none)"}`,
+        `  ${translations.confirmEmail.padEnd(10)} ${formData.email || "(none)"}`,
+        `  ${translations.confirmMessage}`,
+      ];
+      const messageLines = (formData.message || "").trim().split("\n");
+      if (!formData.message) confirmLines.push("    (empty message)");
+      else
+        messageLines.forEach((line) => confirmLines.push(`    ${line || " "}`));
+      confirmLines.push(translations.confirmEnd);
+
+      addOutputLine(" ", "info", false); // Spacer
+      confirmLines.forEach((line) => addOutputLine(line, "info", false));
+      addOutputLine(" ", "info", false); // Spacer
+
+      // Add the confirmation prompt using typeWriter
+      typeWriter(prompts[currentStep], null, "prompt-secondary"); // prompts[4] is promptConfirm
+      updateCommandPrompt();
+    }
+
+    /** Resets the terminal to its initial state. */
+    function resetTerminal() {
+      if (!output || !commandInput || !messageInput || !terminal || !sendButton)
+        return;
+      output.innerHTML = "";
+      formData.name = "";
+      formData.email = "";
+      formData.message = "";
+      currentStep = 0;
+      isSending = false;
+      setInputMode("command");
+      terminal.style.opacity = "1";
+      commandInput.disabled = true;
+      messageInput.disabled = true;
+      sendButton.disabled = false;
+      startTerminal();
+    }
+
+    /** Starts the terminal simulation: displays ASCII, welcome messages and first prompt. */
+    function startTerminal() {
+      if (!translations || !translations.welcome1 || !translations.welcome2) {
+        /* Error handling */ return;
+      }
+      commandInput.disabled = true;
+      messageInput.disabled = true;
+      isTyping = true;
+      let startupDelay = 50;
+
+      function addStartupLine(text, type = "info", delay, callback) {
+        setTimeout(() => {
+          addOutputLine(text, type, false);
+          if (callback) callback();
+        }, delay);
+      }
+
+      // Display ASCII Art Instantly
+      apertureAscii.forEach((line) => addOutputLine(line, "ascii", false));
+      addOutputLine(" ", "info", false); // Spacer
+
+      // Display Boot/Flavour Text with delays
+      let currentDelay = startupDelay;
+      addStartupLine(
+        "Genetic Lifeform and Disk Operating System",
+        "info",
+        currentDelay
+      );
+      currentDelay += startupDelay * 5;
+      addStartupLine("Version 4.11.88", "info", currentDelay);
+      currentDelay += startupDelay;
+      addStartupLine("CakeOS detected.", "info", currentDelay);
+      currentDelay += startupDelay * 3;
+      addStartupLine(
+        "Initializing Aperture Science Contact Interface...",
+        "success",
+        currentDelay
+      );
+      currentDelay += startupDelay * 4;
+
+      // Display Welcome Messages using typeWriter after startup text
+      setTimeout(
+        () => {
+          typeWriter(translations.welcome1, () => {
+            typeWriter(translations.welcome2, () => {
+              currentStep = 1;
+              typeWriter(prompts[currentStep]); // Ask for Name
+              updateCommandPrompt();
+              isTyping = false; // Allow interaction
+            });
+          });
+        },
+        currentDelay + startupDelay * 2
+      );
+    }
+
+    // --- Event Listeners Setup ---
+    if (commandInput) {
+      commandInput.addEventListener("keydown", handleCommand);
+      commandInput.addEventListener("focus", () =>
+        inputLine.classList.add("focused")
+      );
+      commandInput.addEventListener("blur", () =>
+        setTimeout(() => {
+          if (!terminal.contains(document.activeElement))
+            inputLine.classList.remove("focused");
+        }, 0)
+      );
+    }
+    if (messageInput) {
+      messageInput.addEventListener("keydown", handleTextareaKeys);
+      messageInput.addEventListener(
+        "focus",
+        () =>
+          (messageEditorContainer.style.outline =
+            "1px solid var(--color-primary)")
+      );
+      messageInput.addEventListener(
+        "blur",
+        () => (messageEditorContainer.style.outline = "")
+      );
+    }
+    if (sendButton) {
+      sendButton.addEventListener("click", triggerSendConfirmation);
+    }
+    if (terminal) {
+      terminal.addEventListener("click", (e) => {
+        if (isTyping || isSending) return;
+        const targetIsBackground =
+          e.target === terminal ||
+          e.target === output ||
+          e.target === inputAreaContainer ||
+          e.target === messageEditorContainer;
+        if (targetIsBackground) {
+          if (currentStep === 3) {
+            if (messageInput && document.activeElement !== messageInput)
+              try {
+                messageInput.focus();
+              } catch (err) {}
+          } else if (currentStep < 5) {
+            if (commandInput && document.activeElement !== commandInput)
+              try {
+                commandInput.focus();
+              } catch (err) {}
+          }
+        }
+      });
+    }
+
+    // --- Final Initialization Steps ---
+    setInputMode("command");
+    startTerminal();
+  } // --- End of initializeTerminalContact ---
+
+  // --- Standard DOM Ready Event Listener ---
+  document.addEventListener("DOMContentLoaded", () => {
+    if (translations) initializeTerminalContact(translations);
+    else console.error("Skipping terminal init: translations failed.");
+  });
+</script>

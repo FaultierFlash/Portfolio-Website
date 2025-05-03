@@ -9,6 +9,11 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.7.4"
+    "astro": "^5.7.4",
+    "nodemailer": "^6.10.1",
+    "resend": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.17"
   }
 }

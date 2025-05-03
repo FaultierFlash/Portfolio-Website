@@ -63,7 +63,6 @@ const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY
         width="100"
         height="100"
         preserveAspectRatio="xMidYMin slice"
-        {/* <<< CHANGE IS HERE */}
         clip-path={`url(#slice-clip-${safeId})`}
         class="project-image"
       />
@@ -81,18 +80,15 @@ const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY
           text-anchor="middle"
           class="project-title"
           transform={`rotate(${midAngle} ${textX} ${textY})`}
-          {/* Counter-rotate text */}
         >
           {project.title}
-        </text>
+        </text>{/* Counter-rotate text */}
         <text
           x={textX}
           y={textY + 5}
-          {/* Adjust vertical spacing as needed */}
           text-anchor="middle"
           class="project-description"
           transform={`rotate(${midAngle} ${textX} ${textY + 5})`}
-          {/* Counter-rotate text */}
         >
           {project.description}
         </text>

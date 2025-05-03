@@ -1,0 +1,23 @@
+---
+// src/pages/de/contact.astro
+import BaseLayout from "../../layouts/BaseLayout.astro"; // Adjust path if needed
+import TerminalContactForm from "../../components/TerminalContactForm.astro"; // Import the component
+import { useTranslations } from "../../i18n/utils"; // Assuming you use this for titles
+
+const t = useTranslations("de"); // Use German translations
+const pageTitle = t("nav.contact") || "Kontakt"; // Get title from translations or use default
+---
+
+<BaseLayout title={pageTitle}>
+  {
+    /* Add any introductory text or headings specific to the German page here if desired */
+  }
+  {
+    /*
+  <h1 class="text-center text-2xl mb-4">Kontakt</h1>
+   */
+  }
+
+  {/* Render the terminal component */}
+  <TerminalContactForm />
+</BaseLayout>
