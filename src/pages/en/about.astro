@@ -1,79 +1,266 @@
 ---
+// src/pages/about.astro
 import Layout from "../../layouts/BaseLayout.astro";
+import CharacterFadeInScroll from "../../components/CharacterFadeInScroll.astro"; // Ensure path is correct
 
 const pageTitle = "About Me";
+
+// --- Expanded Text Content ---
+const introText = `Hello! I'm a passionate web developer based near Munich, Germany, with a deep love for creating beautiful, functional, and user-centric digital experiences. With a strong background in modern web technologies and a keen eye for detail, I strive to bridge the gap between technical implementation and exceptional user interface design.`;
+
+const journeyTitle = "My Journey Into Code";
+const journeyText = `My fascination with the web began years ago, initially sparked by curiosity about how websites were built. This curiosity quickly evolved into a dedicated pursuit. I started with the fundamentals – HTML semantic structure and CSS styling – before diving into the dynamic world of JavaScript. The ability to bring static pages to life with interactivity was captivating. Over time, I've embraced powerful frameworks and tools like Astro, React, Node.js, and TypeScript, continuously honing my skills to build more complex and performant applications. Every project is a learning opportunity, pushing me to explore new techniques and refine my craft.`;
+
+const philosophyTitle = "My Development Philosophy";
+const philosophyText = `I believe that the best websites are not just functional, but also intuitive and enjoyable to use. My approach centers around three core principles: 
+1.  **User-Centricity:** Understanding the end-user's needs and goals is paramount. I focus on creating interfaces that are easy to navigate and accessible to everyone.
+2.  **Performance:** A fast and responsive website is crucial for user satisfaction and SEO. I prioritize clean code, optimized assets, and efficient loading strategies.
+3.  **Clean Code & Maintainability:** Writing well-structured, readable, and maintainable code is essential for long-term project success and collaboration. I adhere to best practices and strive for elegance in implementation.`;
+
+const skillsIntroText = `What I Do & Technologies I Use`;
+const skillsList = [
+  "Build responsive, accessible, and performant websites using Astro, HTML, CSS, and JavaScript/TypeScript.",
+  "Develop dynamic web applications and UI components with React and its ecosystem (Context, Zustand, etc.).",
+  "Create and consume RESTful APIs using Node.js and Express.",
+  "Manage databases (like PostgreSQL or MongoDB) for data persistence.",
+  "Implement effective styling solutions with Tailwind CSS, Sass, or CSS Modules.",
+  "Utilize Git for version control and collaborate effectively within development teams.",
+  "Optimize web performance focusing on Core Web Vitals and efficient loading.",
+  "Continuously learn and adapt to the ever-evolving landscape of web technologies.",
+];
+
+const contactIntroText = `Let's Connect`;
+const contactText = `I'm always excited about new challenges, collaborations, and interesting projects. Whether you have a specific idea in mind, need help with an existing project, or just want to chat about technology, feel free to <a href="/contact" class="animated-link">reach out</a>! Let's build something amazing together.`;
+
+// --- Animation Settings ---
+const titleDelay = 50;
+const textDelay = 20;
+const textDuration = 250;
 ---
 
 <Layout title={pageTitle}>
   <section class="about-section">
     <div class="container">
-      <h1 class="title">{pageTitle}</h1>
-      <p class="intro">
-        Hello! I'm a passionate web developer with a love for creating beautiful
-        and functional websites. With a strong background in modern web
-        technologies, I strive to deliver exceptional user experiences.
-      </p>
-      <h2 class="subtitle">My Journey</h2>
-      <p>
-        I started my journey in web development several years ago, exploring the
-        endless possibilities of the web. Over time, I have honed my skills in
-        HTML, CSS, JavaScript, and frameworks like Astro, React, and more.
-      </p>
-      <h2 class="subtitle">What I Do</h2>
+      {/* --- Title --- */}
+      <CharacterFadeInScroll
+        tag="h1"
+        text={pageTitle}
+        className="title"
+        charDelay={titleDelay}
+      />
+
+      {/* --- Intro Paragraph --- */}
+      <CharacterFadeInScroll
+        tag="p"
+        text={introText}
+        className="intro"
+        charDelay={textDelay}
+        duration={textDuration}
+      />
+
+      {/* --- My Journey Section --- */}
+      <CharacterFadeInScroll
+        tag="h2"
+        text={journeyTitle}
+        className="subtitle"
+        charDelay={titleDelay}
+      />
+      <CharacterFadeInScroll
+        tag="p"
+        text={journeyText}
+        charDelay={textDelay}
+        duration={textDuration}
+      />
+
+      {/* --- My Philosophy Section --- */}
+      <CharacterFadeInScroll
+        tag="h2"
+        text={philosophyTitle}
+        className="subtitle"
+        charDelay={titleDelay}
+      />
+      <CharacterFadeInScroll
+        tag="p"
+        text={philosophyText}
+        charDelay={textDelay}
+        duration={textDuration}
+      />
+
+      {/* --- What I Do Section --- */}
+      <CharacterFadeInScroll
+        tag="h2"
+        text={skillsIntroText}
+        className="subtitle"
+        charDelay={titleDelay}
+      />
       <ul class="skills-list">
-        <li>Build responsive and accessible websites</li>
-        <li>Develop performant and scalable web applications</li>
-        <li>
-          Collaborate with designers and developers to bring ideas to life
-        </li>
-        <li>
-          Continuously learn and stay updated with the latest technologies
-        </li>
+        {
+          skillsList.map((item) => (
+            <li>
+              <CharacterFadeInScroll
+                tag="span"
+                text={item}
+                charDelay={textDelay}
+                duration={textDuration}
+                threshold={0.1}
+              />
+            </li>
+          ))
+        }
       </ul>
-      <h2 class="subtitle">Get in Touch</h2>
-      <p>
-        I'm always open to new opportunities and collaborations. Feel free to <a
-          href="/contact">reach out</a
-        > if you'd like to work together or just say hello!
+
+      {/* --- Get in Touch Section --- */}
+      <CharacterFadeInScroll
+        tag="h2"
+        text={contactIntroText}
+        className="subtitle"
+        charDelay={titleDelay}
+      />
+      {
+        /* Using set:html here because the animation component isn't designed
+          to easily handle inline HTML tags like <a> within the text prop.
+          This means the "Get in Touch" paragraph itself won't animate
+          character-by-character, but will fade in as a whole block
+          if we wrapped the <p> itself in a different simple fade component.
+          For now, we'll let it appear normally after the heading animates.
+          Alternatively, split the text around the link as done previously.
+      */
+      }
+      <p set:html={contactText} />
+      {
+        /* --- OR Split text approach (if character animation is desired here too): ---
+       <p>
+        <CharacterFadeInScroll
+            tag="span"
+            text="I'm always excited about new challenges, collaborations, and interesting projects. Whether you have a specific idea in mind, need help with an existing project, or just want to chat about technology, feel free to "
+            charDelay={textDelay}
+            duration={textDuration}
+        />
+        <a href="/contact" class="animated-link">reach out</a>
+        <CharacterFadeInScroll
+            tag="span"
+            text="! Let's build something amazing together."
+            charDelay={textDelay}
+            duration={textDuration}
+        />
       </p>
+      */
+      }
     </div>
   </section>
 
+  {/* --- Page Specific Styles (Mostly unchanged, ensure consistency) --- */}
   <style>
     .about-section {
-      padding: 2rem 1rem;
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
+      padding: 4rem 1rem 6rem; /* Added more bottom padding */
+      font-family: "Raleway", sans-serif;
+      line-height: 1.7;
+      color: var(--color-text);
+      overflow-x: hidden; /* Prevent potential horizontal scroll during animation */
     }
     .container {
       max-width: 800px;
       margin: 0 auto;
     }
     .title {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
       text-align: center;
+      color: var(--color-primary);
     }
     .intro {
-      font-size: 1.2rem;
-      margin-bottom: 2rem;
+      font-size: 1.25rem;
+      margin-bottom: 4rem; /* More space after intro */
       text-align: center;
+      color: var(--color-secondary);
+      font-weight: 400;
     }
     .subtitle {
-      font-size: 1.8rem;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
+      font-size: 2rem;
+      font-weight: 500;
+      margin-top: 3.5rem; /* Increased space above subtitles */
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--color-border);
+      padding-bottom: 0.5rem;
+      color: var(--color-text);
     }
     .skills-list {
-      list-style: disc;
-      margin-left: 1.5rem;
+      list-style: none;
+      padding-left: 0;
+      margin-bottom: 3rem; /* More space after list */
     }
-    a {
-      color: #007acc;
+    .skills-list li {
+      margin-bottom: 0.9rem; /* Slightly more space */
+      padding-left: 1.7rem; /* Slightly more indent */
+      position: relative;
+      font-size: 1.1rem;
+    }
+    .skills-list li::before {
+      content: "◆";
+      position: absolute;
+      left: 0;
+      top: 0.1em;
+      color: var(--color-primary);
+      font-size: 0.9em;
+    }
+    /* Ensure links within paragraphs styled by set:html get the correct style */
+    p a {
+      color: var(--color-accent);
       text-decoration: none;
+      font-weight: 500;
+      position: relative;
+      transition: color 0.3s ease;
     }
-    a:hover {
-      text-decoration: underline;
+    p a::after {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: var(--color-accent);
+      transform: scaleX(0);
+      transform-origin: bottom right;
+      transition: transform 0.3s ease-out;
+    }
+
+    p a:hover {
+      color: var(--color-primary);
+    }
+    p a:hover::after {
+      transform: scaleX(1);
+      transform-origin: bottom left;
+      background-color: var(--color-primary);
+    }
+    /* Specific class for link if needed, but above targets general links in <p> */
+    /* a.animated-link { ... } */
+
+    .char-fade-container {
+      display: block;
+      /* Removed margin-bottom here, rely on parent element spacing */
+      /* margin-bottom: 1rem; */
+    }
+    /* Ensure paragraphs and list items provide spacing */
+    p,
+    ul {
+      margin-bottom: 1.5rem;
+    }
+    ul {
+      margin-bottom: 3rem; /* More space after list */
+    }
+
+    .char-fade-container.title,
+    .char-fade-container.subtitle,
+    .char-fade-container.intro {
+      /* Let the element's own margin handle spacing */
+    }
+    .skills-list .char-fade-container {
+      display: inline; /* Keep spans inline within li */
+    }
+    p .char-fade-container {
+      /* If using the split text approach */
+      display: inline;
     }
   </style>
 </Layout>

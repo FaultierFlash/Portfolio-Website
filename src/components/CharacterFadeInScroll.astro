@@ -1,0 +1,189 @@
+---
+// src/components/CharacterFadeInScroll.astro
+import type { HTMLTag } from "astro/types";
+
+interface Props {
+  tag?: HTMLTag;
+  text: string;
+  threshold?: number;
+  charDelay?: number;
+  duration?: number;
+  className?: string;
+}
+
+const {
+  tag: Tag = "p",
+  text,
+  threshold = 0.1,
+  charDelay = 30,
+  duration = 300,
+  className = "",
+} = Astro.props;
+
+const uniqueId = `char-fade-${Math.random().toString(36).substring(2, 9)}`;
+
+const dataAttrs = {
+  "data-threshold": threshold,
+  "data-char-delay": charDelay,
+  "data-duration": duration,
+  "data-text": text,
+};
+---
+
+<Tag
+  id={uniqueId}
+  class:list={["char-fade-container", className]}
+  {...dataAttrs}
+>
+  <span class="original-text">{text}</span>
+</Tag>
+
+<style define:vars={{ charFadeDuration: `${duration}ms` }}>
+  .char-fade-container {
+    white-space: pre-wrap;
+    overflow: hidden;
+    /* Add a default vertical margin to prevent collapse before animation */
+    /* Adjust value as needed or remove if causing layout issues */
+    min-height: 1em;
+  }
+
+  .char-fade-container.js-processed .original-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .char-fade-container span.char-span {
+    display: inline-block;
+    opacity: 0;
+    transition-property: opacity;
+    transition-timing-function: ease-in-out;
+    transition-duration: var(--charFadeDuration, 300ms);
+    will-change: opacity;
+    /* Optional: Add a slight vertical movement */
+    /* transform: translateY(0.25em); */
+    /* transition-property: opacity, transform; */
+  }
+
+  .char-fade-container.is-visible span.char-span {
+    opacity: 1;
+    /* transform: translateY(0); */
+  }
+</style>
+
+<script>
+  /**
+   * Client-side script for character-by-character fade-in on scroll.
+   */
+  function initCharacterFadeIn(container) {
+    // --- Get Configuration ---
+    const text = container.dataset.text || "";
+    const threshold = parseFloat(container.dataset.threshold || "0.1");
+    const charDelay = parseInt(container.dataset.charDelay || "30", 10);
+
+    // --- Check if Valid and Not Processed ---
+    if (!container || container.classList.contains("js-processed") || !text) {
+      // console.log('Skipping init for:', container?.id, { hasContainer: !!container, isProcessed: container?.classList.contains('js-processed'), hasText: !!text });
+      return;
+    }
+    // console.log('Initializing fade-in for:', container.id);
+
+    // --- Intersection Observer Setup ---
+    const observerOptions = {
+      root: null,
+      rootMargin: "0px",
+      threshold: threshold,
+    };
+
+    const observerCallback = (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // console.log('Element intersecting:', entry.target.id);
+          // --- Start Animation ---
+          // Ensure it runs only once per element observed by *this* observer instance
+          if (!entry.target.classList.contains("js-processed")) {
+            animateText(entry.target, text, charDelay);
+            // --- Mark as processed ---
+            entry.target.classList.add("js-processed");
+          }
+          // --- Stop observing ---
+          observer.unobserve(entry.target);
+        }
+      });
+    };
+
+    // --- Create and Start Observer ---
+    const observer = new IntersectionObserver(
+      observerCallback,
+      observerOptions
+    );
+    observer.observe(container);
+  }
+
+  /**
+   * Creates spans for each character and applies staggered delays.
+   */
+  function animateText(container, text, charDelay) {
+    if (!container) return; // Guard clause
+    // console.log('Animating text for:', container.id);
+
+    // Clear only if original text span isn't used or found (more robust)
+    const originalTextSpan = container.querySelector(".original-text");
+    if (!originalTextSpan) {
+      container.innerHTML = "";
+    }
+
+    // --- Create Spans with Delays ---
+    let currentDelay = 0;
+    const fragment = document.createDocumentFragment(); // Use fragment for performance
+    text.split("").forEach((char) => {
+      const span = document.createElement("span");
+      span.className = "char-span";
+      span.innerHTML = char === " " ? "&nbsp;" : char;
+      span.style.transitionDelay = `${currentDelay}ms`;
+      fragment.appendChild(span); // Add to fragment
+
+      if (char !== " ") {
+        currentDelay += charDelay;
+      }
+    });
+
+    // Append all spans at once
+    container.appendChild(fragment);
+
+    // --- Trigger the Animation ---
+    requestAnimationFrame(() => {
+      // console.log('Adding is-visible to:', container.id);
+      container.classList.add("is-visible");
+    });
+  }
+
+  /**
+   * Runs the initialization for all target containers found on the page.
+   */
+  function runInitialization() {
+    // console.log('Running initialization...');
+    document
+      .querySelectorAll(".char-fade-container:not(.js-processed)")
+      .forEach((container) => {
+        initCharacterFadeIn(container);
+      });
+  }
+
+  // --- Run on initial load and after Astro View Transitions ---
+  // Use 'DOMContentLoaded' as a robust alternative/addition to 'astro:page-load'
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runInitialization);
+  } else {
+    // DOMContentLoaded has already fired
+    runInitialization();
+  }
+  // Still listen to Astro's event for SPA navigation
+  document.addEventListener("astro:after-swap", runInitialization);
+</script>
