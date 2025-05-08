@@ -1,36 +1,57 @@
 {
-    "site.title": "My Astro Site",
-    "nav.home": "Home",
-    "nav.about": "About",
-    "nav.contact": "Contact",
-    "page.home.title": "Welcome!",
-    "page.home.description": "This is the homepage.",
-    "page.about.title": "About Us",
-    "terminal": {
-      "title": "Contact Terminal",
-      "welcome1": "Welcome - Contact Terminal Initialized",
-      "welcome2": "Follow the prompts to send your message.",
-      "promptName": "Enter your name:",
-      "promptEmail": "Enter your email:",
-      "promptMessageInfo": "Enter your message below.",
-      "editorInfo": "Editing Message (Ctrl+Enter or Button to Send)",
-      "promptConfirm": "Send this message? (yes/no):",
-      "errorName": "Name cannot be empty.",
-      "errorEmail": "Please enter a valid email address.",
-      "errorMessage": "Message cannot be empty.",
-      "errorConfirm": "Please answer 'yes', 'no', or 'edit'.",
-      "errorSending": "Error sending message: {message}",
-      "sending": "Sending message...",
-      "sentSuccess": "Message sent successfully! Thank you.",
-      "cancelled": "Submission cancelled. Type 'reset' to start over or 'edit' to modify message.",
-      "editInfo": "Returning to message editor...",
-      "endPrompt": "Type 'reset' to start over or 'exit' to close.",
-      "exitMessage": "Closing terminal session...",
-      "confirmDetails": "--- Confirm Details ---",
-      "confirmName": "Name:",
-      "confirmEmail": "Email:",
-      "confirmMessage": "Message:",
-      "confirmEnd": "---------------------",
-      "sendButton": "Send Message"
+  "site.title": "My Astro Site",
+  "page": {
+    "home": {
+      "title": "Welcome!",
+      "description": "This is the homepage."
+    },
+    "about": {
+      "title": "About Us"}
+  },
+  "terminal": {
+    "title": "Contact Terminal",
+    "welcome1": "Welcome - Contact Terminal Initialized",
+    "welcome2": "Follow the prompts to send your message.",
+    "promptName": "Enter your name:",
+    "promptEmail": "Enter your email:",
+    "promptMessageInfo": "Enter your message below.",
+    "editorInfo": "Editing Message (Ctrl+Enter or Button to Send)",
+    "promptConfirm": "Send this message? (yes/no/edit):",
+    "errorName": "Name cannot be empty.",
+    "errorEmail": "Please enter a valid email address.",
+    "errorMessage": "Message cannot be empty.",
+    "errorConfirm": "Please answer 'yes', 'no', or 'edit'.",
+    "errorSending": "Error sending message: {message}",
+    "sending": "Sending message...",
+    "sentSuccess": "Message sent successfully! Thank you.",
+    "cancelled": "Submission cancelled. Type 'reset' to start over or 'edit' to modify message.",
+    "editInfo": "Returning to message editor...",
+    "endPrompt": "Type 'reset' to start over or 'exit' to close.",
+    "exitMessage": "Closing terminal session...",
+    "confirmDetails": "--- Confirm Details ---",
+    "confirmName": "Name:",
+    "confirmEmail": "Email:",
+    "confirmMessage": "Message:",
+    "confirmEnd": "---------------------",
+    "sendButton": "Send Message"
+  },
+  "nav": {
+    "home": {
+      "label": "Home",
+      "ariaLabel": "Homepage",
+      "about": "About"
+    },
+    "projects": "Projects",
+    "contact": "Contact",
+    "toggleMenu": "Toggle menu",
+    "mainNavigation": "Main navigation",
+    "logo": {
+      "ariaLabel": "Homepage"
+    }
+  },
+  "dropdown": {
+    "projects": {
+      "label": "Select a project"
     }
   }
+}

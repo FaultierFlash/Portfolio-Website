@@ -6,83 +6,162 @@ import Footer from "../components/Footer.astro";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import ThemeScript from "../components/ThemeScript.astro";
 import "../styles/global.css";
-import { ViewTransitions } from "astro:transitions"; // Import it
+import { ViewTransitions } from "astro:transitions";
+// import { getCollection } from 'astro:content'; // Uncomment if using Astro Content Collections
 
 interface Props {
   title?: string;
 }
 
-const { title } = Astro.props;
-const lang = (Astro.currentLocale as Locale) || "de";
-const t = useTranslations(lang);
+const { title: propTitle } = Astro.props;
+const currentLocale = (Astro.currentLocale as Locale) || "de";
+const t = useTranslations(currentLocale);
 
-const pageTitle = title || t("site.title");
+const pageTitle = propTitle || t("site.title");
 
-// Define links here for easier management
+// --- Fetch Project Pages ---
+const allProjectFilesGlob = import.meta.glob("/src/pages/**/*.astro");
+
+let projectPages = [];
+if (allProjectFilesGlob) {
+  const resolvedFiles = await Promise.all(
+    Object.entries(allProjectFilesGlob).map(async ([filePath, resolver]) => {
+      // filePath is like /src/pages/en/projects/my-project.astro
+      // console.log(`Checking file: ${filePath} for locale: ${currentLocale}`); // DEBUG
+
+      // Regex to match project files within the current locale's 'projects' or 'projekte' folder.
+      // Ensures the path starts from /src/pages/ for specificity.
+      // Example for 'de': /^\/src\/pages\/de\/(projects|projekte)\//i
+      const langProjectRegex = new RegExp(
+        `^/src/pages/${currentLocale}/(projects|projekte)/`, // Added ^ to anchor at the start of /src/pages
+        "i"
+      );
+      // console.log(`Using regex: ${langProjectRegex}`); // DEBUG
+
+      if (langProjectRegex.test(filePath)) {
+        // console.log(`Regex test PASSED for: ${filePath}`); // DEBUG
+        try {
+          const projectModule = await resolver();
+          // console.log(`Resolved module for ${filePath}:`, projectModule); // DEBUG
+
+          const segments = filePath.split("/");
+          const fileNameWithExtension = segments[segments.length - 1];
+          const fileName = fileNameWithExtension.replace(
+            /\.(mdoc|md|astro)$/,
+            ""
+          );
+
+          const projectTitle =
+            projectModule.frontmatter?.navTitle ||
+            projectModule.frontmatter?.title ||
+            fileName
+              .replace(/-/g, " ")
+              .replace(/\b\w/g, (char) => char.toUpperCase());
+
+          if (!projectModule.url) {
+            // console.warn(`File ${filePath} is missing a URL. It might be a partial, layout, or an endpoint.`); // DEBUG
+            return null;
+          }
+
+          return {
+            href: projectModule.url,
+            text: projectTitle,
+          };
+        } catch (e) {
+          // console.error(`Error resolving or processing ${filePath}:`, e); // DEBUG
+          return null;
+        }
+      } else {
+        // console.log(`Regex test FAILED for: ${filePath}`); // DEBUG
+      }
+      return null;
+    })
+  );
+  projectPages = resolvedFiles
+    .filter((page) => page !== null)
+    .sort((a, b) => a.text.localeCompare(b.text));
+}
+// console.log(`Final project pages for locale ${currentLocale}:`, projectPages); // DEBUG
+
+// --- Navigation Links ---
 const navLinks = [
-  { href: "/projects", text: "Projects" }, // Replace with translation keys if needed: t('nav.projects')
-  { href: "/contact", text: "Contact" }, // Replace with translation keys if needed: t('nav.contact')
+  { href: `/${currentLocale}/contact`, text: t("nav.contact") },
 ];
 
-// --- New Logic for Dynamic Path Display ---
+// --- Dynamic Path Display ---
+const currentPathname = Astro.url.pathname;
 
-const currentPathname = Astro.url.pathname; // e.g., /en/projects or /de/ or /
-const locale = lang; // Use the existing 'lang' variable for current locale
-
-// Helper function to get path without the locale prefix
 function getPathWithoutLocale(path: string, locale: Locale): string {
   const localePrefix = `/${locale}`;
-
-  // Handle exact locale prefix match (e.g., /en -> /)
-  if (path === localePrefix) {
-    return "/";
-  }
-  // Handle locale prefix with trailing slash (e.g., /en/ -> /)
-  if (path === `${localePrefix}/`) {
-    return "/";
-  }
-  // Handle prefixed sub-paths (e.g., /en/about -> /about)
-  if (path.startsWith(`${localePrefix}/`)) {
-    return path.substring(localePrefix.length); // Keep leading slash for subpath
-  }
-  // If no prefix matches (e.g., root '/' or default locale without prefix)
+  if (path === localePrefix || path === `${localePrefix}/`) return "/";
+  if (path.startsWith(`${localePrefix}/`))
+    return path.substring(localePrefix.length);
   return path;
 }
 
-// Get the path without the language part
-const basePath = getPathWithoutLocale(currentPathname, locale); // e.g., / or /projects or /about
+const basePath = getPathWithoutLocale(currentPathname, currentLocale);
 
-// Format the display path
-const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
+let displayPathText;
 
-// --- End of New Logic ---
+if (basePath === "/") {
+  displayPathText = t("nav.home");
+} else if (basePath === "/contact" || basePath === "/contact/") {
+  displayPathText = t("terminal.title");
+} else if (basePath === "/projects" || basePath === "/projects/") {
+  displayPathText = t("nav.projects");
+} else if (basePath.startsWith("/projects/")) {
+  const segments = basePath.split("/");
+  let slugText = segments[segments.length - 1] || segments[segments.length - 2]; // Handle trailing slash
+  slugText = slugText.replace(/-/g, " ").trim();
+  displayPathText = slugText
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+} else {
+  const lastSegment = basePath.split("/").filter(Boolean).pop();
+  if (lastSegment) {
+    const potentialKey = `nav.${lastSegment.toLowerCase()}`;
+    const translated = t(potentialKey);
+    if (translated !== potentialKey && translated !== "") {
+      // Ensure translation exists
+      displayPathText = translated;
+    } else {
+      let segmentText = lastSegment.replace(/-/g, " ");
+      displayPathText = segmentText
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+  } else {
+    displayPathText = t("nav.home");
+  }
+}
+
+const displayPath = `~/${displayPathText}`;
+const homePath = `/${currentLocale}/`;
 ---
 
 <!doctype html>
-<html lang={lang} dir="ltr">
+<html lang={currentLocale} dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{pageTitle}</title>
     <ThemeScript />
-    {/*<ClientRouter />*/}
-    {/* Add the component here */}
+    <ViewTransitions />
   </head>
-
   <body>
     <header class="top-bar">
       <div class="logo-area">
-        {/* Use the dynamic displayPath variable here */}
-        <a href="/" aria-label="Homepage">{displayPath}</a>
+        <a href={homePath} aria-label={t("nav.logo.ariaLabel")}>{displayPath}</a
+        >
       </div>
 
-      {/* Navigation Area */}
       <div class="navigation-container">
-        {/* Hamburger Button (Visible only on narrow screens) */}
         <button
           class="hamburger-button"
-          aria-label="Toggle menu"
+          aria-label={t("nav.toggleMenu")}
           aria-expanded="false"
           aria-controls="mobile-menu"
         >
@@ -91,17 +170,65 @@ const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
           <span class="hamburger-line"></span>
         </button>
 
-        {/* Links and Controls Wrapper */}
         <nav
           class="navigation-area"
           id="mobile-menu"
-          aria-label="Main navigation"
+          aria-label={t("nav.mainNavigation")}
         >
-          {/* Links (conditionally displayed based on screen size via CSS) */}
           <div class="desktop-links">
-            {navLinks.map((link) => <a href={link.href}>{link.text}</a>)}
+            {/* --- Projects Dropdown --- */}
+            {
+              projectPages && projectPages.length > 0 && (
+                <div class="dropdown-wrapper">
+                  <button
+                    type="button"
+                    class="dropdown-toggle nav-item"
+                    aria-expanded="false"
+                    aria-controls={`projects-submenu-${currentLocale}`}
+                  >
+                    {t("nav.projects")}
+                    <svg
+                      class="dropdown-arrow"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      width="16"
+                      height="16"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                  <ul
+                    class="dropdown-menu"
+                    id={`projects-submenu-${currentLocale}`}
+                    aria-label={t("dropdown.projects.label")}
+                  >
+                    {projectPages.map((project) => (
+                      <li>
+                        <a href={project.href} class="nav-item dropdown-item">
+                          {project.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+            {/* --- End of Projects Dropdown --- */}
+
+            {
+              navLinks.map((link) => (
+                <a href={link.href} class="nav-item">
+                  {link.text}
+                </a>
+              ))
+            }
           </div>
-          {/* Controls (always visible within the nav area) */}
           <div class="controls">
             <LanguageSwitcher />
             <ThemeToggle />
@@ -116,150 +243,225 @@ const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
 
     <Footer />
 
-    {/* JavaScript for Hamburger Toggle */}
     <script>
-      const hamburgerButton = document.querySelector(".hamburger-button");
-      const mobileMenu = document.querySelector("#mobile-menu");
-      const menuStateKey = "hamburgerMenuState"; // Key for sessionStorage
+      // Function to initialize all interactive elements
+      function initializeInteractiveElements() {
+        // --- Hamburger Menu & Dropdown Interactivity ---
+        const hamburgerButton = document.querySelector(".hamburger-button");
+        const mobileMenu = document.querySelector("#mobile-menu");
+        const menuStateKey = "hamburgerMenuState";
 
-      function openMenu() {
-        if (!hamburgerButton || !mobileMenu) return;
-        hamburgerButton.setAttribute("aria-expanded", "true");
-        mobileMenu.classList.add("menu-open");
-        hamburgerButton.classList.add("is-active");
-        sessionStorage.setItem(menuStateKey, "open"); // Remember state
-        // Optional: Prevent body scroll
-        // document.body.classList.add('no-scroll');
-      }
-
-      function closeMenu() {
-        if (!hamburgerButton || !mobileMenu) return;
-        hamburgerButton.setAttribute("aria-expanded", "false");
-        mobileMenu.classList.remove("menu-open");
-        hamburgerButton.classList.remove("is-active");
-        sessionStorage.setItem(menuStateKey, "closed"); // Remember state (or use removeItem)
-        // Optional: Allow body scroll
-        // document.body.classList.remove('no-scroll');
-      }
-
-      // --- On Page Load ---
-      if (hamburgerButton && mobileMenu) {
-        const savedState = sessionStorage.getItem(menuStateKey);
-        if (savedState === "open") {
-          openMenu();
-          // Optional: Only re-open once after reload, then clear state
-          // sessionStorage.removeItem(menuStateKey);
-          // --> Keep the line above commented if you want the menu to stay open
-          //     even if the user manually reloads the page while it's open.
-          //     Uncomment it if you ONLY want it to reopen immediately after
-          //     clicking a link inside it (like the language switcher).
+        function openMainMenu() {
+          if (!hamburgerButton || !mobileMenu) return;
+          hamburgerButton.setAttribute("aria-expanded", "true");
+          mobileMenu.classList.add("menu-open");
+          hamburgerButton.classList.add("is-active");
+          sessionStorage.setItem(menuStateKey, "open");
+          document.body.classList.add("no-scroll-mobile");
         }
 
-        // --- Hamburger Button Click Listener ---
-        hamburgerButton.addEventListener("click", () => {
-          const isExpanded =
-            hamburgerButton.getAttribute("aria-expanded") === "true";
-          if (isExpanded) {
-            closeMenu();
+        function closeMainMenu() {
+          if (!hamburgerButton || !mobileMenu) return;
+          hamburgerButton.setAttribute("aria-expanded", "false");
+          mobileMenu.classList.remove("menu-open");
+          hamburgerButton.classList.remove("is-active");
+          sessionStorage.setItem(menuStateKey, "closed");
+          document.body.classList.remove("no-scroll-mobile");
+
+          mobileMenu
+            .querySelectorAll('.dropdown-toggle[aria-expanded="true"]')
+            .forEach((toggle) => {
+              toggle.setAttribute("aria-expanded", "false");
+              const dropdownMenu = toggle.nextElementSibling;
+              if (dropdownMenu) {
+                dropdownMenu.classList.remove("open");
+                dropdownMenu.style.maxHeight = null;
+              }
+              const arrow = toggle.querySelector(".dropdown-arrow");
+              if (arrow) arrow.classList.remove("open");
+            });
+        }
+
+        if (hamburgerButton && mobileMenu) {
+          const savedState = sessionStorage.getItem(menuStateKey);
+          if (savedState === "open" && window.innerWidth <= 768) {
+            // openMainMenu(); // Optional: auto-reopen on mobile after lang switch
           } else {
-            openMenu();
+            sessionStorage.setItem(menuStateKey, "closed");
           }
-        });
 
-        // --- Close Menu on Outside Click ---
-        document.addEventListener("click", (event) => {
-          const isMenuOpen = mobileMenu.classList.contains("menu-open");
-          if (
-            isMenuOpen &&
-            !mobileMenu.contains(event.target as Node) &&
-            !hamburgerButton.contains(event.target as Node)
-          ) {
-            closeMenu();
-          }
-        });
+          hamburgerButton.addEventListener("click", () => {
+            const isExpanded =
+              hamburgerButton.getAttribute("aria-expanded") === "true";
+            if (isExpanded) {
+              closeMainMenu();
+            } else {
+              openMainMenu();
+            }
+          });
 
-        // --- Close Menu When Link Inside is Clicked (Optional but good UX) ---
-        // Add event listener to the menu itself
-        mobileMenu.addEventListener("click", (event) => {
-          // Check if the clicked element is a link inside the menu, but NOT the language/theme controls
-          if (
-            event.target instanceof HTMLAnchorElement &&
-            !event.target.closest(".controls")
-          ) {
-            // If it's a regular nav link, close the menu after clicking
-            // We DON'T close if it's the language switcher causing the reload
-            // (unless sessionStorage is handling the reopen)
-            // closeMenu(); // You might want this for internal page links
-          }
-        });
-      } // end if (hamburgerButton && mobileMenu)
+          const closeMenuOnOutsideClick = (event) => {
+            if (mobileMenu.classList.contains("menu-open")) {
+              if (
+                !mobileMenu.contains(event.target) &&
+                !hamburgerButton.contains(event.target)
+              ) {
+                closeMainMenu();
+              }
+            }
+          };
+          // Remove listener before adding to prevent duplicates if this script re-runs unexpectedly
+          document.removeEventListener("click", closeMenuOnOutsideClick);
+          document.addEventListener("click", closeMenuOnOutsideClick);
 
-      // --- Theme Toggle Logic ---
-      // IMPORTANT: Verify '#theme-toggle' matches the actual ID or a unique
-      //            class selector for the button in your ThemeToggle.astro file.
-      const themeToggleButton = document.querySelector("theme-toggle");
+          mobileMenu.addEventListener("click", (event) => {
+            const target = event.target.closest("a");
+            if (target) {
+              const isNavItem = target.classList.contains("nav-item");
+              const isDropdownToggle =
+                target.classList.contains("dropdown-toggle");
+              const isInControls = target.closest(".controls");
+              const isDropdownItem = target.classList.contains("dropdown-item");
 
-      // IMPORTANT: Verify 'theme-preference' matches the actual key used
-      //            in your ThemeScript.astro for localStorage.
-      const themeStorageKey = "theme";
-
-      const htmlElement = document.documentElement; // Target the <html> tag
-
-      // Function to apply the theme class
-      // (Ensures consistency if you change theme application logic later)
-      function applyThemeClass(theme) {
-        if (theme === "dark") {
-          htmlElement.classList.add("dark");
-          // Optional: remove the other class explicitly if needed
-          // htmlElement.classList.remove('light');
-        } else {
-          htmlElement.classList.remove("dark");
-          // Optional: add the light class explicitly if needed
-          // htmlElement.classList.add('light');
+              if (isNavItem && !isDropdownToggle && !isInControls) {
+                if (window.innerWidth <= 768) closeMainMenu();
+              }
+              if (isDropdownItem) {
+                if (window.innerWidth <= 768) closeMainMenu();
+              }
+            }
+          });
         }
-        // Optionally update button text/icon/aria-label based on the new theme
+
+        // --- Dropdown Menu Logic ---
+        document.querySelectorAll(".dropdown-wrapper").forEach((wrapper) => {
+          const toggle = wrapper.querySelector(".dropdown-toggle");
+          const menu = wrapper.querySelector(".dropdown-menu");
+          const arrow = toggle ? toggle.querySelector(".dropdown-arrow") : null;
+
+          if (!toggle || !menu) return;
+
+          toggle.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+
+            if (window.innerWidth > 768) {
+              // Desktop: close other dropdowns
+              document
+                .querySelectorAll('.dropdown-toggle[aria-expanded="true"]')
+                .forEach((otherToggle) => {
+                  if (otherToggle !== toggle) {
+                    otherToggle.setAttribute("aria-expanded", "false");
+                    const otherMenu = otherToggle.nextElementSibling;
+                    if (otherMenu) {
+                      otherMenu.classList.remove("open");
+                      otherMenu.style.maxHeight = null;
+                    }
+                    const otherArrow =
+                      otherToggle.querySelector(".dropdown-arrow");
+                    if (otherArrow) otherArrow.classList.remove("open");
+                  }
+                });
+            }
+
+            if (isExpanded) {
+              toggle.setAttribute("aria-expanded", "false");
+              menu.classList.remove("open");
+              menu.style.maxHeight = null;
+              if (arrow) arrow.classList.remove("open");
+            } else {
+              toggle.setAttribute("aria-expanded", "true");
+              menu.classList.add("open");
+              menu.style.maxHeight = menu.scrollHeight + "px";
+              if (arrow) arrow.classList.add("open");
+            }
+          });
+
+          const closeDropdownOnOutsideClick = (event) => {
+            const isMobileMenuOpen =
+              mobileMenu && mobileMenu.classList.contains("menu-open");
+            if (
+              toggle.getAttribute("aria-expanded") === "true" &&
+              !wrapper.contains(event.target) &&
+              (!isMobileMenuOpen || window.innerWidth > 768)
+            ) {
+              toggle.setAttribute("aria-expanded", "false");
+              menu.classList.remove("open");
+              menu.style.maxHeight = null;
+              if (arrow) arrow.classList.remove("open");
+            }
+          };
+          document.removeEventListener("click", closeDropdownOnOutsideClick);
+          document.addEventListener("click", closeDropdownOnOutsideClick);
+
+          menu.querySelectorAll(".dropdown-item").forEach((item) => {
+            item.addEventListener("click", () => {
+              if (window.innerWidth > 768) {
+                // Desktop: close this dropdown
+                toggle.setAttribute("aria-expanded", "false");
+                menu.classList.remove("open");
+                menu.style.maxHeight = null;
+                if (arrow) arrow.classList.remove("open");
+              }
+              // On mobile, the main mobileMenu click listener handles closing the entire menu.
+            });
+          });
+        });
+
+        // --- Theme Toggle Logic ---
+        const themeToggleButton = document.querySelector("theme-toggle");
+        const themeStorageKey = "theme";
+        const htmlElement = document.documentElement;
+
+        function applyThemeClass(theme) {
+          if (theme === "dark") {
+            htmlElement.classList.add("dark");
+          } else {
+            htmlElement.classList.remove("dark");
+          }
+          if (themeToggleButton) {
+            themeToggleButton.setAttribute(
+              "aria-label",
+              `Switch to ${theme === "dark" ? "light" : "dark"} theme`
+            );
+          }
+        }
+
         if (themeToggleButton) {
-          themeToggleButton.setAttribute(
-            "aria-label",
-            `Switch to ${theme === "dark" ? "light" : "dark"} theme`
-          );
+          themeToggleButton.addEventListener("click", () => {
+            const isCurrentlyDark = htmlElement.classList.contains("dark");
+            const newTheme = isCurrentlyDark ? "light" : "dark";
+            applyThemeClass(newTheme);
+            localStorage.setItem(themeStorageKey, newTheme);
+          });
+
+          const initialTheme =
+            localStorage.getItem(themeStorageKey) ||
+            (window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light");
+          if (themeToggleButton) {
+            themeToggleButton.setAttribute(
+              "aria-label",
+              `Switch to ${initialTheme === "dark" ? "light" : "dark"} theme`
+            );
+          }
         }
       }
 
-      // Check if the button exists on the page
-      if (themeToggleButton) {
-        // Add the click event listener
-        themeToggleButton.addEventListener("click", () => {
-          // Determine the *new* theme the user wants
-          const isCurrentlyDark = htmlElement.classList.contains("dark");
-          const newTheme = isCurrentlyDark ? "light" : "dark";
-
-          // 1. Apply the new theme class visually
-          applyThemeClass(newTheme);
-
-          // 2. Save the new preference to localStorage
-          localStorage.setItem(themeStorageKey, newTheme);
-        });
-
-        // Optional: Set initial aria-label on page load based on current theme
-        // (ThemeScript.astro should have already set the class correctly)
-        const initialTheme = htmlElement.classList.contains("dark")
-          ? "dark"
-          : "light";
-        themeToggleButton.setAttribute(
-          "aria-label",
-          `Switch to ${initialTheme === "dark" ? "light" : "dark"} theme`
-        );
-      } // end if (themeToggleButton)
+      document.addEventListener(
+        "astro:page-load",
+        initializeInteractiveElements
+      );
     </script>
   </body>
 </html>
 
 <style is:global>
-  /* Use is:global carefully or scope styles */
-  /* Prevent scroll when mobile menu might be open */
-  body.no-scroll {
-    overflow: hidden;
+  body.no-scroll-mobile {
+    @media (max-width: 768px) {
+      overflow: hidden;
+    }
   }
 </style>
 
@@ -269,31 +471,28 @@ const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    background-color: var(--color-bg);
-    border-bottom: 1px solid var(--color-border);
-    color: var(--color-text);
+    padding: 0.8rem 1.5rem;
+    background-color: var(--color-bg, #fff);
+    border-bottom: 1px solid var(--color-border, #e0e0e0);
+    color: var(--color-text, #333);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 110; /* Stacking context for top bar */
     transition:
       background-color 0.3s ease,
       border-color 0.3s ease;
   }
 
   .logo-area a {
-    color: var(--color-text);
+    color: var(--color-text, #333);
     text-decoration: none;
     font-family: "Raleway", monospace, sans-serif;
     font-weight: 800;
-    font-size: 1.5rem;
-
-    /* === ADD these lines for overflow handling === */
-    white-space: nowrap; /* Prevent wrapping */
-    overflow: hidden; /* Hide overflow */
-    text-overflow: ellipsis; /* Add ellipsis if it's too long */
-    max-width: 250px; /* Adjust max-width as needed */
-    /* === End of added lines === */
+    font-size: 1.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
   }
 
   .navigation-container {
@@ -303,27 +502,25 @@ const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
 
   /* --- Hamburger Button Styles --- */
   .hamburger-button {
-    display: none; /* Hidden on desktop by default */
+    display: none;
     background: none;
     border: none;
     padding: 0.5rem;
     cursor: pointer;
-    z-index: 1001;
-    margin-left: 1rem; /* Add some space if needed before nav area collapses */
+    z-index: 1001; /* Above mobile menu panel */
+    margin-left: 1rem;
+    position: relative;
   }
-
   .hamburger-line {
     display: block;
     width: 25px;
     height: 3px;
-    background-color: var(--color-text);
+    background-color: var(--color-text, #333);
     margin: 5px 0;
     transition:
       transform 0.3s ease,
       opacity 0.3s ease;
   }
-
-  /* Hamburger animation to 'X' */
   .hamburger-button.is-active .hamburger-line:nth-child(1) {
     transform: translateY(8px) rotate(45deg);
   }
@@ -334,120 +531,227 @@ const displayPath = basePath === "/" ? "~/" : `~${basePath}`;
     transform: translateY(-8px) rotate(-45deg);
   }
 
-  /* --- Desktop Navigation Styles (Default) --- */
+  /* --- Desktop Navigation Styles --- */
   .navigation-area {
-    display: flex; /* Shown on desktop */
+    /* On desktop, this is part of the top-bar flow */
+    display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.5rem;
   }
-
   .desktop-links {
-    display: flex; /* Show links inline on desktop */
-    gap: 1.5rem; /* Spacing between desktop links */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
-
-  .desktop-links a {
-    /* Base link styling */
-    color: var(--color-text);
+  .nav-item {
+    padding: 0.5rem 0.75rem;
+    color: var(--color-text, #333);
     text-decoration: none;
     font-family: "Raleway", sans-serif;
     font-weight: 500;
     font-size: 1rem;
-    transition: color 0.2s ease;
+    border-radius: 4px;
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease;
   }
-
-  .desktop-links a:hover,
-  .desktop-links a:focus {
-    color: var(--color-primary);
-    text-decoration: underline;
+  .nav-item:hover,
+  .nav-item:focus-visible {
+    color: var(--color-primary, #007bff);
+    background-color: var(--color-bg-accent, rgba(0, 0, 0, 0.05));
+  }
+  .nav-item:focus-visible {
+    outline: 2px solid var(--color-primary, #007bff);
+    outline-offset: 2px;
   }
 
   .controls {
     display: flex;
     align-items: center;
-    gap: 1rem; /* Spacing between controls */
+    gap: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  /* --- Dropdown Specific Styles --- */
+  .dropdown-wrapper {
+    position: relative; /* Needed for absolute positioning of the dropdown-menu */
+  }
+  .dropdown-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .dropdown-arrow {
+    transition: transform 0.3s ease;
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+  }
+  .dropdown-toggle[aria-expanded="true"] .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+  .dropdown-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-menu {
+    /* Desktop projects dropdown */
+    list-style: none;
+    padding: 0.5rem 0;
+    margin: 0;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 220px;
+    background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: 6px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    z-index: 990; /* Ensures it's above most page content but below mobile menu */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease,
+      visibility 0s 0.2s linear,
+      max-height 0.25s ease-out;
+    max-height: 0;
+    overflow: hidden;
+  }
+  .dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition-delay: 0s, 0s, 0s, 0s;
+  }
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    border-radius: 0;
+  }
+  .dropdown-item:hover,
+  .dropdown-item:focus-visible {
+    background-color: var(--color-primary-light, rgba(0, 123, 255, 0.1));
+    color: var(--color-primary-dark, var(--color-primary, #0056b3));
   }
 
   /* --- Mobile Menu Styles (Media Query) --- */
   @media (max-width: 768px) {
-    /* Adjust this breakpoint */
     .hamburger-button {
-      display: block; /* Show hamburger */
+      display: block;
     }
 
-    /* Hide the desktop layout for links and controls */
     .navigation-area {
-      display: none; /* Hide the whole nav area by default on mobile */
-      /* Styles for when it becomes the revealed menu */
-      position: absolute;
-      top: 100%;
+      /* The slide-out mobile menu panel */
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      position: fixed;
+      top: 0;
       right: 0;
-      background-color: var(--color-bg);
-      border: 1px solid var(--color-border);
-      border-top: none;
-      border-bottom-left-radius: 8px;
-      padding: 1rem;
-      flex-direction: column; /* Stack items vertically */
-      align-items: flex-start; /* Align items left */
-      gap: 0rem; /* Reset gap for vertical layout */
-      min-width: 200px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      z-index: 1000; /* Ensure menu is above content */
+      transform: translateX(100%);
+      width: min(80vw, 320px);
+      height: 100vh;
+      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+      border-left: 1px solid var(--color-border, #e0e0e0);
+      padding: calc(var(--header-height, 60px) + 1rem) 0 0 0;
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+      z-index: 1000; /* High z-index for the panel itself */
+      overflow-y: auto;
+      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
     }
-
-    /* Show the navigation area when the menu is open */
     .navigation-area.menu-open {
       display: flex;
+      transform: translateX(0%);
     }
 
-    /* How the links container behaves inside the OPEN mobile menu */
     .desktop-links {
-      display: flex; /* Make it visible inside the open menu */
-      flex-direction: column; /* Stack links vertically */
-      align-items: flex-start; /* Align links left */
+      /* Container for links and dropdowns within mobile menu */
+      flex-direction: column;
       width: 100%;
-      gap: 0; /* Remove horizontal gap */
+      gap: 0;
+      align-items: stretch;
+    }
+    .nav-item,
+    .dropdown-toggle {
+      /* Full width items in mobile */
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0;
+      border-bottom: 1px solid
+        var(--color-border-subtle, var(--color-border, #eee));
+      font-size: 1.1rem;
+      justify-content: space-between;
+    }
+    .dropdown-wrapper:last-of-type > .dropdown-toggle,
+    .nav-item:last-of-type {
+      border-bottom: none;
+    }
+    .dropdown-wrapper + .controls > .dropdown-toggle {
+      border-bottom: none;
     }
 
-    /* How individual links look inside the OPEN mobile menu */
-    .desktop-links a {
-      padding: 0.75rem 0.5rem; /* Add padding for tapping */
-      width: 100%; /* Make links take full width */
-      border-bottom: 1px solid var(--color-border); /* Optional separator */
-      font-size: 1.1rem; /* Slightly larger font for mobile menu */
+    .dropdown-menu {
+      /* Accordion style for projects dropdown inside mobile menu */
+      position: static; /* Overrides absolute for accordion behavior */
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      width: 100%;
+      background-color: var(--color-bg-accent-darker, rgba(0, 0, 0, 0.03));
+      padding: 0;
+      margin: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-in-out;
+      /* z-index is inherited from .navigation-area, no need to set it higher here */
+      border-top: 1px solid
+        var(--color-border-subtle, var(--color-border, #eee));
     }
-    .desktop-links a:last-child {
-      border-bottom: none; /* Remove border from last link */
+    .dropdown-menu.open {
+      /* max-height is set by JS */
+    }
+    .dropdown-item {
+      padding-left: 2.5rem;
+      font-size: 1rem;
+      border-bottom: 1px dashed var(--color-border-very-subtle, #f5f5f5);
+    }
+    .dropdown-menu li:last-child .dropdown-item {
+      border-bottom: none;
     }
 
-    /* How controls look inside the OPEN mobile menu */
     .controls {
-      flex-direction: row; /* Keep controls horizontal */
-      justify-content: flex-start; /* Align controls left */
+      flex-direction: row;
+      justify-content: space-around;
       width: 100%;
-      padding: 1rem 0.5rem 0.5rem; /* Adjust padding */
-      margin-top: 0.5rem;
-      gap: 1.5rem; /* Space out controls */
-      /* Optional: Add border top if desired */
-      /* border-top: 1px solid var(--color-border); */
+      padding: 1.5rem;
+      margin-top: auto;
+      border-top: 1px solid var(--color-border, #e0e0e0);
+      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
     }
   }
 
   /* --- Base Layout Styles --- */
-  main {
-    padding: 2rem;
-    padding-top: calc(
-      4rem + 2px
-    ); /* Adjust if header height changes, accounts for padding + border */
-  }
-
   body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    --header-height: 60px;
+    background-color: var(--color-bg, #fff);
+    color: var(--color-text, #333);
   }
-
   main {
     flex-grow: 1;
+    padding: 2rem;
+    padding-top: calc(var(--header-height) + 1rem);
+    /* No z-index or position needed here unless specific content requires it,
+       which could then conflict if not managed carefully. */
   }
 </style>

@@ -1,0 +1,198 @@
+---
+// src/pages/en/projects/circon.astro
+import BaseLayout from "../../../layouts/BaseLayout.astro"; // Adjust path if your BaseLayout is elsewhere
+
+// --- Frontmatter for the Project Page ---
+const frontmatter = {
+  title: "Project Circon - Advanced Data Visualization Platform",
+  navTitle: "Project Circon", // Optional: Shorter title for navigation
+  description:
+    "An in-depth look at Project Circon, a platform designed for real-time data analysis and visualization, helping businesses make informed decisions.",
+  publishDate: "2024-05-08",
+  heroImage: "/images/projects/circon-hero.jpg", // Example path, replace with your actual image
+  tags: [
+    "Data Visualization",
+    "Real-time Analytics",
+    "SaaS",
+    "Platform Development",
+  ],
+};
+---
+
+<BaseLayout title={frontmatter.title}>
+  <article class="project-detail-page prose dark:prose-invert prose-lg mx-auto">
+    {
+      frontmatter.heroImage && (
+        <div class="hero-image-container mb-8">
+          <img
+            src={frontmatter.heroImage}
+            alt={`${frontmatter.title} hero image`}
+            class="w-full h-auto rounded-lg shadow-lg object-cover max-h-96"
+          />
+        </div>
+      )
+    }
+
+    <h1 class="text-4xl font-bold mb-4 text-center md:text-left">
+      {frontmatter.title}
+    </h1>
+
+    <div
+      class="project-meta text-center md:text-left mb-8 text-slate-600 dark:text-slate-400"
+    >
+      {
+        frontmatter.publishDate && (
+          <time datetime={frontmatter.publishDate}>
+            Published:{" "}
+            {new Date(frontmatter.publishDate).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </time>
+        )
+      }
+      {
+        frontmatter.tags && frontmatter.tags.length > 0 && (
+          <div class="tags mt-2">
+            <strong>Tags:</strong>
+            {frontmatter.tags.map((tag) => (
+              <span class="tag inline-block bg-slate-200 dark:bg-slate-700 rounded-full px-3 py-1 text-sm font-semibold text-slate-700 dark:text-slate-200 mr-2 mb-2">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )
+      }
+    </div>
+
+    <section class="content-section mb-8">
+      <h2 class="text-2xl font-semibold mb-3">Project Overview</h2>
+      <p>
+        Project Circon is a cutting-edge platform developed to address the
+        growing need for intuitive and powerful real-time data visualization and
+        analytics. In an era where data is king, Circon empowers businesses to
+        unlock insights from complex datasets through an accessible and highly
+        customizable interface.
+      </p>
+      <p>
+        The core mission was to build a scalable, performant, and user-friendly
+        tool that could integrate seamlessly with various data sources and
+        provide actionable intelligence at a glance.
+      </p>
+    </section>
+
+    <section class="content-section mb-8">
+      <h2 class="text-2xl font-semibold mb-3">Key Features</h2>
+      <ul class="list-disc list-inside space-y-2">
+        <li>
+          <strong>Real-time Dashboarding:</strong> Dynamic dashboards that update
+          instantaneously with incoming data streams.
+        </li>
+        <li>
+          <strong>Interactive Charts & Graphs:</strong> A rich library of customizable
+          charts (bar, line, pie, scatter, heatmaps, etc.) with drill-down capabilities.
+        </li>
+        <li>
+          <strong>Multi-Source Data Integration:</strong> Connectors for popular
+          databases, APIs, and cloud services.
+        </li>
+        <li>
+          <strong>Advanced Filtering & Segmentation:</strong> Tools to easily slice
+          and dice data for granular analysis.
+        </li>
+        <li>
+          <strong>Alerting & Notifications:</strong> Customizable alerts based on
+          predefined thresholds or anomalous patterns.
+        </li>
+        <li>
+          <strong>Collaborative Workspaces:</strong> Share dashboards and insights
+          with team members securely.
+        </li>
+        <li>
+          <strong>Responsive Design:</strong> Fully accessible on desktops, tablets,
+          and mobile devices.
+        </li>
+      </ul>
+    </section>
+
+    <section class="content-section mb-8">
+      <h2 class="text-2xl font-semibold mb-3">Technologies Used</h2>
+      <p>
+        The platform was built using a modern technology stack, focusing on
+        performance, scalability, and developer experience:
+      </p>
+      <ul class="list-disc list-inside space-y-1">
+        <li>
+          <strong>Frontend:</strong> React, TypeScript, D3.js (for custom visualizations),
+          Tailwind CSS
+        </li>
+        <li>
+          <strong>Backend:</strong> Node.js with Express.js, Python (for data processing
+          microservices)
+        </li>
+        <li>
+          <strong>Database:</strong> PostgreSQL, Redis (for caching and session management)
+        </li>
+        <li>
+          <strong>Infrastructure:</strong> Docker, Kubernetes, AWS (EC2, S3, RDS)
+        </li>
+        <li><strong>Real-time Communication:</strong> WebSockets</li>
+      </ul>
+    </section>
+
+    <section class="content-section mb-8">
+      <h2 class="text-2xl font-semibold mb-3">Challenges & Solutions</h2>
+      <p>
+        One of the primary challenges was handling high-velocity data streams
+        and rendering complex visualizations without performance degradation.
+        This was addressed by implementing efficient data aggregation techniques
+        on the backend, optimizing frontend rendering with virtualized lists and
+        memoization, and leveraging WebAssembly for computationally intensive
+        tasks.
+      </p>
+      <p>
+        Ensuring data security and compliance was another critical aspect, met
+        by robust authentication mechanisms, role-based access control, and
+        end-to-end encryption.
+      </p>
+    </section>
+
+    <section class="content-section mb-8">
+      <h2 class="text-2xl font-semibold mb-3">Project Outcome</h2>
+      <p>
+        Project Circon successfully launched and has been adopted by several
+        pilot companies, receiving positive feedback for its performance and
+        ease of use. It has enabled users to gain deeper insights into their
+        operations, leading to improved efficiency and data-driven
+        decision-making.
+      </p>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  /* Scoped styles for the project page to ensure Raleway font is used. */
+  /* The global.css already sets --font-sans to Raleway for the html element. */
+  /* This rule ensures that the main article content specifically uses it, */
+  /* overriding any potential default font stacks from Tailwind's prose if necessary. */
+  .project-detail-page {
+    font-family: var(--font-sans);
+  }
+
+  /* Example: specific aspect ratio or other styles for the hero image container */
+  .hero-image-container {
+    /* Add any custom styles for the hero image container if needed */
+  }
+
+  /* You can further customize heading fonts within the project page if desired, */
+  /* though they should inherit from --font-sans by default. */
+  /* For example:
+  .project-detail-page h1,
+  .project-detail-page h2,
+  .project-detail-page h3 {
+    font-family: var(--font-sans); // Explicitly set if needed
+    font-weight: 800; // Or your desired weight for headings
+  }
+  */
+</style>

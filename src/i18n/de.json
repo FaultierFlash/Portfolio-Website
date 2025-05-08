@@ -1,36 +1,57 @@
 {
-    "site.title": "Meine Astro Seite",
-    "nav.home": "Startseite",
-    "nav.about": "Über Uns",
-    "nav.contact": "Kontakt",
-    "page.home.title": "Willkommen!",
-    "page.home.description": "Dies ist die Startseite.",
-    "page.about.title": "Über Uns",
-    "terminal": {
-      "title": "Kontakt-Terminal",
-      "welcome1": "Willkommen - Kontakt-Terminal initialisiert",
-      "welcome2": "Folge den Anweisungen, um deine Nachricht zu senden.",
-      "promptName": "Gib deinen Namen ein:",
-      "promptEmail": "Gib deine E-Mail ein:",
-      "promptMessageInfo": "Gib deine Nachricht unten ein.",
-      "editorInfo": "Nachricht bearbeiten (Strg+Enter oder Button zum Senden)",
-      "promptConfirm": "Diese Nachricht senden? (yes/no/edit):", 
-      "errorName": "Name darf nicht leer sein.",
-      "errorEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
-      "errorMessage": "Nachricht darf nicht leer sein.",
-      "errorConfirm": "Bitte antworte mit 'yes', 'no' oder 'edit'.",
-      "errorSending": "Fehler beim Senden: {message}",
-      "sending": "Nachricht wird gesendet...",
-      "sentSuccess": "Nachricht erfolgreich gesendet! Vielen Dank.",
-      "cancelled": "Senden abgebrochen. Tippe 'reset' zum Neustarten oder 'edit' zum Bearbeiten.",
-      "editInfo": "Zurück zum Nachrichten-Editor...",
-      "endPrompt": "Tippe 'reset' zum Neustarten oder 'exit' zum Schließen.",
-      "exitMessage": "Terminal-Sitzung wird geschlossen...",
-      "confirmDetails": "--- Details bestätigen ---",
-      "confirmName": "Name:",
-      "confirmEmail": "E-Mail:",
-      "confirmMessage": "Nachricht:",
-      "confirmEnd": "------------------------",
-      "sendButton": "Nachricht Senden"
+  "page": {
+    "home":{
+      "title": "Willkommen!",
+      "description": "Dies ist die Startseite."
+    },
+    "about":{
+      "title": "Über Uns"
+    }
+  },
+  "terminal": {
+    "title": "Kontakt-Terminal",
+    "welcome1": "Willkommen - Kontakt-Terminal initialisiert",
+    "welcome2": "Folge den Anweisungen, um deine Nachricht zu senden.",
+    "promptName": "Gib deinen Namen ein:",
+    "promptEmail": "Gib deine E-Mail ein:",
+    "promptMessageInfo": "Gib deine Nachricht unten ein.",
+    "editorInfo": "Nachricht bearbeiten (Strg+Enter oder Button zum Senden)",
+    "promptConfirm": "Diese Nachricht senden? (yes/no/edit):",
+    "errorName": "Name darf nicht leer sein.",
+    "errorEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
+    "errorMessage": "Nachricht darf nicht leer sein.",
+    "errorConfirm": "Bitte antworte mit 'yes', 'no' oder 'edit'.",
+    "errorSending": "Fehler beim Senden: {message}",
+    "sending": "Nachricht wird gesendet...",
+    "sentSuccess": "Nachricht erfolgreich gesendet! Vielen Dank.",
+    "cancelled": "Senden abgebrochen. Tippe 'reset' zum Neustarten oder 'edit' zum Bearbeiten.",
+    "editInfo": "Zurück zum Nachrichten-Editor...",
+    "endPrompt": "Tippe 'reset' zum Neustarten oder 'exit' zum Schließen.",
+    "exitMessage": "Terminal-Sitzung wird geschlossen...",
+    "confirmDetails": "--- Details bestätigen ---",
+    "confirmName": "Name:",
+    "confirmEmail": "E-Mail:",
+    "confirmMessage": "Nachricht:",
+    "confirmEnd": "------------------------",
+    "sendButton": "Nachricht Senden"
+  },
+  "nav": {
+    "home": {
+      "label": "Startseite",
+      "ariaLabel": "Startseite",
+      "about": "Über uns"
+    },
+    "projects": "Projekte",
+    "contact": "Kontakt",
+    "toggleMenu": "Menü umschalten",
+    "mainNavigation": "Hauptnavigation",
+    "logo": {
+      "ariaLabel": "Startseite"
+    }
+  },
+  "dropdown": {
+    "projects":{
+      "label": "Projekt auswählen"
     }
   }
+}
