@@ -1,6 +1,7 @@
 /* src/styles/global.css */
 
 :root {
+    --header-height: ;
     /* Light-Mode Variablen (Standard) */
     --color-bg: #ffffff;
     --color-text: #404040;
@@ -19,13 +20,22 @@
     --color-accent: #a78bfa;
     --color-border: #404040;
   }
+
+  html {
+    overflow-y: scroll; /* Or 'scroll' */
+    scroll-behavior: smooth;
+    height: 100%;
+}
   
   /* Basis-Styles mit Variablen */
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
+  /* In src/styles/global.css */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Raleway', sans-serif; /* Or 'Inter', or your preferred default */
+  margin: 0; /* Already good practice to have this */
+}
   
   /* raleway-regular - latin */
 @font-face {

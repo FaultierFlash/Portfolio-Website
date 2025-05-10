@@ -1,5 +1,9 @@
 {
-  "site.title": "My Astro Site",
+  "site": {
+    "title": "My Astro Site",
+    "logoText": "Logo",
+    "description": "This is the homepage."
+  },
   "page": {
     "home": {
       "title": "Welcome!",
@@ -36,6 +40,7 @@
     "sendButton": "Send Message"
   },
   "nav": {
+    "about": "about",
     "home": {
       "label": "Home",
       "ariaLabel": "Homepage",

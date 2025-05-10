@@ -1,0 +1,46 @@
+---
+// src/components/Footer.astro
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="footer-content">
+    <p>&copy; {currentYear} Your Website Name. All rights reserved.</p>
+    <p>
+      <a href="/privacy-policy">Privacy Policy</a> |
+      <a href="/terms-of-service">Terms of Service</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background-color: var(
+      --color-bg-elevated,
+      var(--color-bg, #f8f9fa)
+    ); /* Use a background variable */
+    color: var(--color-secondary, #6c757d); /* Use a secondary text color */
+    padding: 2rem 1.5rem;
+    text-align: center;
+    border-top: 1px solid var(--color-border, #e0e0e0);
+    font-size: 0.9rem;
+  }
+
+  .footer-content {
+    max-width: 800px; /* Limit width for readability */
+    margin: 0 auto;
+  }
+
+  .footer-content p {
+    margin: 0.5rem 0;
+  }
+
+  .footer-content a {
+    color: var(--color-primary, #007bff); /* Use primary color for links */
+    text-decoration: none;
+  }
+
+  .footer-content a:hover {
+    text-decoration: underline;
+  }
+</style>

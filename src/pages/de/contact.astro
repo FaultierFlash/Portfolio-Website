@@ -38,7 +38,8 @@ const terminalTranslations = {
 };
 ---
 
-<BaseLayout title={pageTitle}>
+{/* Pass hidePageScrollbar={true} to BaseLayout */}
+<BaseLayout title={pageTitle} hidePageScrollbar={true}>
   {/* Pass translations as a prop */}
   <TerminalContactForm translations={terminalTranslations} />
 </BaseLayout>

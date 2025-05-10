@@ -64,42 +64,98 @@
     width: 1.25rem;
   }
 
-  /* Standardmäßig Sonnen-Symbol für Dark Mode */
+  /* By default, moon icon is shown (implying light mode is active) */
   .sun-icon {
     display: none;
   }
-
   .moon-icon {
     display: block;
   }
 
-  /* Im Dark-Mode das Mond-Symbol anzeigen */
-  :global(.dark) .sun-icon {
+  /* When dark mode is active, show sun icon */
+  :global(html.dark) .sun-icon {
+    /* More specific selector using html.dark */
     display: block;
   }
-
-  :global(.dark) .moon-icon {
+  :global(html.dark) .moon-icon {
     display: none;
   }
 </style>
 
 <script>
-  // Client-side JavaScript für den Theme-Wechsel
-  document.addEventListener("DOMContentLoaded", () => {
+  // Store the click handler function to be able to remove it
+  let themeToggleClickHandler = null;
+
+  function setupThemeToggle() {
     const themeToggle = document.getElementById("theme-toggle");
+    const htmlElement = document.documentElement;
 
     if (themeToggle) {
-      themeToggle.addEventListener("click", () => {
-        // Aktuelles Theme abrufen und wechseln
-        const isDark = document.documentElement.classList.contains("dark");
+      // Remove existing listener if one was attached by this script instance
+      if (themeToggleClickHandler) {
+        themeToggle.removeEventListener("click", themeToggleClickHandler);
+        console.log("ThemeToggle: Removed old click listener.");
+      }
+
+      // Define the new click handler
+      themeToggleClickHandler = () => {
+        const isDark = htmlElement.classList.contains("dark");
         const newTheme = isDark ? "light" : "dark";
 
-        // Theme umschalten
-        document.documentElement.classList.toggle("dark");
-
-        // Theme in localStorage speichern
+        htmlElement.classList.toggle("dark", newTheme === "dark");
         localStorage.setItem("theme", newTheme);
-      });
+
+        // Update ARIA label (BaseLayout might also do this, but good for component encapsulation)
+        themeToggle.setAttribute(
+          "aria-label",
+          `Switch to ${newTheme === "dark" ? "light" : "dark"} theme`
+        );
+        console.log("ThemeToggle: Clicked! Theme set to", newTheme);
+      };
+
+      themeToggle.addEventListener("click", themeToggleClickHandler);
+      console.log("ThemeToggle: Click listener (re-)attached.");
+
+      // Set initial ARIA label based on current theme (ThemeScript.astro handles initial class)
+      const initialTheme =
+        localStorage.getItem("theme") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light");
+      themeToggle.setAttribute(
+        "aria-label",
+        `Switch to ${initialTheme === "dark" ? "light" : "dark"} theme`
+      );
+    } else {
+      console.log("ThemeToggle: Button not found.");
+    }
+  }
+
+  // Run on initial load
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupThemeToggle);
+  } else {
+    setupThemeToggle(); // If DOM already loaded
+  }
+
+  // Run on Astro page transitions
+  document.addEventListener("astro:page-load", () => {
+    console.log(
+      "ThemeToggle: astro:page-load event triggered. Setting up theme toggle."
+    );
+    setupThemeToggle();
+  });
+
+  // Optional: Cleanup on astro:before-swap if the element might persist
+  // and you want to be absolutely sure the listener is gone from the *old* instance.
+  // However, if Astro always replaces the element, this might not be strictly necessary
+  // as the old element and its listeners are discarded.
+  document.addEventListener("astro:before-swap", () => {
+    const themeToggle = document.getElementById("theme-toggle");
+    if (themeToggle && themeToggleClickHandler) {
+      themeToggle.removeEventListener("click", themeToggleClickHandler);
+      console.log("ThemeToggle: Cleaned up listener on astro:before-swap.");
+      themeToggleClickHandler = null; // Reset the stored handler
     }
   });
 </script>
