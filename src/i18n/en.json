@@ -43,8 +43,7 @@
     "about": "about",
     "home": {
       "label": "Home",
-      "ariaLabel": "Homepage",
-      "about": "About"
+      "ariaLabel": "Homepage"
     },
     "projects": "Projects",
     "contact": "Contact",

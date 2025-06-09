@@ -38,9 +38,9 @@
   "nav": {
     "home": {
       "label": "Startseite",
-      "ariaLabel": "Startseite",
-      "about": "Über uns"
+      "ariaLabel": "Startseite"
     },
+    "about": "Über uns",
     "projects": "Projekte",
     "contact": "Kontakt",
     "toggleMenu": "Menü umschalten",
@@ -53,5 +53,10 @@
     "projects":{
       "label": "Projekt auswählen"
     }
+  },
+  "site": {
+    "title": "Meine Astro Seite",
+    "logoText": "Logo",
+    "description": "Das ist die Startseite."
   }
 }
