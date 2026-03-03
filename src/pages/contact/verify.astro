@@ -1,0 +1,71 @@
+---
+import Layout from "../../layouts/BaseLayout.astro";
+import jwt from "jsonwebtoken";
+import { sendContactEmail } from "../../lib/email";
+
+export const prerender = false; // SSR required
+
+const token = Astro.url.searchParams.get("token");
+let status = "verifying";
+let message = "Verifying your request...";
+let success = false;
+
+if (!token) {
+    status = "error";
+    message = "No verification token provided.";
+} else {
+    try {
+        const secret =
+            import.meta.env.JWT_SECRET || "dev-secret-do-not-use-in-prod";
+        const decoded = jwt.verify(token, secret) as any;
+
+        if (decoded) {
+            // Token is valid, send the actual contact email
+            await sendContactEmail(
+                decoded.name,
+                decoded.email,
+                decoded.message,
+            );
+            status = "success";
+            message = "Your message has been successfully verified and sent!";
+            success = true;
+        }
+    } catch (error) {
+        console.error("Verification Error:", error);
+        status = "error";
+        message =
+            "Invalid or expired verification token. Please try submitting the form again.";
+    }
+}
+---
+
+<Layout title="Verification | Contact">
+    <div
+        class="flex flex-col items-center justify-center min-h-[60vh] p-4 text-center"
+    >
+        <div
+            class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-lg p-8 shadow-2xl relative overflow-hidden"
+        >
+            {/* Decorative background glow */}
+            <div
+                class={`absolute top-0 left-0 w-full h-1 ${success ? "bg-green-500" : "bg-red-500"}`}
+            >
+            </div>
+
+            <h1 class="text-2xl font-bold mb-4 font-mono">
+                {status === "success" ? "Message Sent" : "Verification Failed"}
+            </h1>
+
+            <p class="mb-8 text-gray-300">
+                {message}
+            </p>
+
+            <a
+                href="/"
+                class="inline-block px-6 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
+            >
+                Return Home
+            </a>
+        </div>
+    </div>
+</Layout>

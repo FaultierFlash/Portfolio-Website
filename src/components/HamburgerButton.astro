@@ -1,0 +1,67 @@
+---
+// src/components/HamburgerButton.astro
+import type { LocalizedString } from "../i18n/utils";
+
+interface Props {
+  toggleMenuLabel: LocalizedString | string;
+}
+const { toggleMenuLabel } = Astro.props;
+---
+
+<button
+  id="site-hamburger-button"
+  class="hamburger-button"
+  aria-label={toggleMenuLabel}
+  aria-expanded="false"
+  aria-controls="mobile-menu"
+>
+  <span class="hamburger-line"></span>
+  <span class="hamburger-line"></span>
+  <span class="hamburger-line"></span>
+</button>
+
+<style>
+  /* Styles for the hamburger button, moved from BaseLayout/Header */
+  .hamburger-button {
+    display: none; /* Hidden by default, shown in media query by parent (Navigation.astro or Header.astro) */
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    z-index: 1001;
+    margin-left: 1rem;
+    position: relative;
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: var(--color-text, #333);
+    margin: 5px 0;
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  /* Active states will be controlled by parent component's script adding 'is-active' */
+  .hamburger-button.is-active .hamburger-line:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+
+  .hamburger-button.is-active .hamburger-line:nth-child(2) {
+    opacity: 0;
+  }
+
+  .hamburger-button.is-active .hamburger-line:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  /* Media query to show hamburger button - this should be in the component that USES it if display depends on context */
+  /* Or, if it's always shown on mobile, it can be here. For now, assuming parent controls visibility based on layout. */
+  @media (max-width: 768px) {
+    .hamburger-button {
+      display: block;
+    }
+  }
+</style>

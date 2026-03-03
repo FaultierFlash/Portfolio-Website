@@ -10,10 +10,11 @@
       "description": "This is the homepage."
     },
     "about": {
-      "title": "About Us"}
+      "title": "About Us"
+    }
   },
   "terminal": {
-    "title": "Contact Terminal",
+    "title": "Contact-Terminal",
     "welcome1": "Welcome - Contact Terminal Initialized",
     "welcome2": "Follow the prompts to send your message.",
     "promptName": "Enter your name:",
@@ -40,23 +41,38 @@
     "sendButton": "Send Message"
   },
   "nav": {
-    "about": "about",
-    "home": {
-      "label": "Home",
-      "ariaLabel": "Homepage",
-      "about": "About"
-    },
-    "projects": "Projects",
+    "home": "Home",
+    "about": "About", 
+    "projects": "Test",
     "contact": "Contact",
     "toggleMenu": "Toggle menu",
     "mainNavigation": "Main navigation",
     "logo": {
       "ariaLabel": "Homepage"
-    }
+    },
+    "goToLabel": "Go to {page}",
+    "breadcrumbAriaLabel": "Current page location"
   },
   "dropdown": {
     "projects": {
       "label": "Select a project"
+    }
+  },
+  "paths": {
+    "home": {
+      "_title_": "Home" 
+    },
+    "projects": {
+      "_title_": "Projects", 
+      "circon": "Circon", 
+      "photeia": "Photeia",
+      "another-project-slug": "Translated Another Project Name" 
+    },
+    "contact": {
+      "_title_": "Contact-Page" 
+    },
+    "about": {
+      "_title_": "About-Page"
     }
   }
 }

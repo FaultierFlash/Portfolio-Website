@@ -425,49 +425,88 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       border-color 0.3s ease;
   }
 
-  /* Power Button Styles */
+  /* --- Power Button Style --- */
   .power-button {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: transparent; /* No background */
-    color: var(--color-primary); /* Icon color */
-    border: 2px solid var(--color-primary); /* Optional: Border for visibility */
-    border-radius: 50%;
     width: 60px;
     height: 60px;
-    display: flex;
+    border-radius: 50%;
+    background-color: rgba(var(--color-primary-rgb), 0.1);
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    display: flex; /* Use flex to center SVG */
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: none; /* Optional: Remove shadow if background is transparent */
-    transition:
-      background-color 0.2s ease,
-      transform 0.2s ease,
-      opacity 0.3s ease,
-      color 0.2s ease;
+    z-index: 10;
     opacity: 0;
     visibility: hidden;
-    z-index: 10;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease,
+      box-shadow 0.3s ease,
+      background-color 0.3s ease;
+    box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.3);
   }
+
+  /* CRT Turn Off Animation Classes */
+  @keyframes turn-off-x {
+    0% {
+      transform: scaleX(1);
+    }
+    100% {
+      transform: scaleX(0.005);
+    }
+  }
+
+  @keyframes turn-off-y {
+    0% {
+      transform: scaleY(1);
+      height: 100%;
+    }
+    100% {
+      transform: scaleY(0.005);
+      height: 100%;
+    }
+  }
+
+  .crt-off {
+    animation:
+      turn-off-y 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards,
+      turn-off-x 0.4s 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  /* When terminal is "off", it looks like a dead screen */
+  .terminal-off-state {
+    background-color: #050505 !important; /* Very dark screen */
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden; /* Hide content */
+  }
+
+  /* Hide internal elements when off */
+  .terminal-off-state > *:not(.power-button) {
+    display: none !important;
+  }
+
   .power-button.visible {
     opacity: 1;
     visibility: visible;
   }
   .power-button:hover {
-    background-color: rgba(
-      var(--color-primary-rgb),
-      0.1
-    ); /* Use RGB version if available, else adjust alpha */
+    background-color: rgba(var(--color-primary-rgb), 0.2);
+    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.6);
   }
   .power-button:active {
-    transform: translate(-50%, -50%) scale(0.95); /* Click effect */
+    transform: translate(-50%, -50%) scale(0.95);
   }
   .power-button svg {
     width: 50%;
     height: 50%;
-    fill: currentColor; /* Inherits color (primary) from button */
+    fill: currentColor;
   }
 
   /* Resize Handle Styles */
@@ -477,13 +516,14 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     right: 0;
     width: 15px;
     height: 15px;
-    background-color: rgba(
-      var(--color-accent-rgb),
-      0.5
-    ); /* Semi-transparent accent */
-    border-top: 2px solid var(--color-accent);
-    border-left: 2px solid var(--color-accent);
-    cursor: nwse-resize; /* Diagonal resize cursor */
+    cursor: se-resize;
+    /* Visual indicator for resize handle */
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      rgba(var(--color-primary-rgb), 0.5) 50%
+    );
+    border-bottom-right-radius: 0.375rem; /* Match container radius */
     z-index: 101; /* Above terminal content */
     transition: background-color 0.2s ease;
   }
@@ -517,15 +557,6 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     .message-textarea {
       min-height: 100px;
     }
-    .power-button {
-      width: 50px;
-      height: 50px;
-      border-width: 1.5px; /* Adjust border for smaller button */
-    }
-    .resize-handle {
-      width: 12px;
-      height: 12px;
-    }
   }
 </style>
 
@@ -536,7 +567,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 <script define:vars={{ translationsJson, apertureAsciiJson }}>
   // At the VERY TOP of the <script define:vars={{...}}> block:
   console.log(
-    "TerminalContactForm Script: Parsed and waiting for DOM/Astro events."
+    "TerminalContactForm Script: Parsed and waiting for DOM/Astro events.",
   );
 
   let currentTerminalCleanup = null;
@@ -559,12 +590,12 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   function runTerminalSetup() {
     const currentAttemptId = ++initAttemptIdCounter;
     console.log(
-      `TerminalContactForm Script: runTerminalSetup() called. Attempt ID: ${currentAttemptId}`
+      `TerminalContactForm Script: runTerminalSetup() called. Attempt ID: ${currentAttemptId}`,
     );
 
     if (typeof currentTerminalCleanup === "function") {
       console.log(
-        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Running cleanup for a previous terminal instance's listeners.`
+        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Running cleanup for a previous terminal instance's listeners.`,
       );
       currentTerminalCleanup();
       currentTerminalCleanup = null;
@@ -577,23 +608,23 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     const terminalElement = document.getElementById("terminal");
     if (!terminalElement) {
       console.log(
-        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Terminal element (id='terminal') not found. No setup will occur.`
+        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Terminal element (id='terminal') not found. No setup will occur.`,
       );
       return;
     }
 
     console.log(
-      `[Attempt ${currentAttemptId}] Checking terminal.dataset.terminalInitialized: '${terminalElement.dataset.terminalInitialized}', current DOM terminalInstanceId: '${terminalElement.dataset.terminalInstanceId}'`
+      `[Attempt ${currentAttemptId}] Checking terminal.dataset.terminalInitialized: '${terminalElement.dataset.terminalInitialized}', current DOM terminalInstanceId: '${terminalElement.dataset.terminalInstanceId}'`,
     );
     if (terminalElement.dataset.terminalInitialized === "true") {
       console.log(
-        `[Attempt ${currentAttemptId}] This terminal DOM instance (initialized by attempt ${terminalElement.dataset.terminalInstanceId}) is already marked as initialized. Skipping full re-initialization.`
+        `[Attempt ${currentAttemptId}] This terminal DOM instance (initialized by attempt ${terminalElement.dataset.terminalInstanceId}) is already marked as initialized. Skipping full re-initialization.`,
       );
       return;
     }
 
     console.log(
-      `[Attempt ${currentAttemptId}] Proceeding with new terminal initialization logic.`
+      `[Attempt ${currentAttemptId}] Proceeding with new terminal initialization logic.`,
     );
     terminalElement.dataset.terminalInstanceId = currentAttemptId;
 
@@ -604,7 +635,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         translationsJson === null
       ) {
         throw new Error(
-          "translationsJson variable from define:vars is undefined or null."
+          "translationsJson variable from define:vars is undefined or null.",
         );
       }
       localTranslations = JSON.parse(translationsJson);
@@ -614,7 +645,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     } catch (error) {
       console.error(
         `[Attempt ${currentAttemptId}] CRITICAL: Error processing translations JSON for terminal. translationsJson type: ${typeof translationsJson}. Error:`,
-        error.message
+        error.message,
       );
       const outputDiv = document.getElementById("output");
       if (outputDiv) {
@@ -631,7 +662,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         apertureAsciiJson === null
       ) {
         console.warn(
-          `[Attempt ${currentAttemptId}] apertureAsciiJson variable from define:vars is undefined or null. Proceeding without custom ASCII art.`
+          `[Attempt ${currentAttemptId}] apertureAsciiJson variable from define:vars is undefined or null. Proceeding without custom ASCII art.`,
         );
       } else {
         localApertureAscii = JSON.parse(apertureAsciiJson);
@@ -642,28 +673,28 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     } catch (error) {
       console.error(
         `[Attempt ${currentAttemptId}] Error parsing ASCII art JSON for terminal. Error:`,
-        error.message
+        error.message,
       );
     }
 
     terminalElement.dataset.terminalInitialized = "true";
     console.log(
-      `[Attempt ${currentAttemptId}] Set terminal.dataset.terminalInitialized to 'true'. DOM terminalInstanceId is ${terminalElement.dataset.terminalInstanceId}.`
+      `[Attempt ${currentAttemptId}] Set terminal.dataset.terminalInitialized to 'true'. DOM terminalInstanceId is ${terminalElement.dataset.terminalInstanceId}.`,
     );
 
     console.log(
-      `[Attempt ${currentAttemptId}] Calling initializeTerminalContact().`
+      `[Attempt ${currentAttemptId}] Calling initializeTerminalContact().`,
     );
     initializeTerminalContact(
       localTranslations,
       localApertureAscii,
-      currentAttemptId
+      currentAttemptId,
     );
   }
 
   function initializeTerminalContact(translations, apertureAscii, initId) {
     console.log(
-      `[Attempt ${initId}] TerminalContactForm Script: initializeTerminalContact() started.`
+      `[Attempt ${initId}] TerminalContactForm Script: initializeTerminalContact() started.`,
     );
 
     const terminalWindow = document.getElementById("terminal");
@@ -696,7 +727,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     for (const key in essentialElements) {
       if (!essentialElements[key]) {
         console.error(
-          `[Attempt ${initId}] TerminalContactForm Script: Essential DOM element '${key}' not found. Aborting initialization.`
+          `[Attempt ${initId}] TerminalContactForm Script: Essential DOM element '${key}' not found. Aborting initialization.`,
         );
         if (output) {
           output.innerHTML = `<div class="output-line error-text">Error: A critical UI part of the terminal is missing (${key}). Try refreshing.</div>`;
@@ -735,7 +766,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       terminalWindow.style.top = `${newTop}px`;
       terminalWindow.style.left = `${newLeft}px`;
       console.log(
-        `[Attempt ${initId}] Initial position set - Top: ${newTop}px, Left: ${newLeft}px, Width: ${initialW}px, Height: ${initialH}px`
+        `[Attempt ${initId}] Initial position set - Top: ${newTop}px, Left: ${newLeft}px, Width: ${initialW}px, Height: ${initialH}px`,
       );
     }
     setInitialPositionAndSize();
@@ -767,16 +798,16 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       "sendButton",
     ];
     const missingKeys = requiredKeys.filter(
-      (key) => typeof translations[key] !== "string" || !translations[key]
+      (key) => typeof translations[key] !== "string" || !translations[key],
     );
     if (missingKeys.length > 0) {
       console.error(
-        `[Attempt ${initId}] Terminal initialization aborted due to missing translations for keys: ${missingKeys.join(", ")}`
+        `[Attempt ${initId}] Terminal initialization aborted due to missing translations for keys: ${missingKeys.join(", ")}`,
       );
       addOutputLine(
         `Configuration error: Missing required text for terminal operation (${missingKeys.join(", ")}).`,
         "error",
-        false
+        false,
       );
       if (commandInput) commandInput.disabled = true;
       if (messageInput) messageInput.disabled = true;
@@ -916,7 +947,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         } catch (error) {
           console.error(
             `[Attempt ${initId}] Error during typeWriter's type function:`,
-            error
+            error,
           );
           isTyping = false;
           if (commandInput) commandInput.disabled = false;
@@ -997,7 +1028,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       if (!formData.message) {
         addOutputLine(
           translations.errorMessage || "Message cannot be empty.",
-          "error"
+          "error",
         );
         messageEditorContainer.style.outline = "1px solid red";
         setTimeout(() => {
@@ -1067,18 +1098,21 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     }
 
     function showPowerButton() {
-      if (!outputContainer) return;
-      const existingButton = document.getElementById(POWER_BUTTON_ID);
-      if (existingButton) existingButton.remove();
+      // Use terminalWindow as container so it stays centered even if content is hidden
+      if (!terminalWindow) return;
 
-      const button = document.createElement("button");
-      button.id = POWER_BUTTON_ID;
-      button.className = "power-button";
-      button.setAttribute("aria-label", "Restart Terminal");
-      button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.84 3 9.25 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.75-1.23-5.16-3.17-6.83z"/></svg>`;
-      button.onclick = resetTerminal;
-      outputContainer.appendChild(button);
-      setTimeout(() => button.classList.add("visible"), 10);
+      let button = document.getElementById(POWER_BUTTON_ID);
+      if (!button) {
+        button = document.createElement("button");
+        button.id = POWER_BUTTON_ID;
+        button.className = "power-button";
+        button.setAttribute("aria-label", "Restart Terminal");
+        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.84 3 9.25 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.75-1.23-5.16-3.17-6.83z"/></svg>`;
+        button.onclick = resetTerminal;
+        terminalWindow.appendChild(button);
+      }
+
+      setTimeout(() => button.classList.add("visible"), 800); // Show after CRT anim finishes
     }
 
     function hidePowerButton() {
@@ -1118,7 +1152,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           break;
         case 3:
           console.warn(
-            `[Attempt ${initId}] processInput called unexpectedly during step 3 (message input).`
+            `[Attempt ${initId}] processInput called unexpectedly during step 3 (message input).`,
           );
           break;
         case 4:
@@ -1128,31 +1162,29 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             if (sendButton) sendButton.disabled = true;
             if (commandInput) commandInput.disabled = true;
             try {
-              const response = await fetch("/api/contact", {
+              const response = await fetch("/api/contact/initiate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
               });
+
               if (!response.ok) {
-                let errorData = { message: `Server error: ${response.status}` };
-                try {
-                  errorData = await response.json();
-                } catch (e) {}
-                throw new Error(
-                  errorData.message || `HTTP error ${response.status}`
-                );
+                throw new Error(`HTTP error ${response.status}`);
               }
+
               const data = await response.json();
               addOutputLine(
-                data.message || translations.sentSuccess,
-                "success"
+                data.message ||
+                  "Verification email sent. Please check your inbox.",
+                "success",
               );
+
               currentStep = 5;
               typeWriter(prompts[currentStep], focusCommandInput);
             } catch (error) {
               console.error(
                 `[Attempt ${initId}] Contact form submission error:`,
-                error
+                error,
               );
               const errorMsg = (
                 translations.errorSending || "Failed to send: {message}"
@@ -1176,7 +1208,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             typeWriter(
               prompts[currentStep],
               focusCommandInput,
-              "prompt-secondary"
+              "prompt-secondary",
             );
           }
           break;
@@ -1200,20 +1232,31 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
               document.activeElement.blur();
             }
             if (inputLine) inputLine.classList.remove("focused");
-            if (output) output.classList.add("hidden");
-            if (inputAreaContainer) inputAreaContainer.classList.add("hidden");
-            setTimeout(showPowerButton, 350);
+
+            // Trigger CRT Animation
+            if (terminalHeader) terminalHeader.style.opacity = "0";
+            if (resizeHandle) resizeHandle.style.opacity = "0";
+
+            // Animate content collapsing
+            outputContainer.classList.add("crt-off");
+            // Also animate input container if visible, but essentially we just need the "screen" to collapse
+            if (inputAreaContainer) inputAreaContainer.style.opacity = "0";
+
+            setTimeout(() => {
+              terminalWindow.classList.add("terminal-off-state");
+              showPowerButton();
+            }, 800);
           } else {
             typeWriter(prompts[currentStep], focusCommandInput);
           }
           break;
         default:
           console.error(
-            `[Attempt ${initId}] Invalid currentStep: ${currentStep}`
+            `[Attempt ${initId}] Invalid currentStep: ${currentStep}`,
           );
           addOutputLine(
             "An unexpected error occurred. Type 'reset' to start over.",
-            "error"
+            "error",
           );
           currentStep = 5;
           if (commandInput) commandInput.disabled = false;
@@ -1242,7 +1285,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 
       addOutputLine(" ", "info-no-prefix", false);
       confirmLines.forEach((line) =>
-        addOutputLine(line, "info-no-prefix", false)
+        addOutputLine(line, "info-no-prefix", false),
       );
       addOutputLine(" ", "info-no-prefix", false);
 
@@ -1250,7 +1293,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         typeWriter(prompts[currentStep], focusCommandInput, "prompt-secondary");
       } else {
         console.error(
-          `[Attempt ${initId}] Confirmation prompt missing for step 4.`
+          `[Attempt ${initId}] Confirmation prompt missing for step 4.`,
         );
         addOutputLine("Confirm? (yes/no/edit)", "prompt-secondary");
         focusCommandInput();
@@ -1267,15 +1310,25 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         !sendButton ||
         !inputLine ||
         !outputContainer ||
-        !inputAreaContainer
+        !inputAreaContainer ||
+        !terminalHeader ||
+        !resizeHandle
       ) {
         console.error(
-          `[Attempt ${initId}] Cannot reset terminal, essential elements missing.`
+          `[Attempt ${initId}] Cannot reset terminal, essential elements missing.`,
         );
         return;
       }
       isExited = false;
       hidePowerButton();
+
+      // Reset State
+      terminalWindow.classList.remove("terminal-off-state");
+      if (terminalHeader) terminalHeader.style.opacity = "1";
+      if (resizeHandle) resizeHandle.style.opacity = "1";
+      outputContainer.classList.remove("crt-off");
+      inputAreaContainer.style.opacity = "1";
+
       output.innerHTML = "";
       output.classList.remove("hidden");
       inputAreaContainer.classList.remove("hidden");
@@ -1300,7 +1353,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         addOutputLine(
           "Error: Cannot start terminal - missing welcome text.",
           "error",
-          false
+          false,
         );
         return;
       }
@@ -1312,7 +1365,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         !inputAreaContainer
       ) {
         console.error(
-          `[Attempt ${initId}] Cannot start terminal, essential elements missing for start sequence.`
+          `[Attempt ${initId}] Cannot start terminal, essential elements missing for start sequence.`,
         );
         return;
       }
@@ -1345,7 +1398,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             line,
             "ascii",
             currentDisplayDelay + index * ASCII_LINE_DELAY,
-            false
+            false,
           );
         });
         currentDisplayDelay += apertureAscii.length * ASCII_LINE_DELAY;
@@ -1365,7 +1418,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         "Genetic Lifeform and Disk Operating System",
         "info",
         currentDisplayDelay,
-        false
+        false,
       );
       currentDisplayDelay += startupTextInterval * 5;
       addDelayedLine("Version 4.11.88", "info", currentDisplayDelay, false);
@@ -1376,7 +1429,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         "Initializing Aperture Science Contact Interface...",
         "success",
         currentDisplayDelay,
-        false
+        false,
       );
       currentDisplayDelay += startupTextInterval * 4;
 
@@ -1392,7 +1445,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
               });
             } else {
               console.error(
-                `[Attempt ${initId}] Prompt for step 1 (Name) is missing.`
+                `[Attempt ${initId}] Prompt for step 1 (Name) is missing.`,
               );
               addOutputLine("Error: Missing prompt.", "error");
               commandInput.disabled = false;
@@ -1623,7 +1676,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           if (currentTop + currentHeight > viewportHeight - 5)
             newTop = Math.max(
               TOP_BAR_HEIGHT,
-              viewportHeight - currentHeight - 5
+              viewportHeight - currentHeight - 5,
             );
           newTop = Math.max(TOP_BAR_HEIGHT, newTop);
           if (newLeft !== currentLeft || newTop !== currentTop) {
@@ -1641,7 +1694,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 
     currentTerminalCleanup = () => {
       console.log(
-        `[Attempt ${initId}] TerminalContactForm Script: Running cleanup for terminal instance.`
+        `[Attempt ${initId}] TerminalContactForm Script: Running cleanup for terminal instance.`,
       );
       commandInput.removeEventListener("keydown", handleCommand);
       commandInput.removeEventListener("focus", commandInputFocusHandler);
@@ -1661,7 +1714,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       }
       document.body.style.userSelect = "";
       console.log(
-        `[Attempt ${initId}] Cleanup for terminal instance complete.`
+        `[Attempt ${initId}] Cleanup for terminal instance complete.`,
       );
     };
   }
@@ -1671,14 +1724,14 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       "TerminalContactForm Script: 'astro:page-load' event triggered. Nav type:",
       event.detail?.navigationType,
       " Current readyState:",
-      document.readyState
+      document.readyState,
     );
     runTerminalSetup();
   });
 
   document.addEventListener("astro:before-swap", () => {
     console.log(
-      "TerminalContactForm Script: 'astro:before-swap' event triggered."
+      "TerminalContactForm Script: 'astro:before-swap' event triggered.",
     );
     if (typeof currentTerminalCleanup === "function") {
       currentTerminalCleanup();
@@ -1691,34 +1744,34 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     const outgoingTerminal = document.getElementById("terminal");
     if (outgoingTerminal) {
       console.log(
-        `TerminalContactForm Script: In astro:before-swap, outgoing terminal's initialized flag: ${outgoingTerminal.dataset.terminalInitialized}, instanceId: ${outgoingTerminal.dataset.terminalInstanceId}`
+        `TerminalContactForm Script: In astro:before-swap, outgoing terminal's initialized flag: ${outgoingTerminal.dataset.terminalInitialized}, instanceId: ${outgoingTerminal.dataset.terminalInstanceId}`,
       );
       delete outgoingTerminal.dataset.terminalInitialized;
       delete outgoingTerminal.dataset.terminalInstanceId;
       console.log(
-        "TerminalContactForm Script: Cleared 'terminalInitialized' and 'terminalInstanceId' flags from outgoing terminal."
+        "TerminalContactForm Script: Cleared 'terminalInitialized' and 'terminalInstanceId' flags from outgoing terminal.",
       );
     }
   });
 
   if (document.readyState === "complete") {
     console.log(
-      "TerminalContactForm Script: Document already complete at script parse time. Attempting setup if needed."
+      "TerminalContactForm Script: Document already complete at script parse time. Attempting setup if needed.",
     );
     setTimeout(() => {
       const terminalElem = document.getElementById("terminal");
       if (terminalElem && terminalElem.dataset.terminalInitialized !== "true") {
         console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal not yet initialized by astro:page-load. Running setup."
+          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal not yet initialized by astro:page-load. Running setup.",
         );
         runTerminalSetup();
       } else if (terminalElem) {
         console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal already initialized. Skipping."
+          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal already initialized. Skipping.",
         );
       } else {
         console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - no terminal element found. Skipping."
+          "TerminalContactForm Script: Fallback for 'complete' readyState - no terminal element found. Skipping.",
         );
       }
     }, 50);

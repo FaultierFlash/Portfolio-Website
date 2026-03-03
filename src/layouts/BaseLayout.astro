@@ -37,7 +37,7 @@ if (allProjectFilesGlob) {
     Object.entries(allProjectFilesGlob).map(async ([filePath, resolver]) => {
       const langProjectRegex = new RegExp(
         `^/src/pages/${currentLocale}/(projects|projekte)/`,
-        "i"
+        "i",
       );
       if (langProjectRegex.test(filePath)) {
         try {
@@ -46,7 +46,7 @@ if (allProjectFilesGlob) {
           const segments = filePath.split("/");
           const fileName = segments[segments.length - 1].replace(
             /\.(mdoc|md|astro)$/,
-            ""
+            "",
           );
           const projectTitle =
             projectModule.frontmatter?.navTitle ||
@@ -61,7 +61,7 @@ if (allProjectFilesGlob) {
         }
       }
       return null;
-    })
+    }),
   );
   projectPages = resolvedFiles
     .filter((p): p is { href: string; text: string } => p !== null)
@@ -112,7 +112,7 @@ const homePath = `/${currentLocale}/`;
 
       function applyBaseLayoutThemeConsistency() {
         const themeToggleButton = document.querySelector(
-          "theme-toggle"
+          "#theme-toggle",
         ) as HTMLElement | null; // Query for the custom element
         const themeStorageKey = "theme";
         const htmlElement = document.documentElement;
@@ -128,32 +128,32 @@ const homePath = `/${currentLocale}/`;
         if (themeToggleButton) {
           themeToggleButton.setAttribute(
             "aria-label",
-            `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`
+            `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`,
           );
         }
         console.log(
           "BaseLayout: Applied theme consistency on page load/transition:",
-          currentTheme
+          currentTheme,
         );
       }
 
       function reinitializeBaseLayoutForTheme() {
         console.log(
-          "BaseLayout: astro:page-load triggered. Applying theme consistency."
+          "BaseLayout: astro:page-load triggered. Applying theme consistency.",
         );
         applyBaseLayoutThemeConsistency();
       }
 
       document.addEventListener(
         "astro:page-load",
-        reinitializeBaseLayoutForTheme
+        reinitializeBaseLayoutForTheme,
       );
 
       // No astro:before-swap cleanup needed in BaseLayout for theme, as ThemeToggle handles its own listeners,
       // and applyBaseLayoutThemeConsistency just reads state and sets attributes/classes.
 
       console.log(
-        "BaseLayout Script: Initialized for theme consistency. Waiting for Astro lifecycle events."
+        "BaseLayout Script: Initialized for theme consistency. Waiting for Astro lifecycle events.",
       );
     </script>
   </body>

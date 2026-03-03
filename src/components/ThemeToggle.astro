@@ -2,7 +2,7 @@
 // src/components/ThemeToggle.astro
 ---
 
-<button id="theme-toggle" aria-label="Theme wechseln">
+<button id="theme-toggle" aria-label="Switch theme">
   <svg
     class="sun-icon"
     xmlns="http://www.w3.org/2000/svg"
@@ -14,17 +14,19 @@
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
+    ><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"
+    ></line><line x1="12" y1="21" x2="12" y2="23"></line><line
+      x1="4.22"
+      y1="4.22"
+      x2="5.64"
+      y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"
+    ></line><line x1="1" y1="12" x2="3" y2="12"></line><line
+      x1="21"
+      y1="12"
+      x2="23"
+      y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"
+    ></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg
   >
-    <circle cx="12" cy="12" r="5"></circle>
-    <line x1="12" y1="1" x2="12" y2="3"></line>
-    <line x1="12" y1="21" x2="12" y2="23"></line>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-    <line x1="1" y1="12" x2="3" y2="12"></line>
-    <line x1="21" y1="12" x2="23" y2="12"></line>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-  </svg>
   <svg
     class="moon-icon"
     xmlns="http://www.w3.org/2000/svg"
@@ -36,9 +38,8 @@
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
+    ><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg
   >
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-  </svg>
 </button>
 
 <style>
@@ -52,6 +53,8 @@
     padding: 0.5rem;
     border-radius: 0.375rem;
     color: var(--color-text);
+    position: relative;
+    z-index: 10000;
   }
 
   #theme-toggle:hover {
@@ -64,7 +67,6 @@
     width: 1.25rem;
   }
 
-  /* By default, moon icon is shown (implying light mode is active) */
   .sun-icon {
     display: none;
   }
@@ -72,90 +74,142 @@
     display: block;
   }
 
-  /* When dark mode is active, show sun icon */
   :global(html.dark) .sun-icon {
-    /* More specific selector using html.dark */
     display: block;
   }
   :global(html.dark) .moon-icon {
     display: none;
   }
+
+  /* View Transitions Specific Styles */
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  :global(::view-transition-old(root)) {
+    z-index: 1;
+  }
+  :global(::view-transition-new(root)) {
+    z-index: 9999;
+  }
 </style>
 
 <script>
-  // Store the click handler function to be able to remove it
-  let themeToggleClickHandler = null;
+  console.log("ThemeToggle: Script loaded (View Transitions Version).");
 
   function setupThemeToggle() {
-    const themeToggle = document.getElementById("theme-toggle");
-    const htmlElement = document.documentElement;
+    const themeToggle = document.getElementById(
+      "theme-toggle",
+    ) as HTMLButtonElement | null;
+    const themeStorageKey = "theme";
 
-    if (themeToggle) {
-      // Remove existing listener if one was attached by this script instance
-      if (themeToggleClickHandler) {
-        themeToggle.removeEventListener("click", themeToggleClickHandler);
-        console.log("ThemeToggle: Removed old click listener.");
+    if (!themeToggle) return;
+
+    // cleanup old listener
+    if ((themeToggle as any)._themeClickHandler) {
+      themeToggle.removeEventListener(
+        "click",
+        (themeToggle as any)._themeClickHandler,
+      );
+    }
+
+    const clickHandler = async () => {
+      // Fallback for browsers without View Transitions
+      if (!document.startViewTransition) {
+        toggleTheme();
+        return;
       }
 
-      // Define the new click handler
-      themeToggleClickHandler = () => {
-        const isDark = htmlElement.classList.contains("dark");
-        const newTheme = isDark ? "light" : "dark";
+      // Start the view transition
+      const transition = document.startViewTransition(async () => {
+        toggleTheme();
+      });
 
-        htmlElement.classList.toggle("dark", newTheme === "dark");
-        localStorage.setItem("theme", newTheme);
+      // Wait for the pseudo-elements to be created
+      await transition.ready;
 
-        // Update ARIA label (BaseLayout might also do this, but good for component encapsulation)
-        themeToggle.setAttribute(
-          "aria-label",
-          `Switch to ${newTheme === "dark" ? "light" : "dark"} theme`
-        );
-        console.log("ThemeToggle: Clicked! Theme set to", newTheme);
-      };
+      // Calculate radius to cover the screen from the center
+      const x = window.innerWidth / 2;
+      const y = window.innerHeight / 2;
+      const right = window.innerWidth - x;
+      const bottom = window.innerHeight - y;
+      const maxRadius = Math.hypot(Math.max(x, right), Math.max(y, bottom));
 
-      themeToggle.addEventListener("click", themeToggleClickHandler);
-      console.log("ThemeToggle: Click listener (re-)attached.");
+      const pauseRadius = maxRadius * 0.3;
 
-      // Set initial ARIA label based on current theme (ThemeScript.astro handles initial class)
-      const initialTheme =
-        localStorage.getItem("theme") ||
-        (window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light");
-      themeToggle.setAttribute(
-        "aria-label",
-        `Switch to ${initialTheme === "dark" ? "light" : "dark"} theme`
+      // Animate the circle clip-path with a pause in the middle
+      // 0% -> 30% (fast)
+      // 30% -> 30% (pause)
+      // 30% -> 100% (fast)
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${pauseRadius}px at ${x}px ${y}px)`,
+            `circle(${pauseRadius}px at ${x}px ${y}px)`,
+            `circle(${maxRadius}px at ${x}px ${y}px)`,
+          ],
+          offset: [
+            0,
+            0.35, // Reach 30% a bit slower for smoothness
+            0.75, // Hold for longer (40% of total time)
+            1.0,
+          ],
+          easing: "cubic-bezier(0.25, 0.1, 0.25, 1)", // Apply global fluid easing, effective for the moving parts
+        },
+        {
+          duration: 1500, // Increased duration for better visibility
+          pseudoElement: "::view-transition-new(root)",
+        },
       );
-    } else {
-      console.log("ThemeToggle: Button not found.");
+    };
+
+    function toggleTheme() {
+      const htmlElement = document.documentElement;
+      const isCurrentlyDark = htmlElement.classList.contains("dark");
+      const newTheme = isCurrentlyDark ? "light" : "dark";
+
+      htmlElement.classList.toggle("dark", newTheme === "dark");
+      localStorage.setItem(themeStorageKey, newTheme);
+
+      themeToggle?.setAttribute(
+        "aria-label",
+        `Switch to ${newTheme === "dark" ? "light" : "dark"} theme`,
+      );
     }
+
+    // Set initial aria-label
+    const currentTheme =
+      localStorage.getItem(themeStorageKey) ||
+      (window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light");
+    themeToggle.setAttribute(
+      "aria-label",
+      `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`,
+    );
+
+    (themeToggle as any)._themeClickHandler = clickHandler;
+    themeToggle.addEventListener("click", clickHandler);
   }
 
-  // Run on initial load
+  // Lifecycle listeners
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupThemeToggle);
   } else {
-    setupThemeToggle(); // If DOM already loaded
-  }
-
-  // Run on Astro page transitions
-  document.addEventListener("astro:page-load", () => {
-    console.log(
-      "ThemeToggle: astro:page-load event triggered. Setting up theme toggle."
-    );
     setupThemeToggle();
-  });
+  }
+  document.addEventListener("astro:page-load", setupThemeToggle);
 
-  // Optional: Cleanup on astro:before-swap if the element might persist
-  // and you want to be absolutely sure the listener is gone from the *old* instance.
-  // However, if Astro always replaces the element, this might not be strictly necessary
-  // as the old element and its listeners are discarded.
   document.addEventListener("astro:before-swap", () => {
     const themeToggle = document.getElementById("theme-toggle");
-    if (themeToggle && themeToggleClickHandler) {
-      themeToggle.removeEventListener("click", themeToggleClickHandler);
-      console.log("ThemeToggle: Cleaned up listener on astro:before-swap.");
-      themeToggleClickHandler = null; // Reset the stored handler
+    if (themeToggle && (themeToggle as any)._themeClickHandler) {
+      themeToggle.removeEventListener(
+        "click",
+        (themeToggle as any)._themeClickHandler,
+      );
     }
   });
 </script>

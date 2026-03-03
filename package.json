@@ -9,9 +9,12 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.7.4",
+    "@sanity/client": "^7.13.2",
+    "@sanity/image-url": "^2.0.2",
+    "astro": "^5.16.5",
+    "jsonwebtoken": "^9.0.3",
     "nodemailer": "^6.10.1",
-    "resend": "^4.5.0"
+    "resend": "^4.8.0"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.17"

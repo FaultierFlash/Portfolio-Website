@@ -22,41 +22,49 @@ function getNestedValue(obj: any, path: string[]): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-export function useTranslations(lang: Locale | undefined) {
+export function useTranslations(lang: Locale | undefined, overrides?: Record<string, string>) {
   const currentLang = lang || 'en'; // Default to 'en' if somehow undefined
   const currentTranslations = translations[currentLang];
   const fallbackTranslations = translations['en']; // Always use 'en' as the fallback language
 
-  // Modify the 't' function to handle nested keys
+  // Modify the 't' function to handle nested keys and overrides
   return function t(key: string, params?: Record<string, string | number>): string {
-    // Split the key string by '.' e.g., "terminal.title" becomes ["terminal", "title"]
-    const keyParts = key.split('.');
-
-    // Try to get the translation from the current language object using the nested path
-    let translation = getNestedValue(currentTranslations, keyParts);
-
-    // If the translation wasn't found in the current language, try the fallback language ('en')
-    if (translation === undefined && currentLang !== 'en') {
-        console.warn(`Translation key "${key}" not found for locale "${currentLang}". Trying fallback "en".`);
-        translation = getNestedValue(fallbackTranslations, keyParts);
+    // 1. Check for Override first
+    let translation: string | undefined;
+    if (overrides && overrides[key]) {
+      translation = overrides[key];
     }
 
-    // If the translation is still not found (neither in current lang nor fallback),
+    if (translation === undefined) {
+      // Split the key string by '.' e.g., "terminal.title" becomes ["terminal", "title"]
+      const keyParts = key.split('.');
+
+      // Try to get the translation from the current language object using the nested path
+      translation = getNestedValue(currentTranslations, keyParts);
+
+      // If the translation wasn't found in the current language, try the fallback language ('en')
+      if (translation === undefined && currentLang !== 'en') {
+        console.warn(`Translation key "${key}" not found for locale "${currentLang}". Trying fallback "en".`);
+        translation = getNestedValue(fallbackTranslations, keyParts);
+      }
+    }
+
+    // If the translation is still not found (neither in overrides, current lang nor fallback),
     // use the key itself as the result and log a warning.
     if (translation === undefined) {
-        console.warn(`Translation key "${key}" not found in locale "${currentLang}" or fallback "en". Using key as fallback.`);
-        translation = key; // Return the key string itself
+      console.warn(`Translation key "${key}" not found in locale "${currentLang}" or fallback "en". Using key as fallback.`);
+      translation = key; // Return the key string itself
     }
 
     let finalTranslation = translation; // Use the found translation or the key
 
     // Perform parameter replacement if params are provided and we have a translation string
     if (params && finalTranslation) {
-       Object.keys(params).forEach((paramKey) => {
+      Object.keys(params).forEach((paramKey) => {
         // Use a global regex to replace all occurrences of {paramKey}
         const regex = new RegExp(`\\{${paramKey}\\}`, 'g');
         finalTranslation = finalTranslation.replace(regex, String(params[paramKey]));
-       });
+      });
     }
 
     return finalTranslation;

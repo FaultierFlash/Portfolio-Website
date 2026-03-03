@@ -1,9 +1,10 @@
 ---
 // components/ProjectWheel/index.astro
 // ... (rest of the component script remains the same)
-import LetterDivider from "./LetterDivider.astro";
+// components/ProjectWheel/index.astro
+// ... (rest of the component script remains the same)
 import ProjectSlice from "./ProjectSlice.astro";
-import { sortProjects, groupProjectsByLetter, createWheelItems } from "./utils";
+import { processProjects } from "./utils";
 
 // Define the Project type
 interface Project {
@@ -19,40 +20,39 @@ interface Props {
 }
 
 const { projects } = Astro.props;
-const sortedProjects = sortProjects(projects);
-const groupedProjects = groupProjectsByLetter(sortedProjects);
 
-// Calculate total number of projects
-let totalProjects = 0;
-Object.keys(groupedProjects).forEach((letter) => {
-  totalProjects += groupedProjects[letter].length;
-});
+// Process projects: assign angles (0, 120, 240, 360...)
+const wheelItems = processProjects(projects);
 
-// Calculate angle for each section
-const anglePerSection = 360 / totalProjects;
-
-// Create wheel items from grouped projects
-const wheelItems = createWheelItems(groupedProjects, anglePerSection);
+// Configuration constant
+const ANGLE_PER_SECTION = 120;
 ---
 
 <div class="project-wheel-container">
-  <div id="wheelBox" class="wheel-box">
-    <div class="wheel-outer-border"></div>
-    <div id="projectWheel" class="project-wheel">
+  <div class="wheel-trigger-zone">
+    <div id="wheelBox" class="wheel-box">
       {
-        wheelItems.map((item) => {
-          if (item.type === "divider") {
-            return <LetterDivider letter={item.letter} angle={item.angle} />;
-          } else {
-            return (
-              <ProjectSlice project={item} anglePerSection={anglePerSection} />
-            );
-          }
-        })
+        /* Removed Outer Border and Scroll Track for cleaner look per "seamless" request */
       }
-    </div>
-    <div id="scrollTrack" class="scroll-track">
-      <div id="scrollHandle" class="scroll-handle"></div>
+      {/* If user wants them back, we can re-add. Focus on content. */}
+      <div id="projectWheel" class="project-wheel">
+        {/* STATIC BORDER RING: A continuous circle behind the slices */}
+        <svg viewBox="0 0 100 100" class="static-border-ring">
+          {/* Radius 49 matches the previous "Scale 0.98" of 50 */}
+          <circle cx="50" cy="50" r="49" class="wheel-border-stroke"></circle>
+        </svg>
+
+        {
+          wheelItems.map((item) => {
+            return (
+              <ProjectSlice
+                project={item}
+                anglePerSection={ANGLE_PER_SECTION}
+              />
+            );
+          })
+        }
+      </div>
     </div>
   </div>
 </div>
@@ -64,91 +64,84 @@ const wheelItems = createWheelItems(groupedProjects, anglePerSection);
 
 <style>
   /* Container for the whole wheel component */
+  /* Container for the whole wheel component */
   .project-wheel-container {
     position: relative;
     width: 100%;
-    height: 100vh; /* Full viewport height */
+    /* We don't set height 100vh here, we let the page flow until key point? 
+       Actually, to support the scroll logic, we usually need a defined height/spacer.
+       But for now, sticking to the existing Overlay/Fixed pattern handled by JS. */
+    height: 100vh;
     overflow: hidden;
-    /* Padding to prevent touching edges */
-    padding: 0 0; /* Keep padding */
-    box-sizing: border-box; /* Ensure padding is included in width */
-    margin: 0 auto; /* Center horizontally */
+    padding: 0;
+    margin: 0 auto;
+    /* Basic flex center if needed */
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
-  /* Box that centers and positions the wheel */
   .wheel-box {
-    position: absolute;
-    bottom: 0%;
+    position: fixed; /* Fixed by default? Or JS toggled? JS handles it. */
+    /* Start at bottom of viewport. JS will animate translateY from 100vh (hidden) to 0 (shown). */
+    bottom: 15vh; /* Centered roughly at start of footer (assuming footer ~30vh or user preference) */
     left: 50%;
-    transform: translateX(-50%) translateY(50%);
-    /* Keep width/height 0, its size is defined by positioned children */
+    transform: translateX(-50%) translateY(100vh);
     width: 0;
     height: 0;
-    transition: transform 0.3s ease-out;
+    /* transition: transform 0.3s ease-out;  <-- Remove transition for direct scroll control */
     margin: 0 auto;
+    z-index: 1; /* Low z-index to stay behind other content (like Footer) */
   }
 
-  /* Base styles for wheel elements */
-  .wheel-outer-border,
-  .project-wheel,
-  .scroll-track {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    /* Use vw units for base size, significantly reduced */
-  }
-
-  .wheel-outer-border {
-    /* Further reduced vw to give more space for padding */
-    width: 75vw;
-    height: 75vw;
-    /* Max size constraints using vh and px */
-    max-width: min(150vh, 1600px); /* Adjusted vh to match vw */
-    max-height: min(150vh, 1600px);
-    border: 2px solid var(--color-border);
-    z-index: 1;
+  /* When active class added by JS */
+  :global(.wheel-active) .wheel-box {
+    bottom: 0; /* Or handled by transform */
   }
 
   .project-wheel {
-    /* Further reduced vw */
-    width: 70vw; /* Slightly smaller than outer border */
-    height: 70vw;
-    /* Max size constraints using vh and px */
-    max-width: min(140vh, 1500px); /* Adjusted vh to match vw */
-    max-height: min(140vh, 1500px);
-    z-index: 2;
-    transform-origin: center center;
-    transition: transform 0.3s ease;
-  }
+    /* Use reliable sizing */
+    width: 80vw;
+    height: 80vw;
+    max-width: 1000px;
+    max-height: 1000px;
 
-  .scroll-track {
-    /* Further reduced vw */
-    width: 75vw; /* Match outer border */
-    height: 75vw;
-    /* Max size constraints using vh and px */
-    max-width: min(150vh, 1600px); /* Adjusted vh to match vw */
-    max-height: min(150vh, 1600px);
-    z-index: 5;
-    pointer-events: none;
-  }
-
-  /* Scroll handle */
-  .scroll-handle {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 2rem;
-    height: 2rem;
-    margin-left: -1rem;
-    margin-top: -1rem;
-    background-color: var(--color-primary);
-    border: 3px solid white;
+    /* Centered on itself */
+    transform-origin: center center;
+    /* Initial state */
+    transform: translate(-50%, -50%) rotate(0deg);
+    /* No transition on rotate for direct scroll mapping */
+
     border-radius: 50%;
-    z-index: 10;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-    /* Initial position will be set precisely by JS after radius calculation */
-    transform: translate(0px, 0px); /* Default to center, JS will fix */
+    /* visual debug guide: border: 1px dashed rgba(255,255,255,0.1); */
+  }
+
+  .static-border-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1; /* Slices start at Z-index 0/100, so this sits behind active ones? 
+                 Wait, slices are managed by JS Z-index. 
+                 Visible slices are Z >= 80. Hidden are Z=0.
+                 We want this BEHIND slices? Or ON TOP of background but BEHIND images?
+                 If Slices are absolute, they stack.
+                 If this is Z=1, it is above Z=0 (hidden slices).
+                 But below Z=80 (active slices).
+                 This is perfect. It will be covered by the active slice's IMAGE if expanded,
+                 but visible in the gaps. */
+  }
+
+  .wheel-border-stroke {
+    fill: none;
+    stroke: var(--color-border); /* Matches the previous border color */
+    stroke-width: 0.5px;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.8;
   }
 </style>

@@ -1,431 +1,153 @@
 ---
 // src/components/Header.astro
-import { useTranslations, type Locale } from "../i18n/utils"; // Assuming this path is correct from Header.astro
-import LanguageSwitcher from "./LanguageSwitcher.astro"; // Assuming this path
-import ThemeToggle from "./ThemeToggle.astro"; // Assuming this path
+import {
+  useTranslations,
+  type Locale,
+  type LocalizedString,
+} from "../i18n/utils";
+import Logo from "./Logo.astro";
+import HamburgerButton from "./HamburgerButton.astro";
+import Navigation from "./Navigation.astro";
+import type { PathSegment } from "./Logo.astro";
 
 interface Props {
   currentLocale: Locale;
-  // The 't' function can be complex to pass directly if it relies on Astro's internal context.
-  // It might be better to pass specific translated strings needed by the header,
-  // or re-initialize 't' here if `Astro.currentLocale` is accessible or passed.
-  // For simplicity, let's assume 't' is passed, but this might need adjustment.
   t: ReturnType<typeof useTranslations>;
-  homePath: string; // e.g. /en/
-  navLinks: { href: string; text: string }[];
-  projectPages: { href: string; text: string }[];
+  homePath: string;
+  navLinks: { href: string; text: LocalizedString | string }[];
+  projectPages: { href: string; text: LocalizedString | string }[];
 }
 
 const { currentLocale, t, homePath, navLinks, projectPages } = Astro.props;
 
-// --- Dynamic Path Display logic (moved from BaseLayout) ---
-const currentPathname = Astro.url.pathname; // Astro.url is globally available
+// --- Generate Path Segments for Logo with Full Translation ---
+const pathSegments: PathSegment[] = [];
+const rawPathname = Astro.url.pathname;
+console.log("[Header Breadcrumb] Raw Pathname:", rawPathname);
 
-function getPathWithoutLocale(path: string, locale: Locale): string {
-  const localePrefix = `/${locale}`;
-  if (path === localePrefix || path === `${localePrefix}/`) return "/";
-  if (path.startsWith(`${localePrefix}/`))
-    return path.substring(localePrefix.length);
-  return path;
+// 1. Add the "~" (home) segment
+pathSegments.push({
+  text: "~",
+  href: homePath,
+  ariaLabel: t("nav.logo.ariaLabel") || t("nav.home") || "Home",
+});
+
+// 2. Process the rest of the path
+const localePrefix = `/${currentLocale}`;
+let pathWithoutLocale = rawPathname;
+
+if (rawPathname.startsWith(localePrefix)) {
+  pathWithoutLocale = rawPathname.substring(localePrefix.length);
 }
-const basePath = getPathWithoutLocale(currentPathname, currentLocale);
-let displayPathText;
+if (pathWithoutLocale && !pathWithoutLocale.startsWith("/")) {
+  pathWithoutLocale = "/" + pathWithoutLocale;
+}
+if (pathWithoutLocale.length > 1 && pathWithoutLocale.endsWith("/")) {
+  pathWithoutLocale = pathWithoutLocale.slice(0, -1);
+}
+console.log("[Header Breadcrumb] Path without locale:", pathWithoutLocale);
 
-if (basePath === "/") {
-  displayPathText = t("nav.home");
-} else if (basePath === "/contact" || basePath === "/contact/") {
-  displayPathText = t("terminal.title"); // Assuming t("terminal.title") is available
-} else if (basePath === "/projects" || basePath === "/projects/") {
-  displayPathText = t("nav.projects");
-} else if (basePath.startsWith("/projects/")) {
-  const segments = basePath.split("/");
-  let slugText = segments[segments.length - 1] || segments[segments.length - 2];
-  slugText = slugText.replace(/-/g, " ").trim();
-  displayPathText = slugText
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-} else {
-  const lastSegment = basePath.split("/").filter(Boolean).pop();
-  if (lastSegment) {
-    const potentialKey = `nav.${lastSegment.toLowerCase()}`;
-    const translated = t(potentialKey);
-    // Check if translation exists and is not the key itself
-    if (translated !== potentialKey && translated !== "") {
-      displayPathText = translated;
+const slugs = pathWithoutLocale.split("/").filter(Boolean);
+console.log("[Header Breadcrumb] Slugs:", JSON.stringify(slugs));
+
+let cumulativePathForLinks = "";
+let basePathKeyForTranslations = "paths"; // Start with the base "paths" key
+
+slugs.forEach((slug, index) => {
+  console.log(`\n[Header Breadcrumb] Processing slug #${index}: '${slug}'`);
+  cumulativePathForLinks += `/${slug}`;
+  const isLastSegment = index === slugs.length - 1;
+  let segmentText = "";
+
+  // Construct the key for the section title (e.g., "paths.projects._title_")
+  const titleKey = `${basePathKeyForTranslations}.${slug}._title_`;
+  let translatedTitle = t(titleKey);
+
+  console.log(
+    `[Header Breadcrumb] Attempting titleKey: '${titleKey}', result: '${translatedTitle}'`
+  );
+
+  if (translatedTitle && translatedTitle !== titleKey) {
+    // Check if translation was found and is not the key itself
+    segmentText = translatedTitle;
+    console.log(
+      `[Header Breadcrumb] Used _title_ translation: '${segmentText}'`
+    );
+  } else {
+    // If _title_ not found, try direct slug translation (for leaf nodes like project names)
+    const directSlugKey = `${basePathKeyForTranslations}.${slug}`;
+    let translatedSlug = t(directSlugKey);
+    console.log(
+      `[Header Breadcrumb] Attempting directSlugKey: '${directSlugKey}', result: '${translatedSlug}'`
+    );
+
+    if (translatedSlug && translatedSlug !== directSlugKey) {
+      segmentText = translatedSlug;
+      console.log(
+        `[Header Breadcrumb] Used direct slug translation: '${segmentText}'`
+      );
     } else {
-      let segmentText = lastSegment.replace(/-/g, " ");
-      displayPathText = segmentText
+      // Fallback: capitalize the slug
+      segmentText = slug
+        .replace(/-/g, " ")
         .split(" ")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
+      console.log(
+        `[Header Breadcrumb] No specific translation found, defaulted to capitalized: '${segmentText}'`
+      );
     }
-  } else {
-    displayPathText = t("nav.home"); // Fallback for root or unrecognized paths
   }
-}
-const displayPath = `~/${displayPathText}`;
+
+  if (!isLastSegment) {
+    pathSegments.push({
+      text: segmentText,
+      href: `${localePrefix}${cumulativePathForLinks}`,
+      ariaLabel:
+        t("nav.goToLabel", { page: segmentText }) || `Go to ${segmentText}`,
+    });
+  } else {
+    pathSegments.push({
+      text: segmentText,
+    });
+  }
+  console.log(
+    `[Header Breadcrumb] Added segment: { text: '${segmentText}', isLink: ${!isLastSegment} }`
+  );
+
+  // Update the base path for the next level of translation lookup
+  basePathKeyForTranslations = `${basePathKeyForTranslations}.${slug}`;
+});
+
+const logoContainerAriaLabel =
+  t("nav.breadcrumbAriaLabel") || "Current page location breadcrumb";
+const toggleMenuLabel = t("nav.toggleMenu") || "Toggle menu";
+const mainNavigationLabel = t("nav.mainNavigation") || "Main menu";
+const projectsSubmenuLabel = t("dropdown.projects.label") || "Projects submenu";
 ---
 
 <header class="top-bar" id="main-header">
-  <div class="logo-area">
-    <a
-      href={homePath}
-      aria-label={t("nav.logo.ariaLabel") || `Go to ${t("nav.home")}`}
-      >{displayPath}</a
-    >
-  </div>
-  <div class="navigation-container">
-    <button
-      class="hamburger-button"
-      aria-label={t("nav.toggleMenu") || "Toggle menu"}
-      aria-expanded="false"
-      aria-controls="mobile-menu"
-    >
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
-    </button>
-    <nav
-      class="navigation-area"
-      id="mobile-menu"
-      aria-label={t("nav.mainNavigation") || "Main menu"}
-    >
-      <div class="desktop-links">
-        {
-          projectPages.length > 0 && (
-            <div class="dropdown-wrapper">
-              <button
-                type="button"
-                class="dropdown-toggle nav-item"
-                aria-expanded="false"
-                aria-controls={`projects-submenu-${currentLocale}`}
-              >
-                {t("nav.projects")}
-                <svg
-                  class="dropdown-arrow"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <ul
-                class="dropdown-menu"
-                id={`projects-submenu-${currentLocale}`}
-                aria-label={t("dropdown.projects.label") || "Projects submenu"}
-              >
-                {projectPages.map((project) => (
-                  <li>
-                    <a href={project.href} class="nav-item dropdown-item">
-                      {project.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )
-        }
-        {
-          navLinks.map((link) => (
-            <a href={link.href} class="nav-item">
-              {link.text}
-            </a>
-          ))
-        }
-      </div>
-      <div class="controls">
-        <LanguageSwitcher />
-        <ThemeToggle />
-      </div>
-    </nav>
-  </div>
+  <Logo
+    pathSegments={pathSegments}
+    containerAriaLabel={logoContainerAriaLabel}
+  />
+
+  <Navigation
+    currentLocale={currentLocale}
+    t={t}
+    navLinks={navLinks}
+    projectPages={projectPages}
+    mainNavigationLabel={mainNavigationLabel}
+    projectsSubmenuLabel={projectsSubmenuLabel}
+  >
+    <Fragment slot="hamburger-button">
+      <HamburgerButton toggleMenuLabel={toggleMenuLabel} />
+    </Fragment>
+  </Navigation>
 </header>
 
-<script>
-  // Client-side script for Header interactivity (Menu, Dropdowns)
-  let docClickHandlerMobileMenu = null;
-  let docClickHandlerDesktopDropdowns = null;
-
-  function setupInteractiveHeaderElements() {
-    console.log("Header: setupInteractiveHeaderElements() called");
-    document.body.classList.remove("no-scroll-mobile");
-
-    const hamburgerButton = document.querySelector(
-      "#main-header .hamburger-button"
-    ) as HTMLButtonElement | null;
-    const mobileMenu = document.querySelector(
-      "#main-header #mobile-menu"
-    ) as HTMLElement | null;
-    const menuStateKey = "hamburgerMenuState";
-
-    // Ensure global object for closeMainMenu exists, specific to this header's context if possible
-    // Using a more unique name to avoid conflicts if multiple headers were on a page (though unlikely for main header)
-    (window as any).astroHeaderUtils = (window as any).astroHeaderUtils || {};
-
-    function openMainMenu() {
-      if (!hamburgerButton || !mobileMenu) return;
-      hamburgerButton.setAttribute("aria-expanded", "true");
-      mobileMenu.classList.add("menu-open");
-      hamburgerButton.classList.add("is-active");
-      sessionStorage.setItem(menuStateKey, "open");
-      document.body.classList.add("no-scroll-mobile");
-    }
-
-    function closeMainMenu() {
-      if (!hamburgerButton || !mobileMenu) return;
-      hamburgerButton.setAttribute("aria-expanded", "false");
-      mobileMenu.classList.remove("menu-open");
-      hamburgerButton.classList.remove("is-active");
-      sessionStorage.setItem(menuStateKey, "closed");
-      document.body.classList.remove("no-scroll-mobile");
-      mobileMenu
-        .querySelectorAll('#main-header .dropdown-toggle[aria-expanded="true"]')
-        .forEach((toggle) => {
-          toggle.setAttribute("aria-expanded", "false");
-          const dropdownMenu = toggle.nextElementSibling as HTMLElement | null;
-          if (
-            dropdownMenu &&
-            dropdownMenu.classList.contains("dropdown-menu")
-          ) {
-            dropdownMenu.classList.remove("open");
-            dropdownMenu.style.maxHeight = null;
-          }
-          const arrow = toggle.querySelector(".dropdown-arrow");
-          if (arrow) arrow.classList.remove("open");
-        });
-    }
-    (window as any).astroHeaderUtils.closeMainMenu = closeMainMenu;
-
-    if (hamburgerButton && mobileMenu) {
-      closeMainMenu();
-      if ((hamburgerButton as any)._clickHandler) {
-        hamburgerButton.removeEventListener(
-          "click",
-          (hamburgerButton as any)._clickHandler
-        );
-      }
-      (hamburgerButton as any)._clickHandler = () => {
-        const isExpanded =
-          hamburgerButton.getAttribute("aria-expanded") === "true";
-        if (isExpanded) closeMainMenu();
-        else openMainMenu();
-      };
-      hamburgerButton.addEventListener(
-        "click",
-        (hamburgerButton as any)._clickHandler
-      );
-
-      if ((mobileMenu as any)._clickHandler) {
-        mobileMenu.removeEventListener(
-          "click",
-          (mobileMenu as any)._clickHandler
-        );
-      }
-      (mobileMenu as any)._clickHandler = (event: MouseEvent) => {
-        const target = (event.target as HTMLElement).closest("a");
-        if (target) {
-          const isNavItem = target.classList.contains("nav-item");
-          const isDropdownToggle = target.classList.contains("dropdown-toggle");
-          const isInControls = target.closest(".controls");
-          const isDropdownItem = target.classList.contains("dropdown-item");
-          if (
-            (isNavItem && !isDropdownToggle && !isInControls) ||
-            isDropdownItem
-          ) {
-            if (
-              window.innerWidth <= 768 &&
-              mobileMenu.classList.contains("menu-open")
-            ) {
-              closeMainMenu();
-            }
-          }
-        }
-      };
-      mobileMenu.addEventListener("click", (mobileMenu as any)._clickHandler);
-    }
-
-    document
-      .querySelectorAll("#main-header .dropdown-wrapper")
-      .forEach((wrapper) => {
-        const toggle = wrapper.querySelector(
-          ".dropdown-toggle"
-        ) as HTMLButtonElement | null;
-        const menu = wrapper.querySelector(
-          ".dropdown-menu"
-        ) as HTMLElement | null;
-        const arrow = toggle ? toggle.querySelector(".dropdown-arrow") : null;
-        if (!toggle || !menu) return;
-
-        toggle.setAttribute("aria-expanded", "false");
-        menu.classList.remove("open");
-        menu.style.maxHeight = null;
-        if (arrow) arrow.classList.remove("open");
-
-        if ((toggle as any)._clickHandler) {
-          toggle.removeEventListener("click", (toggle as any)._clickHandler);
-        }
-        (toggle as any)._clickHandler = (event: MouseEvent) => {
-          event.stopPropagation();
-          const isExpanded = toggle.getAttribute("aria-expanded") === "true";
-          if (window.innerWidth > 768 && !isExpanded) {
-            document
-              .querySelectorAll(
-                '#main-header .dropdown-wrapper .dropdown-toggle[aria-expanded="true"]'
-              )
-              .forEach((otherToggle) => {
-                if (otherToggle !== toggle) {
-                  otherToggle.setAttribute("aria-expanded", "false");
-                  const otherMenu =
-                    otherToggle.nextElementSibling as HTMLElement | null;
-                  if (
-                    otherMenu &&
-                    otherMenu.classList.contains("dropdown-menu")
-                  ) {
-                    otherMenu.classList.remove("open");
-                    otherMenu.style.maxHeight = null;
-                  }
-                  const otherArrow =
-                    otherToggle.querySelector(".dropdown-arrow");
-                  if (otherArrow) otherArrow.classList.remove("open");
-                }
-              });
-          }
-          if (isExpanded) {
-            toggle.setAttribute("aria-expanded", "false");
-            menu.classList.remove("open");
-            menu.style.maxHeight = null;
-            if (arrow) arrow.classList.remove("open");
-          } else {
-            toggle.setAttribute("aria-expanded", "true");
-            menu.classList.add("open");
-            menu.style.maxHeight = menu.scrollHeight + "px";
-            if (arrow) arrow.classList.add("open");
-          }
-        };
-        toggle.addEventListener("click", (toggle as any)._clickHandler);
-
-        menu.querySelectorAll(".dropdown-item").forEach((item) => {
-          if ((item as any)._clickHandler)
-            item.removeEventListener("click", (item as any)._clickHandler);
-          (item as any)._clickHandler = () => {
-            if (window.innerWidth > 768) {
-              if (toggle && menu && arrow) {
-                toggle.setAttribute("aria-expanded", "false");
-                menu.classList.remove("open");
-                menu.style.maxHeight = null;
-                arrow.classList.remove("open");
-              }
-            }
-          };
-          item.addEventListener("click", (item as any)._clickHandler);
-        });
-      });
-
-    if (docClickHandlerMobileMenu)
-      document.removeEventListener("click", docClickHandlerMobileMenu);
-    if (docClickHandlerDesktopDropdowns)
-      document.removeEventListener("click", docClickHandlerDesktopDropdowns);
-
-    docClickHandlerMobileMenu = (event: MouseEvent) => {
-      const currentMobileMenu = document.querySelector(
-        "#main-header #mobile-menu"
-      ) as HTMLElement | null;
-      const currentHamburger = document.querySelector(
-        "#main-header .hamburger-button"
-      ) as HTMLElement | null;
-      if (
-        currentMobileMenu &&
-        currentMobileMenu.classList.contains("menu-open")
-      ) {
-        if (
-          currentHamburger &&
-          !currentMobileMenu.contains(event.target as Node) &&
-          !currentHamburger.contains(event.target as Node)
-        ) {
-          if ((window as any).astroHeaderUtils?.closeMainMenu)
-            (window as any).astroHeaderUtils.closeMainMenu();
-        }
-      }
-    };
-    docClickHandlerDesktopDropdowns = (event: MouseEvent) => {
-      document
-        .querySelectorAll("#main-header .dropdown-wrapper")
-        .forEach((wrapper) => {
-          const toggle = wrapper.querySelector(
-            ".dropdown-toggle"
-          ) as HTMLElement | null;
-          const menu = wrapper.querySelector(
-            ".dropdown-menu"
-          ) as HTMLElement | null;
-          if (!toggle || !menu || !wrapper.contains(toggle)) return;
-          const isMobileMenuOpen = document
-            .querySelector("#main-header #mobile-menu")
-            ?.classList.contains("menu-open");
-          if (
-            toggle.getAttribute("aria-expanded") === "true" &&
-            !wrapper.contains(event.target as Node) &&
-            (!isMobileMenuOpen || window.innerWidth > 768)
-          ) {
-            toggle.setAttribute("aria-expanded", "false");
-            menu.classList.remove("open");
-            (menu as HTMLElement).style.maxHeight = null;
-            const arrow = toggle.querySelector(".dropdown-arrow");
-            if (arrow) arrow.classList.remove("open");
-          }
-        });
-    };
-
-    document.addEventListener("click", docClickHandlerMobileMenu);
-    document.addEventListener("click", docClickHandlerDesktopDropdowns);
-    console.log("Header: Document-level click handlers attached.");
-  }
-
-  function cleanupHeaderDocumentListeners() {
-    console.log("Header: cleanupHeaderDocumentListeners() called.");
-    if (docClickHandlerMobileMenu) {
-      document.removeEventListener("click", docClickHandlerMobileMenu);
-      docClickHandlerMobileMenu = null;
-    }
-    if (docClickHandlerDesktopDropdowns) {
-      document.removeEventListener("click", docClickHandlerDesktopDropdowns);
-      docClickHandlerDesktopDropdowns = null;
-    }
-  }
-
-  function reinitializeHeader() {
-    console.log(
-      "Header: astro:page-load triggered. Running re-initialization."
-    );
-    cleanupHeaderDocumentListeners();
-    setupInteractiveHeaderElements();
-  }
-
-  document.addEventListener("astro:page-load", reinitializeHeader);
-
-  document.addEventListener("astro:before-swap", () => {
-    console.log(
-      "Header: astro:before-swap triggered. Running cleanupHeaderDocumentListeners."
-    );
-    cleanupHeaderDocumentListeners();
-  });
-
-  console.log(
-    "Header Script: Initialized. Waiting for Astro lifecycle events."
-  );
-</script>
-
 <style>
-  /* Scoped styles from BaseLayout.astro, now specific to Header.astro */
-  /* Ensure all necessary styles for .top-bar, .logo-area, .navigation-container, etc., are here */
+  /* Styles specific to the .top-bar layout */
   .top-bar {
     display: flex;
     justify-content: space-between;
@@ -440,236 +162,6 @@ const displayPath = `~/${displayPathText}`;
     transition:
       background-color 0.3s ease,
       border-color 0.3s ease;
-    height: var(
-      --header-height,
-      60px
-    ); /* Define --header-height in global.css or pass as prop */
-  }
-  .logo-area a {
-    color: var(--color-text, #333);
-    text-decoration: none;
-    font-family: "Raleway", monospace, sans-serif;
-    font-weight: 800;
-    font-size: 1.4rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 220px;
-  }
-  .navigation-container {
-    display: flex;
-    align-items: center;
-  }
-  .hamburger-button {
-    display: none;
-    background: none;
-    border: none;
-    padding: 0.5rem;
-    cursor: pointer;
-    z-index: 1001;
-    margin-left: 1rem;
-    position: relative;
-  }
-  .hamburger-line {
-    display: block;
-    width: 25px;
-    height: 3px;
-    background-color: var(--color-text, #333);
-    margin: 5px 0;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-  }
-  .hamburger-button.is-active .hamburger-line:nth-child(1) {
-    transform: translateY(8px) rotate(45deg);
-  }
-  .hamburger-button.is-active .hamburger-line:nth-child(2) {
-    opacity: 0;
-  }
-  .hamburger-button.is-active .hamburger-line:nth-child(3) {
-    transform: translateY(-8px) rotate(-45deg);
-  }
-  .navigation-area {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .desktop-links {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .nav-item {
-    padding: 0.5rem 0.75rem;
-    color: var(--color-text, #333);
-    text-decoration: none;
-    font-family: "Raleway", sans-serif;
-    font-weight: 500;
-    font-size: 1rem;
-    border-radius: 4px;
-    transition:
-      color 0.2s ease,
-      background-color 0.2s ease;
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-  }
-  .nav-item:hover,
-  .nav-item:focus-visible {
-    color: var(--color-primary, #007bff);
-    background-color: var(--color-bg-accent, rgba(0, 0, 0, 0.05));
-  }
-  .nav-item:focus-visible {
-    outline: 2px solid var(--color-primary, #007bff);
-    outline-offset: 2px;
-  }
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding-left: 0.75rem;
-  }
-  .dropdown-wrapper {
-    position: relative;
-  }
-  .dropdown-toggle {
-    gap: 0.25rem;
-  }
-  .dropdown-arrow {
-    transition: transform 0.3s ease;
-    width: 1em;
-    height: 1em;
-    fill: currentColor;
-  }
-  .dropdown-toggle[aria-expanded="true"] .dropdown-arrow,
-  .dropdown-arrow.open {
-    transform: rotate(180deg);
-  }
-  .dropdown-menu {
-    list-style: none;
-    padding: 0.5rem 0;
-    margin: 0;
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    min-width: 220px;
-    background-color: var(--color-bg-elevated, var(--color-bg, #fff));
-    border: 1px solid var(--color-border, #e0e0e0);
-    border-radius: 6px;
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-    z-index: 990;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px) scale(0.95);
-    transition:
-      opacity 0.2s ease,
-      transform 0.2s ease,
-      visibility 0s 0.2s linear,
-      max-height 0.25s ease-out;
-    max-height: 0;
-    overflow: hidden;
-  }
-  .dropdown-menu.open {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0) scale(1);
-    transition-delay: 0s, 0s, 0s, 0s;
-  }
-  .dropdown-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.95rem;
-    border-radius: 0;
-  }
-  .dropdown-item:hover,
-  .dropdown-item:focus-visible {
-    background-color: var(--color-primary-light, rgba(0, 123, 255, 0.1));
-    color: var(--color-primary-dark, var(--color-primary, #0056b3));
-  }
-  @media (max-width: 768px) {
-    .hamburger-button {
-      display: block;
-    }
-    .navigation-area {
-      display: none;
-      flex-direction: column;
-      align-items: stretch;
-      position: fixed;
-      top: 0;
-      right: 0;
-      transform: translateX(100%);
-      width: min(80vw, 320px);
-      height: 100vh;
-      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
-      border-left: 1px solid var(--color-border, #e0e0e0);
-      padding: calc(var(--header-height, 60px) + 1rem) 0 0 0;
-      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-      overflow-y: auto;
-      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
-    }
-    .navigation-area.menu-open {
-      display: flex;
-      transform: translateX(0%);
-    }
-    .desktop-links {
-      flex-direction: column;
-      width: 100%;
-      gap: 0;
-      align-items: stretch;
-    }
-    .nav-item,
-    .dropdown-toggle {
-      width: 100%;
-      padding: 1rem 1.5rem;
-      border-radius: 0;
-      border-bottom: 1px solid
-        var(--color-border-subtle, var(--color-border, #eee));
-      font-size: 1.1rem;
-      justify-content: space-between;
-    }
-    .dropdown-wrapper:last-of-type > .dropdown-toggle,
-    .desktop-links > .nav-item:not(.dropdown-toggle):last-child {
-      border-bottom: none;
-    }
-    .desktop-links > .dropdown-wrapper:last-child > .dropdown-toggle {
-      border-bottom: none;
-    }
-    .dropdown-menu {
-      position: static;
-      border: none;
-      box-shadow: none;
-      border-radius: 0;
-      width: 100%;
-      background-color: var(--color-bg-accent-darker, rgba(0, 0, 0, 0.03));
-      padding: 0;
-      margin: 0;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-in-out;
-      border-top: 1px solid
-        var(--color-border-subtle, var(--color-border, #eee));
-    }
-    .dropdown-item {
-      padding-left: 2.5rem;
-      font-size: 1rem;
-      border-bottom: 1px dashed var(--color-border-very-subtle, #f5f5f5);
-    }
-    .dropdown-menu li:last-child .dropdown-item {
-      border-bottom: none;
-    }
-    .controls {
-      flex-direction: row;
-      justify-content: space-around;
-      width: 100%;
-      padding: 1.5rem;
-      margin-top: auto;
-      border-top: 1px solid var(--color-border, #e0e0e0);
-      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
-    }
+    height: var(--header-height, 60px);
   }
 </style>

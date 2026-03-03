@@ -1,0 +1,82 @@
+---
+// src/components/Logo.astro
+export interface PathSegment {
+  text: string;
+  href?: string;
+  ariaLabel?: string;
+}
+
+interface Props {
+  pathSegments: PathSegment[];
+  containerAriaLabel?: string;
+}
+
+const { pathSegments, containerAriaLabel = "Current page path" } = Astro.props;
+---
+
+<div class="logo-area" role="navigation" aria-label={containerAriaLabel}>
+  {
+    pathSegments.map((segment, index) => (
+      <>
+        {index > 0 && (
+          <span class="path-separator" aria-hidden="true">
+            /
+          </span>
+        )}
+        {segment.href ? (
+          <a href={segment.href} aria-label={segment.ariaLabel || segment.text}>
+            {segment.text}
+          </a>
+        ) : (
+          <span class="path-text">{segment.text}</span>
+        )}
+      </>
+    ))
+  }
+</div>
+
+<style>
+  .logo-area {
+    display: flex;
+    align-items: center;
+    color: var(--color-text, #333);
+    font-family:
+      "Raleway", monospace, sans-serif; /* Ensure Raleway is loaded */
+    font-weight: 800; /* Base font weight for the entire logo area */
+    font-size: 1.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .logo-area a,
+  .logo-area .path-text {
+    color: inherit;
+    text-decoration: none;
+    padding: 0 0.1em;
+    font-weight: inherit; /* CRITICAL: Explicitly inherit font-weight from .logo-area */
+    /* This ensures both links and plain text spans get the 800 weight */
+  }
+
+  /* If you specifically want links to be a different weight, you can override here: */
+  /* .logo-area a { font-weight: normal; } */
+
+  .logo-area a:hover,
+  .logo-area a:focus {
+    text-decoration: underline;
+    color: var(--color-primary, #007bff);
+  }
+
+  .path-separator {
+    margin: 0 0.2em;
+    color: var(--color-secondary, #6c757d);
+    user-select: none;
+    font-weight: inherit; /* Separators typically shouldn't be bold */
+  }
+
+  .path-text {
+    /* Any specific styles for the non-clickable text if needed beyond what's shared. */
+    /* For example, if it needed a slightly different color: */
+    /* color: var(--color-text-slightly-dimmed); */
+  }
+</style>

@@ -2,11 +2,10 @@
 interface Project {
   title: string;
   description: string;
-  image: any; // Assuming this has a .src property
+  image: any;
   url: string;
   startAngle: number;
   endAngle: number;
-  // midAngle: number; // This wasn't used in the original, recalculating
 }
 
 interface Props {
@@ -17,78 +16,93 @@ interface Props {
 const { project, anglePerSection } = Astro.props;
 const safeId = project.title.replace(/\s+/g, "-").toLowerCase();
 
-// Calculate the mid-angle of the slice relative to the wheel's start (0 degrees = top)
-const midAngle = project.startAngle + anglePerSection / 2;
+// ---------------------------------------------------------
+// GEOMETRY LOGIC
+// ---------------------------------------------------------
 
-// Calculate the distance from center for text placement (e.g., 60% -> 30 units in 100x100 box)
-const textRadius = 30;
-// Calculate text coordinates using the midAngle
-// Note: SVG angles often start from the 3 o'clock position, but CSS rotate and this
-// path definition start from 12 o'clock. We subtract 90 degrees to align calculations.
-const textX = 50 + textRadius * Math.cos(((midAngle - 90) * Math.PI) / 180);
-const textY = 50 + textRadius * Math.sin(((midAngle - 90) * Math.PI) / 180);
+const halfAngle = anglePerSection / 2;
+const startTheta = -halfAngle * (Math.PI / 180);
+const endTheta = halfAngle * (Math.PI / 180);
 
-// Calculate endpoint for the arc path (relative to 12 o'clock)
-const endX = 50 + 50 * Math.sin((anglePerSection * Math.PI) / 180);
-const endY = 50 - 50 * Math.cos((anglePerSection * Math.PI) / 180);
-const largeArcFlag = anglePerSection > 180 ? 1 : 0; // Handle angles > 180 if needed
-const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY} z`;
+const startX = 50 + 50 * Math.sin(startTheta);
+const startY = 50 - 50 * Math.cos(startTheta);
+const endX = 50 + 50 * Math.sin(endTheta);
+const endY = 50 - 50 * Math.cos(endTheta);
+
+const largeArcFlag = anglePerSection > 180 ? 1 : 0;
+
+// WEDGE PATH (Closed shape: Center -> Start -> Arc -> End -> Center)
+// Used for: Hit Area, Clips, Gaps (Background separation)
+const wedgePathData = `M 50,50 L ${startX},${startY} A 50,50 0 ${largeArcFlag},1 ${endX},${endY} z`;
+
+// RIM PATH (Open shape: Start -> Arc -> End)
+// Used for: Visible Border (Only on the outer edge, no radial lines)
+const rimPathData = `M ${startX},${startY} A 50,50 0 ${largeArcFlag},1 ${endX},${endY}`;
+
+// Content Placement:
+const placementAngle = 0;
+const textRadius = 35;
+const textX = 50 + textRadius * Math.sin((placementAngle * Math.PI) / 180);
+const textY = 50 - textRadius * Math.cos((placementAngle * Math.PI) / 180);
+
+const contentRotation = 0;
 ---
 
-<div
-  class="project-slice-container"
-  style={`transform: rotate(${project.startAngle}deg)`}
->
+<div class="project-slice-container" data-original-angle={project.startAngle}>
   <a href={project.url} class="project-link">
     <svg viewBox="0 0 100 100" class="project-slice">
       <defs>
         <clipPath id={`slice-clip-${safeId}`}>
-          {/* Path defines the slice shape starting from 12 o'clock */}
-          <path d={slicePathData} style="fill:none;stroke:green;stroke-width:3"
-          ></path>
+          <path d={wedgePathData}></path>
         </clipPath>
       </defs>
 
-      {/* Background slice shape */}
-      <path
-        d={slicePathData}
-        style="fill:none;stroke:green;stroke-width:3"
-        class="slice-shape"></path>
+      {/* 1. HIT AREA (Bottom) */}
+      <path d={wedgePathData} class="slice-hit-area" fill="transparent"></path>
 
-      {/* Project image clipped to slice shape */}
-      <image
-        href={project.image.src}
-        x="0"
-        y="0"
-        width="100"
-        height="100"
-        preserveAspectRatio="xMidYMin slice"
-        clip-path={`url(#slice-clip-${safeId})`}
-        class="project-image"
-      />
+      {
+        /* 2. GAP LAYER (Separation)
+          Uses WEDGE path to create separation on all sides (radial + rim).
+          Stroke matches BG color.
+      */
+      }
+      <path d={wedgePathData} class="slice-gap"></path>
 
-      {/* Text overlay - positioned in the middle of the slice */}
-      {/* Added transform to keep text upright */}
+      {/* 3. VISIBLE BORDER REMOVED - Handled by Static Ring in Parent */}
+
+      {
+        /* 4. IMAGE (Inset)
+          Layered ON TOP to expand over border.
+      */
+      }
+      <g class="image-group">
+        <image
+          href={project.image.src}
+          x="0"
+          y="0"
+          width="100"
+          height="100"
+          preserveAspectRatio="xMidYMin slice"
+          clip-path={`url(#slice-clip-${safeId})`}
+          class="project-image"
+          style={`--contentRotation: ${contentRotation}deg; transform-origin: 50px 50px;`}
+          transform={`rotate(${contentRotation} 50 50)`}
+        />
+      </g>
+
+      {/* 5. TEXT */}
       <g
         class="project-text-overlay"
-        transform={`rotate(${-midAngle} ${textX} ${textY})`}
+        transform={`rotate(${contentRotation} ${textX} ${textY})`}
       >
-        {/* Apply inverse rotation to text elements around their own anchor */}
-        <text
-          x={textX}
-          y={textY}
-          text-anchor="middle"
-          class="project-title"
-          transform={`rotate(${midAngle} ${textX} ${textY})`}
-        >
+        <text x={textX} y={textY} text-anchor="middle" class="project-title">
           {project.title}
-        </text>{/* Counter-rotate text */}
+        </text>
         <text
           x={textX}
           y={textY + 5}
           text-anchor="middle"
           class="project-description"
-          transform={`rotate(${midAngle} ${textX} ${textY + 5})`}
         >
           {project.description}
         </text>
@@ -98,8 +112,6 @@ const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY
 </div>
 
 <style>
-  /* ... (Keep existing styles) ... */
-
   .project-slice-container {
     position: absolute;
     top: 0;
@@ -108,13 +120,37 @@ const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY
     height: 100%;
     transform-origin: center;
     pointer-events: none;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .project-slice-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none !important;
+  }
+
+  /* Force low z-index managed by JS, but good default */
+  .project-slice-container.hidden {
+    z-index: -1 !important;
   }
 
   .project-link {
     display: block;
     width: 100%;
     height: 100%;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .slice-hit-area {
+    fill: transparent;
+    stroke: none;
     pointer-events: auto;
+    cursor: pointer;
   }
 
   .project-slice {
@@ -123,72 +159,76 @@ const slicePathData = `M 50,50 L 50,0 A 50,50 0 ${largeArcFlag},1 ${endX},${endY
     overflow: visible;
   }
 
-  .slice-shape {
-    fill: rgba(0, 0, 0, 0.3); /* Darker semi-transparent fill */
-    stroke: var(--color-accent, #ff9800); /* Use accent color with fallback */
-    stroke-width: 0.5;
+  /* LAYERS */
+
+  .slice-gap {
+    fill: none;
+    stroke: var(--color-bg);
+    stroke-width: 2px; /* Reduced from 4px */
+    pointer-events: none;
+  }
+
+  /* .slice-border removed */
+
+  .image-group {
+    transform-origin: 50px 50px;
+    transform: scale(0.94); /* Less inset than 0.92, closer to border */
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
   }
 
   .project-image {
-    opacity: 0.6; /* Slightly less opaque image */
+    opacity: 0.8;
     transition: opacity 0.3s ease;
+    pointer-events: none;
   }
 
   .project-text-overlay {
     opacity: 0;
     transition:
       opacity 0.3s ease,
-      transform 0.3s ease; /* Added transform transition */
-    /* Ensure text is clickable if needed, though link covers it */
+      transform 0.3s ease;
     pointer-events: none;
   }
 
-  .project-link:hover .project-image,
-  .project-link:focus .project-image {
-    /* Added focus state */
-    opacity: 0.3; /* Dim image more on hover/focus */
+  /* HOVER STATES */
+
+  /* Scale Image Group to 1.0 (Covers Rim Border) */
+  .slice-hit-area:hover ~ .image-group {
+    transform: scale(1.02); /* Expands just over the 0.98 border */
   }
 
-  .project-link:hover .project-text-overlay,
-  .project-link:focus .project-text-overlay {
-    /* Added focus state */
+  /* Brighten Image */
+  .slice-hit-area:hover ~ .image-group .project-image {
+    opacity: 1;
+  }
+
+  /* Show Text */
+  .slice-hit-area:hover ~ .project-text-overlay {
     opacity: 1;
   }
 
   .project-title {
-    font-size: 3.5px; /* Slightly larger base size */
+    font-size: 3.5px;
     font-weight: bold;
     fill: #ffffff;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Enhanced shadow */
-    /* Prevent text selection */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
     user-select: none;
   }
 
   .project-description {
-    font-size: 2.5px; /* Slightly larger base size */
-    fill: #eeeeee; /* Slightly off-white */
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Enhanced shadow */
-    /* Prevent text selection */
+    font-size: 2.5px;
+    fill: #eeeeee;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
     user-select: none;
   }
 
-  /* Responsive adjustments */
   @media (max-width: 768px) {
     .project-title {
-      font-size: 4px; /* Larger on mobile for readability */
+      font-size: 4px;
     }
-
     .project-description {
-      font-size: 3px; /* Larger on mobile */
-    }
-  }
-  @media (max-width: 480px) {
-    .project-title {
-      font-size: 4.5px;
-    }
-
-    .project-description {
-      font-size: 3.5px;
+      font-size: 3px;
     }
   }
 </style>

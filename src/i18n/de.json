@@ -36,22 +36,46 @@
     "sendButton": "Nachricht Senden"
   },
   "nav": {
+    "breadcrumbAriaLabel": "Aktuelle Seite",
+    "contact": "Kontakt",
     "home": {
       "label": "Startseite",
       "ariaLabel": "Startseite",
       "about": "Über uns"
     },
     "projects": "Projekte",
-    "contact": "Kontakt",
     "toggleMenu": "Menü umschalten",
     "mainNavigation": "Hauptnavigation",
     "logo": {
       "ariaLabel": "Startseite"
-    }
+    }},
+  
+  "routes": {
+    "contact":"Kontakt",
+    "projects":"Projekte"
   },
+  
   "dropdown": {
     "projects":{
       "label": "Projekt auswählen"
     }
+  },
+  "paths": {
+    "home": {
+      "_title_": "Home" 
+    },
+    "projects": {
+      "_title_": "Projekt-Übersicht", 
+      "circon": "Circon", 
+      "photeia": "Photeia",
+      "another-project-slug": "Translated Another Project Name" 
+    },
+    "contact": {
+      "_title_": "Kontakt" 
+    },
+    "about": {
+      "_title_": "Über-Uns"
+    }
   }
+
 }

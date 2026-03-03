@@ -1,0 +1,577 @@
+---
+// src/components/Navigation.astro
+import LanguageSwitcher from "./LanguageSwitcher.astro";
+import ThemeToggle from "./ThemeToggle.astro";
+import type { Locale, LocalizedString } from "../i18n/utils";
+
+interface NavLink {
+  href: string;
+  text: LocalizedString | string;
+}
+
+interface ProjectPage {
+  href: string;
+  text: LocalizedString | string;
+}
+
+interface Props {
+  currentLocale: Locale;
+  t: ReturnType<typeof import("../i18n/utils").useTranslations>; // Assuming useTranslations type
+  navLinks: NavLink[];
+  projectPages: ProjectPage[];
+  mainNavigationLabel: LocalizedString | string;
+  projectsSubmenuLabel: LocalizedString | string;
+}
+
+const {
+  currentLocale,
+  t,
+  navLinks,
+  projectPages,
+  mainNavigationLabel,
+  projectsSubmenuLabel,
+} = Astro.props;
+---
+
+<div class="navigation-container">
+  <slot name="hamburger-button" />
+  {/* Slot for the hamburger button from parent */}
+
+  <nav
+    class="navigation-area"
+    id="mobile-menu"
+    {/* This ID is targeted by the hamburger button's aria-controls */}
+    aria-label={mainNavigationLabel}
+  >
+    <div class="desktop-links">
+      {
+        projectPages.length > 0 && (
+          <div class="dropdown-wrapper">
+            <button
+              type="button"
+              class="dropdown-toggle nav-item"
+              aria-expanded="false"
+              aria-controls={`projects-submenu-${currentLocale}`}
+            >
+              {t("nav.projects")}
+              <svg
+                class="dropdown-arrow"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                width="16"
+                height="16"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+            <ul
+              class="dropdown-menu"
+              id={`projects-submenu-${currentLocale}`}
+              aria-label={projectsSubmenuLabel}
+            >
+              {projectPages.map((project) => (
+                <li>
+                  <a href={project.href} class="nav-item dropdown-item">
+                    {project.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+      {
+        navLinks.map((link) => (
+          <a href={link.href} class="nav-item">
+            {link.text}
+          </a>
+        ))
+      }
+    </div>
+    <div class="controls">
+      <LanguageSwitcher />
+      <ThemeToggle />
+    </div>
+  </nav>
+</div>
+
+<script>
+  // Client-side script for Navigation interactivity (Menu, Dropdowns)
+  // This script now lives within Navigation.astro
+  let docClickHandlerMobileMenu = null;
+  let docClickHandlerDesktopDropdowns = null;
+
+  function setupNavigationInteractivity() {
+    console.log("Navigation: setupNavigationInteractivity() called");
+    // Query for elements within this component's scope (or its parent's if hamburger is passed via slot)
+    const hamburgerButton = document.getElementById(
+      "site-hamburger-button"
+    ) as HTMLButtonElement | null; // Assuming ID from HamburgerButton.astro
+    const mobileMenu = document.getElementById(
+      "mobile-menu"
+    ) as HTMLElement | null; // ID of the nav element
+
+    if (!mobileMenu) {
+      console.error("Navigation: Mobile menu element not found.");
+      return;
+    }
+
+    const menuStateKey = "hamburgerMenuState";
+    (window as any).astroNavigationUtils =
+      (window as any).astroNavigationUtils || {};
+
+    function openMainMenu() {
+      if (!hamburgerButton || !mobileMenu) return;
+      hamburgerButton.setAttribute("aria-expanded", "true");
+      mobileMenu.classList.add("menu-open");
+      hamburgerButton.classList.add("is-active");
+      sessionStorage.setItem(menuStateKey, "open");
+      document.body.classList.add("no-scroll-mobile");
+    }
+
+    function closeMainMenu() {
+      if (!hamburgerButton || !mobileMenu) return;
+      hamburgerButton.setAttribute("aria-expanded", "false");
+      mobileMenu.classList.remove("menu-open");
+      hamburgerButton.classList.remove("is-active");
+      sessionStorage.setItem(menuStateKey, "closed");
+      document.body.classList.remove("no-scroll-mobile");
+      mobileMenu
+        .querySelectorAll('.dropdown-toggle[aria-expanded="true"]')
+        .forEach((toggle) => {
+          toggle.setAttribute("aria-expanded", "false");
+          const dropdownMenu = toggle.nextElementSibling as HTMLElement | null;
+          if (
+            dropdownMenu &&
+            dropdownMenu.classList.contains("dropdown-menu")
+          ) {
+            dropdownMenu.classList.remove("open");
+            dropdownMenu.style.maxHeight = null;
+          }
+          const arrow = toggle.querySelector(".dropdown-arrow");
+          if (arrow) arrow.classList.remove("open");
+        });
+    }
+    (window as any).astroNavigationUtils.closeMainMenu = closeMainMenu;
+
+    if (hamburgerButton) {
+      // Hamburger button is optional if not always present
+      closeMainMenu(); // Ensure menu is closed by default on setup
+      if ((hamburgerButton as any)._navClickHandler) {
+        hamburgerButton.removeEventListener(
+          "click",
+          (hamburgerButton as any)._navClickHandler
+        );
+      }
+      (hamburgerButton as any)._navClickHandler = () => {
+        const isExpanded =
+          hamburgerButton.getAttribute("aria-expanded") === "true";
+        if (isExpanded) closeMainMenu();
+        else openMainMenu();
+      };
+      hamburgerButton.addEventListener(
+        "click",
+        (hamburgerButton as any)._navClickHandler
+      );
+    } else {
+      console.log(
+        "Navigation: Hamburger button not found for interactivity setup."
+      );
+    }
+
+    // Mobile menu item click (to close menu on navigation)
+    if ((mobileMenu as any)._navClickHandler) {
+      mobileMenu.removeEventListener(
+        "click",
+        (mobileMenu as any)._navClickHandler
+      );
+    }
+    (mobileMenu as any)._navClickHandler = (event: MouseEvent) => {
+      const target = (event.target as HTMLElement).closest("a");
+      if (target) {
+        const isNavItem = target.classList.contains("nav-item");
+        const isDropdownToggle = target.classList.contains("dropdown-toggle");
+        const isInControls = target.closest(".controls");
+        const isDropdownItem = target.classList.contains("dropdown-item");
+        if (
+          (isNavItem && !isDropdownToggle && !isInControls) ||
+          isDropdownItem
+        ) {
+          if (
+            window.innerWidth <= 768 &&
+            mobileMenu.classList.contains("menu-open")
+          ) {
+            closeMainMenu();
+          }
+        }
+      }
+    };
+    mobileMenu.addEventListener("click", (mobileMenu as any)._navClickHandler);
+
+    // Desktop Dropdown Logic
+    mobileMenu.querySelectorAll(".dropdown-wrapper").forEach((wrapper) => {
+      const toggle = wrapper.querySelector(
+        ".dropdown-toggle"
+      ) as HTMLButtonElement | null;
+      const menu = wrapper.querySelector(
+        ".dropdown-menu"
+      ) as HTMLElement | null;
+      const arrow = toggle ? toggle.querySelector(".dropdown-arrow") : null;
+      if (!toggle || !menu) return;
+
+      toggle.setAttribute("aria-expanded", "false");
+      menu.classList.remove("open");
+      menu.style.maxHeight = null;
+      if (arrow) arrow.classList.remove("open");
+
+      if ((toggle as any)._navClickHandler) {
+        toggle.removeEventListener("click", (toggle as any)._navClickHandler);
+      }
+      (toggle as any)._navClickHandler = (event: MouseEvent) => {
+        event.stopPropagation();
+        const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+        if (window.innerWidth > 768 && !isExpanded) {
+          mobileMenu
+            .querySelectorAll(
+              '.dropdown-wrapper .dropdown-toggle[aria-expanded="true"]'
+            )
+            .forEach((otherToggle) => {
+              if (otherToggle !== toggle) {
+                otherToggle.setAttribute("aria-expanded", "false");
+                const otherMenu =
+                  otherToggle.nextElementSibling as HTMLElement | null;
+                if (
+                  otherMenu &&
+                  otherMenu.classList.contains("dropdown-menu")
+                ) {
+                  otherMenu.classList.remove("open");
+                  otherMenu.style.maxHeight = null;
+                }
+                const otherArrow = otherToggle.querySelector(".dropdown-arrow");
+                if (otherArrow) otherArrow.classList.remove("open");
+              }
+            });
+        }
+        if (isExpanded) {
+          toggle.setAttribute("aria-expanded", "false");
+          menu.classList.remove("open");
+          menu.style.maxHeight = null;
+          if (arrow) arrow.classList.remove("open");
+        } else {
+          toggle.setAttribute("aria-expanded", "true");
+          menu.classList.add("open");
+          menu.style.maxHeight = menu.scrollHeight + "px";
+          if (arrow) arrow.classList.add("open");
+        }
+      };
+      toggle.addEventListener("click", (toggle as any)._navClickHandler);
+
+      menu.querySelectorAll(".dropdown-item").forEach((item) => {
+        if ((item as any)._navClickHandler)
+          item.removeEventListener("click", (item as any)._navClickHandler);
+        (item as any)._navClickHandler = () => {
+          if (window.innerWidth > 768) {
+            if (toggle && menu && arrow) {
+              toggle.setAttribute("aria-expanded", "false");
+              menu.classList.remove("open");
+              menu.style.maxHeight = null;
+              arrow.classList.remove("open");
+            }
+          }
+        };
+        item.addEventListener("click", (item as any)._navClickHandler);
+      });
+    });
+
+    // Document-level click handlers
+    if (docClickHandlerMobileMenu)
+      document.removeEventListener("click", docClickHandlerMobileMenu);
+    if (docClickHandlerDesktopDropdowns)
+      document.removeEventListener("click", docClickHandlerDesktopDropdowns);
+
+    docClickHandlerMobileMenu = (event: MouseEvent) => {
+      const currentMobileMenu = document.getElementById(
+        "mobile-menu"
+      ) as HTMLElement | null; // Re-query
+      const currentHamburger = document.getElementById(
+        "site-hamburger-button"
+      ) as HTMLElement | null; // Re-query
+      if (
+        currentMobileMenu &&
+        currentMobileMenu.classList.contains("menu-open")
+      ) {
+        if (
+          currentHamburger &&
+          !currentMobileMenu.contains(event.target as Node) &&
+          !currentHamburger.contains(event.target as Node)
+        ) {
+          if ((window as any).astroNavigationUtils?.closeMainMenu)
+            (window as any).astroNavigationUtils.closeMainMenu();
+        }
+      }
+    };
+    docClickHandlerDesktopDropdowns = (event: MouseEvent) => {
+      // Use #mobile-menu as the root for querying dropdowns to ensure context
+      const navArea = document.getElementById("mobile-menu");
+      if (!navArea) return;
+
+      navArea.querySelectorAll(".dropdown-wrapper").forEach((wrapper) => {
+        const toggle = wrapper.querySelector(
+          ".dropdown-toggle"
+        ) as HTMLElement | null;
+        const menu = wrapper.querySelector(
+          ".dropdown-menu"
+        ) as HTMLElement | null;
+        if (!toggle || !menu || !wrapper.contains(toggle)) return;
+        const isMobileMenuOpen = navArea.classList.contains("menu-open");
+        if (
+          toggle.getAttribute("aria-expanded") === "true" &&
+          !wrapper.contains(event.target as Node) &&
+          (!isMobileMenuOpen || window.innerWidth > 768)
+        ) {
+          toggle.setAttribute("aria-expanded", "false");
+          menu.classList.remove("open");
+          (menu as HTMLElement).style.maxHeight = null;
+          const arrow = toggle.querySelector(".dropdown-arrow");
+          if (arrow) arrow.classList.remove("open");
+        }
+      });
+    };
+
+    document.addEventListener("click", docClickHandlerMobileMenu);
+    document.addEventListener("click", docClickHandlerDesktopDropdowns);
+    console.log("Navigation: Document-level click handlers attached.");
+  }
+
+  function cleanupNavigationDocumentListeners() {
+    console.log("Navigation: cleanupNavigationDocumentListeners() called.");
+    if (docClickHandlerMobileMenu) {
+      document.removeEventListener("click", docClickHandlerMobileMenu);
+      docClickHandlerMobileMenu = null;
+    }
+    if (docClickHandlerDesktopDropdowns) {
+      document.removeEventListener("click", docClickHandlerDesktopDropdowns);
+      docClickHandlerDesktopDropdowns = null;
+    }
+  }
+
+  function reinitializeNavigation() {
+    console.log(
+      "Navigation: astro:page-load triggered. Running re-initialization."
+    );
+    cleanupNavigationDocumentListeners();
+    setupNavigationInteractivity();
+  }
+
+  document.addEventListener("astro:page-load", reinitializeNavigation);
+
+  document.addEventListener("astro:before-swap", () => {
+    console.log(
+      "Navigation: astro:before-swap triggered. Running cleanupNavigationDocumentListeners."
+    );
+    cleanupNavigationDocumentListeners();
+  });
+
+  console.log(
+    "Navigation Script: Initialized. Waiting for Astro lifecycle events."
+  );
+</script>
+
+<style>
+  /* Styles for navigation elements, moved from BaseLayout/Header */
+  .navigation-container {
+    display: flex;
+    align-items: center;
+  }
+  .navigation-area {
+    /* This is the <nav> element, which becomes the mobile menu */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .desktop-links {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .nav-item {
+    padding: 0.5rem 0.75rem;
+    color: var(--color-text, #333);
+    text-decoration: none;
+    font-family: "Raleway", sans-serif;
+    font-weight: 500;
+    font-size: 1rem;
+    border-radius: 4px;
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+  .nav-item:hover,
+  .nav-item:focus-visible {
+    color: var(--color-primary, #007bff);
+    background-color: var(--color-bg-accent, rgba(0, 0, 0, 0.05));
+  }
+  .nav-item:focus-visible {
+    outline: 2px solid var(--color-primary, #007bff);
+    outline-offset: 2px;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-left: 0.75rem;
+  }
+  .dropdown-wrapper {
+    position: relative;
+  }
+  .dropdown-toggle {
+    gap: 0.25rem;
+  }
+  .dropdown-arrow {
+    transition: transform 0.3s ease;
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+  }
+  .dropdown-toggle[aria-expanded="true"] .dropdown-arrow,
+  .dropdown-arrow.open {
+    transform: rotate(180deg);
+  }
+  .dropdown-menu {
+    list-style: none;
+    padding: 0.5rem 0;
+    margin: 0;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 220px;
+    background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: 6px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    z-index: 990;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease,
+      visibility 0s 0.2s linear,
+      max-height 0.25s ease-out;
+    max-height: 0;
+    overflow: hidden;
+  }
+  .dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition-delay: 0s, 0s, 0s, 0s;
+  }
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    border-radius: 0;
+  }
+  .dropdown-item:hover,
+  .dropdown-item:focus-visible {
+    background-color: var(--color-primary-light, rgba(0, 123, 255, 0.1));
+    color: var(--color-primary-dark, var(--color-primary, #0056b3));
+  }
+
+  @media (max-width: 768px) {
+    /* Hamburger button visibility is controlled by HamburgerButton.astro's own style or parent */
+    .navigation-area {
+      /* This is the <nav id="mobile-menu"> */
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      position: fixed;
+      top: 0;
+      right: 0;
+      transform: translateX(100%);
+      width: min(80vw, 320px);
+      height: 100vh;
+      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+      border-left: 1px solid var(--color-border, #e0e0e0);
+      /* Ensure padding accounts for header height, which might need to be passed as a CSS var or prop */
+      padding: calc(var(--header-height, 60px) + 1rem) 0 0 0;
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      overflow-y: auto;
+      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .navigation-area.menu-open {
+      display: flex;
+      transform: translateX(0%);
+    }
+    .desktop-links {
+      flex-direction: column;
+      width: 100%;
+      gap: 0;
+      align-items: stretch;
+    }
+    .nav-item,
+    .dropdown-toggle {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0;
+      border-bottom: 1px solid
+        var(--color-border-subtle, var(--color-border, #eee));
+      font-size: 1.1rem;
+      justify-content: space-between;
+    }
+    .dropdown-wrapper:last-of-type > .dropdown-toggle,
+    .desktop-links > .nav-item:not(.dropdown-toggle):last-child {
+      border-bottom: none;
+    }
+    .desktop-links > .dropdown-wrapper:last-child > .dropdown-toggle {
+      border-bottom: none;
+    }
+    .dropdown-menu {
+      position: static;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      width: 100%;
+      background-color: var(--color-bg-accent-darker, rgba(0, 0, 0, 0.03));
+      padding: 0;
+      margin: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-in-out;
+      border-top: 1px solid
+        var(--color-border-subtle, var(--color-border, #eee));
+    }
+    .dropdown-item {
+      padding-left: 2.5rem;
+      font-size: 1rem;
+      border-bottom: 1px dashed var(--color-border-very-subtle, #f5f5f5);
+    }
+    .dropdown-menu li:last-child .dropdown-item {
+      border-bottom: none;
+    }
+    .controls {
+      flex-direction: row;
+      justify-content: space-around;
+      width: 100%;
+      padding: 1.5rem;
+      margin-top: auto;
+      border-top: 1px solid var(--color-border, #e0e0e0);
+      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+    }
+  }
+</style>

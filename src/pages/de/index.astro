@@ -1,0 +1,39 @@
+---
+// src/pages/de/index.astro
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { useTranslations, type Locale } from "../../i18n/utils";
+import {
+    getTranslationOverrides,
+    getHomePageData,
+    urlFor,
+} from "../../lib/sanity";
+
+const lang = Astro.currentLocale as Locale;
+const overrides = await getTranslationOverrides(lang);
+const t = useTranslations(lang, overrides);
+const homeData = await getHomePageData(lang);
+---
+
+<BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
+    <h1>{homeData?.heroTitle || t("page.home.title")}</h1>
+    <p>{homeData?.heroSubtitle || t("page.home.description")}</p>
+
+    {
+        homeData?.profileImage && (
+            <img
+                src={urlFor(homeData.profileImage).width(400).url()}
+                alt={homeData.heroTitle || "Profile"}
+                style="max-width: 200px; border-radius: 50%; margin: 1rem 0;"
+            />
+        )
+    }
+
+    {
+        homeData?.aboutText && (
+            <p style="white-space: pre-line;">{homeData.aboutText}</p>
+        )
+    }
+
+    <a href="/about">{t("nav.about")}</a>
+    {/* Standard link */}
+</BaseLayout>
