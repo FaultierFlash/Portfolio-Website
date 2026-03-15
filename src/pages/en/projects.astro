@@ -38,7 +38,7 @@ const sanityProjects = sanityProjectsData.map((p: any) => ({
   title: p.title,
   description: p.description,
   image: { src: p.mainImage ? urlFor(p.mainImage).width(800).url() : "" },
-  url: p.link || `/projects/${p.slug.current}`,
+  url: p.link || `/${lang}/projects/${p.slug.current}`,
 }));
 
 const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
@@ -49,21 +49,10 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
     <h1>My Projects</h1>
     <p>Scroll down to explore projects</p>
 
-    <div class="content">
-      <!-- Your main page content goes here -->
-      <section class="intro">
+    <div class="content pt-8">
+      <section class="intro text-center">
         <h2>Welcome to my project showcase</h2>
-        <p>
-          Here you'll find various projects I've worked on. Keep scrolling to
-          the bottom to explore my project wheel.
-        </p>
-      </section>
-
-      <!-- Add some content to allow scrolling -->
-      <section class="spacing-section">
-        <h2>About My Projects</h2>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
-        <!-- Add more content as needed -->
+        <p>Explore my interactive project wheel below.</p>
       </section>
     </div>
 
@@ -88,16 +77,12 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
   }
 
   .content {
-    min-height: 100vh;
-    padding-bottom: 50vh; /* Space for the wheel */
+    min-height: 20vh; /* Reduced from 100vh to show the wheel faster */
+    padding-bottom: 10vh; /* Reduced padding */
   }
 
   section {
-    margin-bottom: 4rem;
-  }
-
-  .spacing-section {
-    min-height: 60vh;
+    margin-bottom: 2rem;
   }
 
   h2 {

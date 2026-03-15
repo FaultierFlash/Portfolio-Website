@@ -16,60 +16,61 @@ const frontmatter = {
     "SaaS",
     "Platform Development",
   ],
+  backgroundEffect: "grid", // Configurable for static files
 };
 ---
 
-<BaseLayout title={frontmatter.title} description={frontmatter.description}>
-  <article class="project-detail-page prose dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-8">
-    {
-      frontmatter.heroImage && (
-        <div class="hero-image-container mb-8 not-prose">
-          <img
-            src={frontmatter.heroImage}
-            alt={`${frontmatter.title} hero image`}
-            class="w-full rounded-lg shadow-lg object-cover"
-            style="max-height: 60vh; height: auto; aspect-ratio: 16/9;" /* Adjust max-height and aspect-ratio as needed */
-            loading="lazy"
-          />
-        </div>
-      )
-    }
-
-    <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
-      <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-center md:text-left !leading-tight">
-        {frontmatter.title}
-      </h1>
-    </TextFadeIn>
-
-    <div
-      class="project-meta text-center md:text-left mb-8 text-slate-600 dark:text-slate-400 text-sm"
-    >
-      {
-        frontmatter.publishDate && (
-          <time datetime={frontmatter.publishDate} class="block md:inline mb-2 md:mb-0 md:mr-4">
-            Published:{" "}
-            {new Date(frontmatter.publishDate).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+<BaseLayout 
+  title={frontmatter.title} 
+  description={frontmatter.description}
+  backgroundEffect={frontmatter.backgroundEffect}
+>
+  {/* 100vh Hero Section */}
+  <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
+    <div class="z-10 mt-16 max-w-5xl">
+      <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 !leading-tight tracking-tight">
+          {frontmatter.title}
+        </h1>
+      </TextFadeIn>
+      
+      <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-600 dark:text-slate-400 text-sm md:text-base font-medium">
+        {frontmatter.publishDate && (
+          <time datetime={frontmatter.publishDate}>
+            Published: {new Date(frontmatter.publishDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
           </time>
-        )
-      }
-      {
-        frontmatter.tags && frontmatter.tags.length > 0 && (
-          <div class="tags mt-2 md:mt-0 md:inline">
-            <strong class="hidden md:inline">Tags:</strong>
+        )}
+        {frontmatter.tags && frontmatter.tags.length > 0 && (
+          <div class="flex gap-2">
             {frontmatter.tags.map((tag) => (
-              <span class="tag inline-block bg-slate-200 dark:bg-slate-700 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 mr-2 mb-2">
+              <span class="bg-primary/10 text-primary dark:bg-primary/20 rounded-full px-3 py-1 text-xs">
                 #{tag}
               </span>
             ))}
           </div>
-        )
-      }
+        )}
+      </div>
     </div>
 
+    {frontmatter.heroImage && (
+      <div class="hero-image-container w-full max-w-6xl mt-12 z-10 px-4">
+        <img
+          src={frontmatter.heroImage}
+          alt={`${frontmatter.title} hero image`}
+          class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
+          style="max-height: 50vh;"
+        />
+      </div>
+    )}
+
+    <div class="absolute bottom-8 animate-bounce">
+      <p class="text-sm text-gray-400 uppercase tracking-widest mb-2">Scroll to discover</p>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-primary opacity-70"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+    </div>
+  </section>
+
+  {/* Deep Dive Content */}
+  <article class="project-detail-page prose dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl">
     <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
       <section class="content-section mb-10">
         <h2 class="text-2xl md:text-3xl font-semibold mb-4">Project Overview</h2>
@@ -176,6 +177,17 @@ const frontmatter = {
           decision-making.
         </p>
       </section>
+      <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">
+        <h2 class="text-2xl md:text-3xl font-semibold mb-4 text-center w-full">Next Steps</h2>
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-8 not-prose">
+          <a href="/en/projects" class="px-6 py-3 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors font-semibold">
+            &larr; Back to all projects
+          </a>
+          <a href="/en/contact" class="px-6 py-3 bg-primary text-white rounded-lg shadow-lg hover:bg-orange-600 hover:shadow-xl transition-all font-semibold focus:ring-4 focus:ring-orange-300 dark:focus:ring-orange-800">
+            Get in touch
+          </a>
+        </div>
+      </section>
     </TextFadeIn>
   </article>
 </BaseLayout>
@@ -186,9 +198,7 @@ const frontmatter = {
     /* font-family: var(--font-sans); /* Inherited */
   }
 
-  .hero-image-container img {
-    /* The class="w-full" handles width: 100%; */
-    /* The inline style="max-height: 60vh; height: auto; aspect-ratio: 16/9;" handles responsiveness */
-    /* You can adjust 60vh (60% of viewport height) and aspect-ratio (e.g., 16/9, 4/3, 21/9) to your preference */
+  .glow-effect {
+    box-shadow: 0 20px 50px -10px rgba(var(--color-primary-rgb, 255, 125, 26), 0.15);
   }
 </style>

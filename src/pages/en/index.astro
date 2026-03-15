@@ -1,39 +1,433 @@
 ---
-// src/pages/en/index.astro
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import {
-    getTranslationOverrides,
-    getHomePageData,
-    urlFor,
-} from "../../lib/sanity";
+import { getTranslationOverrides, getHomePageData, urlFor } from "../../lib/sanity";
+import DynamicBackground from "../../components/DynamicBackground.astro";
 
 const lang = Astro.currentLocale as Locale;
 const overrides = await getTranslationOverrides(lang);
 const t = useTranslations(lang, overrides);
 const homeData = await getHomePageData(lang);
+const featuredProjects = homeData?.featuredProjects || [];
+const timelineItems = homeData?.timeline || [];
+
+// --- Timescale Math Logic ---
+// We lock the timeline container strictly to the user-defined bounds.
+const timelineStartDate = homeData?.timelineStartDate ? new Date(homeData.timelineStartDate) : new Date('2020-01-01');
+const timelineEndDate = homeData?.timelineEndDate ? new Date(homeData.timelineEndDate) : new Date(); // present
+
+const PX_PER_YEAR = homeData?.timelineScale || 400;
+const MS_PER_YEAR = 1000 * 60 * 60 * 24 * 365.25;
+
+const totalDurationMs = timelineEndDate.getTime() - timelineStartDate.getTime();
+const totalYears = totalDurationMs / MS_PER_YEAR;
+
+// Calculate the total track width based on the CMS slider
+const timelineWidthPx = Math.max(1000, totalYears * PX_PER_YEAR);
+
+// Helper to calc left position % and width % based on dates across the clamped track
+function getTimescaleStyles(item: any) {
+    const sDate = new Date(item.startDate);
+    const isOngoing = item.isOngoing;
+    const eDate = isOngoing ? timelineEndDate : (item.endDate ? new Date(item.endDate) : sDate);
+
+    // If item ends before our timeline even begins, skip it
+    if (eDate.getTime() < timelineStartDate.getTime()) {
+        return { isVisible: false, leftPercentage: 0, left: "0%", width: "0px" };
+    }
+
+    // No clamping! Render true negative start coords so the overflow clips it naturally
+    const offsetMs = sDate.getTime() - timelineStartDate.getTime();
+    const leftPercentage = (offsetMs / totalDurationMs) * 100;
+
+    let widthPercentage = 0;
+    if (item.endDate || isOngoing) {
+        // Render true widths without clamps
+        const durationMs = eDate.getTime() - sDate.getTime();
+        widthPercentage = Math.max(0.5, (durationMs / totalDurationMs) * 100); 
+    }
+
+    // Convert left percentage to pixel padding for off-screen items
+    const textOffsetPx = leftPercentage < 0 ? Math.abs(leftPercentage / 100) * timelineWidthPx + 16 : 0;
+
+    return {
+        isVisible: true,
+        textOffsetPx,
+        left: `${leftPercentage}%`,
+        width: item.endDate || isOngoing ? `${widthPercentage}%` : "auto"
+    };
+}
+
+// Generate background Year Markers for the X-Axis
+const yearMarkers = [];
+const startYear = timelineStartDate.getFullYear();
+const endYear = timelineEndDate.getFullYear();
+for (let y = startYear; y <= endYear; y++) {
+    const markerDate = new Date(`${y}-01-01`);
+    if (markerDate >= timelineStartDate && markerDate <= timelineEndDate) {
+         const offsetMs = markerDate.getTime() - timelineStartDate.getTime();
+         const leftPct = (offsetMs / totalDurationMs) * 100;
+         yearMarkers.push({ year: y, left: `${leftPct}%` });
+    }
+}
+
+// Color mapper
+type ColorClasses = { bg: string, border: string, text: string, textDark: string, dot: string, shadow: string };
+const colors: Record<string, ColorClasses> = {
+    primary: { bg: 'bg-primary/20 hover:bg-primary/40 dark:bg-primary/30 dark:hover:bg-primary/50', border: 'border-primary', text: '!text-orange-900', textDark: 'dark:!text-orange-100', dot: 'bg-primary', shadow: 'shadow-[0_0_15px_rgba(255,125,26,0.6)]' },
+    blue:    { bg: 'bg-blue-500/20 hover:bg-blue-500/40 dark:bg-blue-500/30 dark:hover:bg-blue-500/50', border: 'border-blue-500', text: '!text-blue-900', textDark: 'dark:!text-blue-100', dot: 'bg-blue-500', shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.6)]' },
+    green:   { bg: 'bg-green-500/20 hover:bg-green-500/40 dark:bg-green-500/30 dark:hover:bg-green-500/50', border: 'border-green-500', text: '!text-green-900', textDark: 'dark:!text-green-100', dot: 'bg-green-500', shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.6)]' },
+    purple:  { bg: 'bg-purple-500/20 hover:bg-purple-500/40 dark:bg-purple-500/30 dark:hover:bg-purple-500/50', border: 'border-purple-500', text: '!text-purple-900', textDark: 'dark:!text-purple-100', dot: 'bg-purple-500', shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.6)]' },
+    rose:    { bg: 'bg-rose-500/20 hover:bg-rose-500/40 dark:bg-rose-500/30 dark:hover:bg-rose-500/50', border: 'border-rose-500', text: '!text-rose-900', textDark: 'dark:!text-rose-100', dot: 'bg-rose-500', shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.6)]' },
+    gray:    { bg: 'bg-gray-500/20 hover:bg-gray-500/40 dark:bg-gray-500/30 dark:hover:bg-gray-500/50', border: 'border-gray-500', text: '!text-gray-900', textDark: 'dark:!text-gray-100', dot: 'bg-gray-500', shadow: 'shadow-[0_0_15px_rgba(107,114,128,0.6)]' },
+};
 ---
 
 <BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
-    <h1>{homeData?.heroTitle || t("page.home.title")}</h1>
-    <p>{homeData?.heroSubtitle || t("page.home.description")}</p>
+  <div class="scroll-container">
+    {/* Section 1: Introduction */}
+    <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
+      <DynamicBackground effect={homeData?.backgroundEffect || "none"} isAbsolute={true} />
+      
+      <div class="z-10 text-center px-4 max-w-4xl">
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
+          {homeData?.heroTitle || t("page.home.title")}
+        </h1>
+        <p class="text-xl md:text-2xl mb-8 text-gray-700 dark:text-gray-300">
+          {homeData?.heroSubtitle || t("page.home.description")}
+        </p>
 
-    {
-        homeData?.profileImage && (
-            <img
-                src={urlFor(homeData.profileImage).width(400).url()}
-                alt={homeData.heroTitle || "Profile"}
-                style="max-width: 200px; border-radius: 50%; margin: 1rem 0;"
-            />
-        )
-    }
+        {homeData?.profileImage && (
+          <img
+            src={urlFor(homeData.profileImage).width(300).height(300).url()}
+            alt={homeData.heroTitle || "Profile"}
+            class="mx-auto rounded-full w-40 h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-8 border-4 border-white dark:border-gray-800"
+          />
+        )}
 
-    {
-        homeData?.aboutText && (
-            <p style="white-space: pre-line;">{homeData.aboutText}</p>
-        )
-    }
+        {homeData?.aboutText && (
+          <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+            {homeData.aboutText}
+          </p>
+        )}
+      </div>
 
-    <a href="/about">{t("nav.about")}</a>
-    {/* Standard link */}
+      {featuredProjects.length > 0 && (
+        <button id="scroll-down-btn" class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
+           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Start Journey</span>
+           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+        </button>
+      )}
+    </section>
+
+    {/* Section 1.5: Timeline */}
+    {timelineItems.length > 0 && (
+    <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
+        <DynamicBackground effect="grid" isAbsolute={true} />
+        
+        <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none">
+            <h2 class="text-3xl md:text-5xl font-black heading-font text-gray-800 dark:text-gray-200">My Journey</h2>
+            <p class="text-gray-500 mt-2 uppercase tracking-widest text-sm">Hover over events to explore</p>
+        </div>
+
+        <div class="timeline-container w-full overflow-x-auto flex items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
+            {/* The Track Canvas */}
+            <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: 80vw; margin: 0 20vw 0 10vw;`}>
+                
+                {/* Timeline Axis Line (extending way off to the left) */}
+                <div class="absolute top-1/2 h-[2px] bg-gray-300 dark:bg-gray-800 -translate-y-1/2 z-0" style="left: -50vw; width: calc(100% + 50vw);"></div>
+
+                {/* Dotted Future Line */}
+                <div class="absolute top-1/2 -mt-[1px] flex items-center opacity-70 w-[50vw] border-t-2 border-dotted border-gray-400 dark:border-gray-600 z-0" style="left: 100%;"></div>
+                {/* Arrow head on the line, text floating above */}
+                <div class="absolute top-1/2 flex items-center -translate-y-1/2" style="left: 100%;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 dark:text-gray-600 z-10 -ml-2 bg-white dark:bg-black rounded-full"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    <span class="absolute bottom-full left-0 ml-[8px] mb-1 font-bold text-gray-500 tracking-widest uppercase text-xs border border-gray-400 dark:border-gray-600 rounded-full px-3 py-1 backdrop-blur-md bg-white/80 dark:bg-black/80 shadow-sm">Present</span>
+                </div>
+                {yearMarkers.map((marker, index) => (
+                    <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={`left: ${marker.left};`}>
+                        <div class="w-[2px] h-6 bg-gray-400 dark:bg-gray-700"></div>
+                        <span class="text-xs font-bold text-gray-400 dark:text-gray-600 mt-2 absolute top-full">{marker.year}</span>
+                    </div>
+                ))}
+
+                {/* Milestones & Duration Bars */}
+                {timelineItems.map((item: any, index: number) => {
+                    const styles = getTimescaleStyles(item);
+                    if (!styles.isVisible) return null;
+
+                    const isDuration = !!item.endDate || item.isOngoing;
+                    
+                    const verticalMap: any = {
+                        'far-above': '-translate-y-24',
+                        'above': '-translate-y-12',
+                        'below': 'translate-y-[58px]',
+                        'far-below': 'translate-y-[106px]'
+                    };
+                    const verticalOffset = isDuration ? (verticalMap[item.verticalPosition] || '-translate-y-12') : '-translate-y-1/2';
+                    const c = colors[item.color] || colors.primary;
+
+                    return (
+                    <div class="timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10" style={`left: ${styles.left}; width: ${styles.width}; transform: translate(0, -50%);`}>
+                        
+                        {isDuration ? (
+                            <div class={`relative w-full h-8 rounded-full px-4 ${c.bg} border ${c.border} transition-all duration-300 flex items-center cursor-pointer backdrop-blur-sm ${verticalOffset}`}>
+                                <h4 class={`flex-1 min-w-0 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis drop-shadow-md relative z-10 ${c.text} ${c.textDark}`} style={(styles.textOffsetPx || 0) > 0 ? `padding-left: ${styles.textOffsetPx || 0}px` : ''}>{item.title}</h4>
+                                {item.isOngoing && <div class={`shrink-0 absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full ${c.dot} animate-pulse ${c.shadow}`}></div>}
+                            </div>
+                        ) : (
+                            <div class={`relative w-6 h-6 -translate-x-1/2 rounded-full bg-white dark:bg-black border-4 ${c.border} hover:scale-150 transition-transform duration-300 cursor-pointer ${c.shadow} z-20`}></div>
+                        )}
+
+                        {/* HOVER INFO CARD */}
+                        <div class="hover-info-card absolute top-0 left-0 -translate-x-1/2 -translate-y-[calc(100%+24px)] w-72 bg-white/90 dark:bg-black/90 backdrop-blur-xl p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition duration-300 z-50 origin-bottom">
+                            <span class={`text-xs font-bold ${c.text} mb-1 block uppercase tracking-wider`}>
+                                {new Date(item.startDate).getFullYear()} {isDuration ? `- ${item.isOngoing ? 'Present' : new Date(item.endDate).getFullYear()}` : ''}
+                            </span>
+                            <h3 class="text-xl font-black mb-2 text-gray-900 dark:text-white">{item.title}</h3>
+                            {item.description && <p class="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed">{item.description}</p>}
+                            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white/90 dark:bg-black/90 rotate-45 border-b border-r border-gray-200 dark:border-gray-800"></div>
+                        </div>
+
+                    </div>
+                )})}
+            </div>
+        </div>
+
+        <button class="nav-down-btn absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
+          <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Featured Projects</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+        </button>
+    </section>
+    )}
+
+    {/* Sections 2+: Featured Projects */}
+    {featuredProjects.map((project: any, index: number) => {
+        const isLastSection = index === featuredProjects.length - 1;
+        return (
+          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] w-full" data-project-slug={project.slug.current}>
+            <DynamicBackground effect={project.backgroundEffect || "none"} isAbsolute={true} />
+            
+            <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-8 gap-12">
+              <div class="flex-1 space-y-6">
+                <h2 class="text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  {project.tags?.map((tag: string) => (
+                    <span class="inline-block bg-primary/10 text-primary dark:bg-primary/20 rounded-full px-3 py-1 text-sm font-semibold tracking-wide">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <p class="text-xl text-gray-700 dark:text-gray-300 leading-relaxed max-w-2xl">
+                  {project.description}
+                </p>
+                <a 
+                  href={`/${lang}/projects/${project.slug.current}`} 
+                  class="inline-block mt-8 px-8 py-3 bg-primary text-white font-bold rounded shadow-lg hover:shadow-xl hover:bg-orange-600 transition-all focus:ring-4 focus:ring-orange-300 dark:focus:ring-orange-800"
+                >
+                  Explore Project →
+                </a>
+              </div>
+
+              {project.mainImage && (
+                <div class="flex-1 w-full max-w-lg hidden md:block group perspective">
+                   <img
+                      src={urlFor(project.mainImage).width(800).url()}
+                      alt={project.title}
+                      class="w-full rounded-xl shadow-2xl transition-transform duration-700 transform group-hover:scale-[1.02] group-hover:-rotate-y-2 glow-effect"
+                   />
+                </div>
+              )}
+            </div>
+
+            <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+              <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Previous</span>
+            </button>
+            <button class="nav-down-btn absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
+              <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
+                 {isLastSection ? 'View All Projects' : 'Next Project'}
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            </button>
+            {isLastSection && (
+                <div class="last-section-marker absolute bottom-0 h-10 w-full invisible"></div>
+            )}
+          </section>
+        );
+    })}
+  </div>
 </BaseLayout>
+
+<script>
+  function initializeScrollLogic() {
+    const container = document.querySelector('.scroll-container');
+    if (!container) return;
+
+    // Up/Down button navigation
+    const upBtns = document.querySelectorAll('.nav-up-btn');
+    const downBtns = document.querySelectorAll('.nav-down-btn');
+    const scrollDownBtn = document.getElementById('scroll-down-btn');
+
+    const scrollToSection = (offset: number) => {
+        const sections = document.querySelectorAll('.scroll-section');
+        let currentSectionIndex = 0;
+        
+        let minDistance = Infinity;
+        sections.forEach((sec, idx) => {
+            const distance = Math.abs(sec.getBoundingClientRect().top);
+            if (distance < minDistance) {
+                minDistance = distance;
+                currentSectionIndex = idx;
+            }
+        });
+
+        const targetIndex = Math.max(0, Math.min(sections.length - 1, currentSectionIndex + offset));
+        sections[targetIndex].scrollIntoView({ behavior: 'smooth' });
+    };
+
+    upBtns.forEach(btn => btn.addEventListener('click', () => scrollToSection(-1)));
+    downBtns.forEach(btn => btn.addEventListener('click', () => scrollToSection(1)));
+    if (scrollDownBtn) scrollDownBtn.addEventListener('click', () => scrollToSection(1));
+
+    // Timeline Horizontal Scroll Hijack
+    const timelineSection = document.querySelector('.timeline-section');
+    const timelineContainer = document.getElementById('timeline-scroll-area');
+
+    if (timelineSection && timelineContainer) {
+        timelineSection.addEventListener('wheel', (e) => {
+            const wheelEvent = e as WheelEvent;
+            const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
+            
+            // Allow vertical native scrolling down ONLY if we hit the right boundary
+            if (wheelEvent.deltaY > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
+                return;
+            }
+            // Allow vertical native scrolling up ONLY if we hit the left boundary
+            if (wheelEvent.deltaY < 0 && timelineContainer.scrollLeft <= 0) {
+               return;
+            }
+
+            // Otherwise, we intercept and scroll horizontally
+            wheelEvent.preventDefault();
+            timelineContainer.scrollLeft += wheelEvent.deltaY;
+        }, { passive: false });
+        
+        // --- Timeline Intersection Animations ---
+        const timelineItems = document.querySelectorAll('.timeline-item');
+        if (timelineItems.length > 0) {
+            const itemObserver = new IntersectionObserver((entries, obs) => {
+                // Determine how many items are entering at once to stagger them nicely
+                const entering = entries.filter(e => e.isIntersecting);
+                entering.forEach((entry, idx) => {
+                    setTimeout(() => {
+                        entry.target.classList.remove('opacity-0', 'translate-x-12');
+                        entry.target.classList.add('opacity-100', 'translate-x-0');
+                    }, idx * 100); 
+                    obs.unobserve(entry.target);
+                });
+            }, {
+                root: timelineContainer, 
+                rootMargin: '0px 200px 0px 200px', // Trigger slightly ahead of view
+                threshold: 0.1
+            });
+
+            timelineItems.forEach(item => itemObserver.observe(item));
+        }
+
+        // --- Timeline Hover Card Cursor Tracking ---
+        timelineItems.forEach(el => {
+            const item = el as HTMLElement;
+            const card = item.querySelector('.hover-info-card') as HTMLElement;
+            if (card) {
+                // Pre set to center so it looks good if it renders before mousemove triggers
+                card.style.left = '50%';
+                card.style.top = '0px';
+                
+                item.addEventListener('mousemove', (e) => {
+                    const rect = item.getBoundingClientRect();
+                    // Cursor X/Y relative to the local timeline item wrapper
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    card.style.left = `${x}px`;
+                    card.style.top = `${y}px`;
+                });
+            }
+        });
+    }
+
+    // Intercept scroll at the bottom of the last section
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.9) {
+          const langMatch = window.location.pathname.match(/^\/([a-z]{2})\//);
+          const lang = langMatch ? langMatch[1] : 'en';
+          
+          // Small delay so the user understands what happened before routing
+          setTimeout(() => {
+              window.location.href = `/${lang}/projects`;
+          }, 400); 
+        }
+      });
+    }, { root: null, threshold: 1.0 });
+
+    const marker = document.querySelector('.last-section-marker');
+    if (marker) {
+      observer.observe(marker);
+    }
+  }
+
+  // Handle Astro page transitions
+  document.addEventListener('astro:page-load', initializeScrollLogic);
+</script>
+
+<style>
+  html, body {
+      overscroll-behavior-y: none; /* Prevent rubber-banding on Mac */
+  }
+
+  /* We override BaseLayout styles dynamically if possible, or force full height here */
+  :global(main) {
+      padding: 0 !important;
+      max-width: 100% !important;
+  }
+
+  .scroll-container {
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    /* Hide scrollbar for cleaner look */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scroll-container::-webkit-scrollbar {
+      display: none;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+      display: none;
+  }
+  .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+
+  .scroll-section {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    height: 100vh;
+    padding-top: var(--header-height, 60px); /* Account for fixed header */
+  }
+  
+  .heading-font {
+      font-family: 'Inter', 'Raleway', sans-serif;
+  }
+
+  /* Optional glowing effect for the images */
+  .glow-effect {
+    box-shadow: 0 20px 50px -10px rgba(var(--color-primary-rgb, 255, 125, 26), 0.2);
+  }
+</style>

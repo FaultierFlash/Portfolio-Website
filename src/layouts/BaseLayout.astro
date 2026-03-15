@@ -4,6 +4,7 @@ import { useTranslations, type Locale } from "../i18n/utils";
 import Header from "../components/Header.astro"; // New Header component
 import Footer from "../components/Footer.astro"; // New Footer component
 import ThemeScript from "../components/ThemeScript.astro";
+import DynamicBackground from "../components/DynamicBackground.astro"; // New background component
 import "../styles/global.css";
 import { ViewTransitions } from "astro:transitions";
 
@@ -11,12 +12,14 @@ interface Props {
   title?: string;
   description?: string;
   hidePageScrollbar?: boolean;
+  backgroundEffect?: string | null;
 }
 
 const {
   title: propTitle,
   description: propDescription,
   hidePageScrollbar = false,
+  backgroundEffect = "none",
 } = Astro.props;
 
 const currentLocale = (Astro.currentLocale as Locale) || "de";
@@ -91,6 +94,7 @@ const homePath = `/${currentLocale}/`;
     <ViewTransitions />
   </head>
   <body>
+    <DynamicBackground effect={backgroundEffect} />
     <Header
       currentLocale={currentLocale}
       t={t}

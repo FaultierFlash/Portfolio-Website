@@ -1,0 +1,59 @@
+---
+interface Props {
+  effect?: 'none' | 'grid' | 'dots' | string | null;
+  isAbsolute?: boolean;
+}
+
+const { effect = 'none', isAbsolute = false } = Astro.props;
+---
+
+{effect !== 'none' && effect && (
+  <div class={`dynamic-background ${effect} ${isAbsolute ? 'is-absolute' : 'is-fixed'}`} aria-hidden="true"></div>
+)}
+
+<style>
+  .dynamic-background {
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: transparent;
+  }
+
+  .dynamic-background.is-fixed {
+    position: fixed;
+  }
+
+  .dynamic-background.is-absolute {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dynamic-background.grid {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+    opacity: 0.15;
+    /* Fades the grid out towards the edges so it feels subtle */
+    mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+  }
+
+  /* Specific adjustment for dark mode to make it subtle enough */
+  :global(.dark) .dynamic-background.grid {
+    opacity: 0.2; 
+  }
+
+  .dynamic-background.dots {
+    background-size: 20px 20px;
+    background-image: radial-gradient(var(--color-text) 1px, transparent 1px);
+    opacity: 0.1;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 70%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 70%);
+  }
+
+  :global(.dark) .dynamic-background.dots {
+    opacity: 0.15;
+  }
+</style>

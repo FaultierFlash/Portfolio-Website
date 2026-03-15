@@ -5,7 +5,7 @@ export const sanityClient = createClient({
   projectId: import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'k4t36b6u',
   dataset: import.meta.env.PUBLIC_SANITY_DATASET || 'production',
   apiVersion: '2024-03-12', // use current date (YYYY-MM-DD) to target the latest API version
-  useCdn: true, // set to `false` to bypass the edge cache
+  useCdn: false, // Disabled CDN to ensure slider values hot-reload immediately
 });
 
 const builder = imageUrlBuilder(sanityClient);
@@ -36,7 +36,28 @@ export async function getHomePageData(locale: string) {
     heroTitle,
     heroSubtitle,
     aboutText,
-    profileImage
+    profileImage,
+    backgroundEffect,
+    featuredProjects[]->{
+      title,
+      slug,
+      mainImage,
+      description,
+      tags,
+      backgroundEffect
+    },
+    timelineStartDate,
+    timelineEndDate,
+    timelineScale,
+    timeline[]{
+      title,
+      description,
+      startDate,
+      endDate,
+      isOngoing,
+      color,
+      verticalPosition
+    }
   }`;
   return await sanityClient.fetch(query, { locale });
 }
@@ -49,7 +70,8 @@ export async function getProjects(locale: string) {
     description,
     tags,
     link,
-    order
+    order,
+    backgroundEffect
   }`;
   return await sanityClient.fetch(query, { locale });
 }

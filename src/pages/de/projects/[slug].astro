@@ -1,0 +1,97 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import TextFadeIn from "../../../components/TextFadeIn.astro";
+import { sanityClient, urlFor } from "../../../lib/sanity";
+
+// Using SSR mode, retrieve the slug from params.
+const { slug } = Astro.params;
+const lang = "de"; // Hardcoded for this route directory
+
+const projectData = await sanityClient.fetch(
+  `*[_type == "project" && slug.current == $slug && locale == $lang][0]`,
+  { slug, lang }
+);
+
+if (!projectData) {
+  return Astro.redirect("/404");
+}
+---
+<BaseLayout 
+  title={projectData.title} 
+  description={projectData.description}
+  backgroundEffect={projectData.backgroundEffect}
+>
+  <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
+    <div class="z-10 mt-16 max-w-5xl">
+      <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 !leading-tight tracking-tight">
+          {projectData.title}
+        </h1>
+      </TextFadeIn>
+      
+      <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-600 dark:text-slate-400 text-sm md:text-base font-medium">
+        {projectData.publishDate && (
+          <time datetime={projectData.publishDate}>
+            Veröffentlicht: {new Date(projectData.publishDate).toLocaleDateString("de-DE", { year: "numeric", month: "long" })}
+          </time>
+        )}
+        {projectData.tags && projectData.tags.length > 0 && (
+          <div class="flex gap-2">
+            {projectData.tags.map((tag: string) => (
+              <span class="bg-primary/10 text-primary dark:bg-primary/20 rounded-full px-3 py-1 text-xs">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+
+    {projectData.mainImage && (
+      <div class="hero-image-container w-full max-w-6xl mt-12 z-10 px-4">
+        <img
+          src={urlFor(projectData.mainImage).url()}
+          alt={`${projectData.title} hero image`}
+          class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
+          style="max-height: 50vh;"
+        />
+      </div>
+    )}
+
+    <div class="absolute bottom-8 animate-bounce">
+      <p class="text-sm text-gray-400 uppercase tracking-widest mb-2">Scrollen zum Entdecken</p>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-primary opacity-70"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+    </div>
+  </section>
+
+  <article class="project-detail-page prose dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl">
+    <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
+      {projectData.body ? (
+          <div set:html={projectData.body} />
+      ) : (
+          <section class="content-section mb-10">
+            <h2 class="text-2xl md:text-3xl font-semibold mb-4">Projektübersicht</h2>
+            <p>{projectData.description}</p>
+          </section>
+      )}
+
+      <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">
+        <h2 class="text-2xl md:text-3xl font-semibold mb-4 text-center w-full">Nächste Schritte</h2>
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-8 not-prose">
+          <a href="/de/projects" class="px-6 py-3 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors font-semibold">
+            &larr; Zurück zu allen Projekten
+          </a>
+          <a href="/de/contact" class="px-6 py-3 bg-primary text-white rounded-lg shadow-lg hover:bg-orange-600 hover:shadow-xl transition-all font-semibold focus:ring-4 focus:ring-orange-300 dark:focus:ring-orange-800">
+            Kontakt aufnehmen
+          </a>
+        </div>
+      </section>
+    </TextFadeIn>
+  </article>
+</BaseLayout>
+
+<style>
+  .glow-effect {
+    box-shadow: 0 20px 50px -10px rgba(var(--color-primary-rgb, 255, 125, 26), 0.15);
+  }
+</style>

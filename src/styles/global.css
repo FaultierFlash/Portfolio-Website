@@ -1,7 +1,14 @@
 /* src/styles/global.css */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FF7D1A;
+  --color-primary-rgb: 255, 125, 26;
+  --font-sans: 'Inter', 'Raleway', sans-serif;
+}
 
 :root {
-    --header-height: ;
+    --header-height: 60px; /* added fallback */
     /* Light-Mode Variablen (Standard) */
     --color-bg: #ffffff;
     --color-text: #404040;

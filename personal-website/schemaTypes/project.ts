@@ -75,5 +75,19 @@ export const project = defineType({
             },
             initialValue: 'en',
         }),
+        defineField({
+            name: 'backgroundEffect',
+            title: 'Background Effect',
+            type: 'string',
+            description: 'Choose a background visual effect for this project page.',
+            options: {
+                list: [
+                    { title: 'None', value: 'none' },
+                    { title: 'Subtle Grid', value: 'grid' },
+                    { title: 'Subtle Dots', value: 'dots' },
+                ],
+            },
+            initialValue: 'none',
+        }),
     ],
 })
