@@ -5,32 +5,45 @@
   --color-primary: #FF7D1A;
   --color-primary-rgb: 255, 125, 26;
   --font-sans: 'Inter', 'Raleway', sans-serif;
+  
+  --variant-dark: &:where(.dark, .dark *);
 }
 
 :root {
-    --header-height: 60px; /* added fallback */
-    /* Light-Mode Variablen (Standard) */
+    --header-height: 60px;
+    /* High-contrast Light-Mode (Modern Slate) */
     --color-bg: #ffffff;
-    --color-text: #404040;
+    --color-text: #0f172a;      /* slate-900 */
+    --color-text-dim: #334155;  /* slate-700 */
     --color-primary: #FF7D1A;
-    --color-secondary: #4b5563;
-    --color-accent: #8b5cf6;
-    --color-border: #CCCCCC;
+    --color-secondary: #475569; /* slate-600 */
+    --color-accent: #7c3aed;
+    --color-border: #e2e8f0;    /* slate-200 */
 
-    /* Project Accent – updated dynamically by JS when browsing projects */
     --color-project-accent: #FF7D1A;
-    --color-project-accent-bg: rgba(255, 125, 26, 0.15);
-    --color-project-accent-border: rgba(255, 125, 26, 0.5);
+    --color-project-accent-bg: rgba(255,125,26,0.1);
+    --color-project-accent-border: rgba(255,125,26,0.3);
+
+    /* Surface & Card Colors (Light) */
+    --color-surface: rgba(255, 255, 255, 0.5);
+    --color-card-bg: #f8fafc; /* slate-50 */
+    --color-card-border: rgba(15, 23, 42, 0.05);
   }
   
-  /* Dark-Mode Variablen */
   .dark {
-    --color-bg: #010101;
-    --color-text: #CCCCCC;
+    /* High-contrast Dark-Mode */
+    --color-bg: #020617;        /* slate-950 */
+    --color-text: #f8fafc;      /* slate-50 */
+    --color-text-dim: #cbd5e1;  /* slate-300 */
     --color-primary: #FF7D1A;
-    --color-secondary: #9ca3af;
+    --color-secondary: #94a3b8; /* slate-400 */
     --color-accent: #a78bfa;
-    --color-border: #404040;
+    --color-border: #1e293b;    /* slate-800 */
+
+    /* Surface & Card Colors (Dark) */
+    --color-surface: rgba(2, 6, 23, 0.3);
+    --color-card-bg: #0f172a;   /* slate-900 */
+    --color-card-border: rgba(248, 250, 252, 0.05);
   }
 
   html {

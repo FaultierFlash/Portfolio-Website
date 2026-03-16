@@ -93,13 +93,13 @@ const t = {
 const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn;
 ---
 
-<section id="library" class="relative py-24 px-4 overflow-hidden bg-white/50 dark:bg-black/20 backdrop-blur-sm border-t border-b border-black/5 dark:border-white/5">
+<section id="library" class="relative py-24 px-4 overflow-hidden bg-[var(--color-surface)] backdrop-blur-sm border-t border-b border-black/5 dark:border-white/5">
     <div class="max-w-7xl mx-auto relative z-10">
         <div class="mb-16 text-center">
-            <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-black dark:text-white uppercase italic">
+            <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
                 {t.title}
             </h2>
-            <p class="text-lg text-slate-900 dark:text-slate-300 max-w-2xl mx-auto font-medium leading-relaxed">
+            <p class="text-lg text-[var(--color-text-dim)] max-w-2xl mx-auto font-medium leading-relaxed">
                 {t.subtitle}
             </p>
         </div>
@@ -113,7 +113,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {reading.map(item => (
-                        <div class="group relative bg-white/80 dark:bg-white/5 backdrop-blur-md rounded-2xl border border-black/10 dark:border-white/10 p-6 transition-all hover:bg-white dark:hover:bg-white/10 hover:shadow-2xl hover:shadow-primary/10">
+                        <div class="group relative bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-card-border)] p-6 transition-all hover:shadow-2xl hover:shadow-primary/5">
                             <div class="flex gap-6">
                                 <div class="w-24 h-36 flex-shrink-0 bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-lg transform group-hover:scale-105 transition-transform duration-500">
                                     {item.cover ? (
@@ -123,15 +123,15 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                                     )}
                                 </div>
                                 <div class="flex-1">
-                                    <h4 class="text-lg font-black text-black dark:text-white mb-1 line-clamp-2">{item.title}</h4>
-                                    <p class="text-sm text-slate-800 dark:text-slate-400 font-bold uppercase tracking-wider mb-4">{t.author} {item.author}</p>
+                                    <h4 class="text-lg font-black mb-1 line-clamp-2 text-[var(--color-text)]">{item.title}</h4>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-4">{t.author} {item.author}</p>
                                     
                                     <div class="space-y-2">
                                         <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
                                             <span>{t.progress}</span>
                                             <span>{item.progress}%</span>
                                         </div>
-                                        <div class="w-full h-1.5 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+                                        <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                                             <div class="h-full bg-primary transition-all duration-1000" style={`width: ${item.progress}%`}></div>
                                         </div>
                                     </div>
@@ -146,7 +146,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         {/* --- Finished Archives --- */}
         {finished.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-gray-700 dark:text-slate-500 flex items-center gap-4">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-primary flex items-center gap-4">
                     <span>{t.finished}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
                 </h3>
@@ -169,13 +169,13 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                                                 <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-black">{item.seriesName}</div>
                                             )}
                                         </div>
-                                        <div class="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden">
-                                            <span class="text-[12px] font-black uppercase tracking-tight text-black dark:text-white mb-2">{item.books.length} Books</span>
-                                            <span class="text-[8px] font-black uppercase tracking-widest text-black dark:text-white px-3 py-1.5 border border-black/30 dark:border-white/30 rounded-full">Expand Series</span>
+                                        <div class="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden">
+                                            <span class="text-[12px] font-black uppercase tracking-tight text-white mb-2">{item.books.length} Books</span>
+                                            <span class="text-[8px] font-black uppercase tracking-widest text-white px-3 py-1.5 border border-white/30 rounded-full">Expand Series</span>
                                         </div>
                                     </button>
                                     <h4 class="mt-4 text-[10px] font-black text-center text-primary uppercase tracking-widest">{t.series}</h4>
-                                    <h4 class="text-xs font-black text-center text-black dark:text-white line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity">{item.seriesName}</h4>
+                                    <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h4>
                                 </div>
                             );
                         }
@@ -191,11 +191,11 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                                     ) : (
                                         <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{item.title}</div>
                                     )}
-                                    <div class="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                        <span class="text-[10px] font-black uppercase tracking-widest text-black dark:text-white px-3 py-2 border border-black/30 dark:border-white/30 rounded-full">{t.readReview}</span>
+                                    <div class="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-white px-3 py-2 border border-white/30 rounded-full">{t.readReview}</span>
                                     </div>
                                 </button>
-                                <h4 class="text-xs font-black text-center text-black dark:text-white line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity">{item.title}</h4>
+                                <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h4>
                             </div>
                         );
                     })}
@@ -206,7 +206,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         {/* --- Shortlist --- */}
         {shortlist.length > 0 && (
             <div>
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-gray-600 dark:text-slate-400 flex items-center gap-4">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-primary flex items-center gap-4">
                     <span>{t.shortlist}</span>
                     <span class="h-[1px] flex-1 bg-black/5 dark:bg-white/5"></span>
                 </h3>
@@ -230,7 +230,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
     {/* --- Review Modal --- */}
     <div id="review-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-500">
         <div class="absolute inset-x-0 inset-y-0 bg-black/80 backdrop-blur-xl modal-overlay"></div>
-        <div class="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-3xl overflow-hidden scale-95 opacity-0 transition-all duration-500 modal-content border border-black/10 dark:border-white/10">
+        <div class="relative w-full max-w-2xl bg-[var(--color-bg)] rounded-3xl shadow-3xl overflow-hidden scale-95 opacity-0 transition-all duration-500 modal-content border border-black/10 dark:border-white/10">
             <div id="modal-body" class="p-8 md:p-12 max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <div id="single-book-view" class="flex flex-col md:flex-row gap-8">
                     <div id="modal-cover" class="w-32 md:w-48 flex-shrink-0 bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-2xl self-center md:self-start aspect-[2/3]"></div>
@@ -245,13 +245,13 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                         </div>
                         
                         <div class="prose prose-slate dark:prose-invert max-w-none">
-                            <p id="modal-review" class="text-lg leading-relaxed text-gray-950 dark:text-slate-300 font-medium whitespace-pre-line italic"></p>
+                            <p id="modal-review" class="text-lg leading-relaxed font-medium whitespace-pre-line italic"></p>
                         </div>
                     </div>
                 </div>
 
                 <div id="series-books-view" class="hidden">
-                    <h3 id="modal-series-name" class="text-4xl md:text-5xl font-black text-black dark:text-white mb-4 italic uppercase"></h3>
+                    <h3 id="modal-series-name" class="text-4xl md:text-5xl font-black text-[var(--color-text)] mb-4 italic uppercase"></h3>
                     <p class="text-xs font-black uppercase tracking-widest text-primary mb-12 flex items-center gap-4">
                         <span>{t.series} Books</span>
                         <span class="h-[1px] flex-1 bg-primary/20"></span>
@@ -351,11 +351,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
 
         books.forEach((book, idx) => {
             const card = document.createElement('button');
-            card.className = 'group/item flex gap-4 text-left bg-black/5 dark:bg-white/5 p-4 rounded-xl hover:bg-white dark:hover:bg-white/10 transition-all border border-transparent hover:border-primary/20 hover:shadow-lg transition-transform hover:-translate-y-1';
-            
-            // Note: Since we can't easily use urlFor here, we'll need to pass the cover URL from the server.
-            // I'll adjust the props to include pre-built URLs if needed, but for now I'll use a placeholder.
-            // WAIT - I can just include the URLs in the JSON dataset!
+            card.className = 'group/item flex gap-4 text-left bg-[var(--color-card-bg)] p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all border border-[var(--color-card-border)] hover:border-primary/20 hover:shadow-lg transition-transform hover:-translate-y-1';
             
             card.innerHTML = `
                 <div class="w-16 h-24 flex-shrink-0 bg-slate-300 dark:bg-slate-700 rounded shadow-md overflow-hidden">
@@ -363,7 +359,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                 </div>
                 <div class="flex-1 py-1">
                     <div class="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Vol. ${book.seriesOrder || (idx + 1)}</div>
-                    <h4 class="text-sm font-black text-black dark:text-white line-clamp-2">${book.title}</h4>
+                    <h4 class="text-sm font-black text-[var(--color-text)] line-clamp-2">${book.title}</h4>
                 </div>
             `;
             

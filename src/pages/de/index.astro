@@ -81,13 +81,15 @@ type ColorClasses = { bg: string, bgSolid?: string, border: string, text: string
 const colors: Record<string, ColorClasses> = {
     primary: { 
         bg: 'bg-primary/20 dark:bg-primary/30', 
-        bgSolid: 'bg-primary shadow-[0_2px_10px_rgba(255,125,26,0.3)]',
+        bgSolid: 'bg-primary', 
         border: 'border-primary', 
-        text: '!text-black', 
-        textDark: 'dark:!text-orange-100', 
-        btn: 'bg-primary hover:bg-orange-600 focus:ring-orange-300 dark:focus:ring-orange-800 text-white', 
+        text: 'text-slate-900 dark:text-white', 
+        textDark: 'dark:text-slate-100', 
+        btn: 'bg-primary hover:bg-orange-600 focus:ring-orange-300 dark:focus:ring-800 text-white', 
         tagBg: 'bg-primary/20 dark:bg-primary/20',
-        textSolid: 'text-black dark:text-white' 
+        textSolid: 'text-slate-900 dark:text-white',
+        dot: 'bg-primary',
+        shadow: 'shadow-[0_0_15px_rgba(255,125,26,0.6)]'
     },
     blue: { 
         bg: 'bg-blue-500/20 dark:bg-blue-500/30', 
@@ -166,7 +168,7 @@ const colors: Record<string, ColorClasses> = {
         <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-xl md:text-2xl mb-8 text-black dark:text-gray-300 font-bold">
+        <p class="text-xl md:text-2xl mb-8 font-bold opacity-90">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
 
@@ -179,7 +181,7 @@ const colors: Record<string, ColorClasses> = {
         )}
 
         {homeData?.aboutText && (
-          <p class="text-lg text-black dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-black">
+          <p class="text-lg max-w-2xl mx-auto mb-10 leading-relaxed font-black opacity-80">
             {homeData.aboutText}
           </p>
         )}
@@ -198,9 +200,9 @@ const colors: Record<string, ColorClasses> = {
     <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none">
-            <h2 class="text-3xl md:text-5xl font-black heading-font text-gray-950 dark:text-gray-100">Meine Reise</h2>
-            <p class="text-gray-900 dark:text-gray-400 mt-2 uppercase tracking-widest text-sm font-black">Hover über ein Event für Details</p>
+        <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none px-4">
+            <h2 class="text-3xl md:text-5xl font-black heading-font">Meine Reise</h2>
+            <p class="text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover über ein Event für Details</p>
         </div>
 
         <div class="timeline-container w-full overflow-x-auto flex items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
@@ -221,8 +223,8 @@ const colors: Record<string, ColorClasses> = {
                 {/* Year Markers on Axis */}
                 {yearMarkers.map((marker, index) => (
                     <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={`left: ${marker.left};`}>
-                        <div class="w-[2px] h-6 bg-gray-600 dark:bg-gray-700"></div>
-                        <span class="text-xs font-black text-gray-950 dark:text-gray-500 mt-2 absolute top-full">{marker.year}</span>
+                        <div class="w-[2px] h-6 bg-slate-300 dark:bg-slate-700"></div>
+                        <span class="text-xs font-black opacity-60 mt-2 absolute top-full">{marker.year}</span>
                     </div>
                 ))}
 
@@ -294,12 +296,12 @@ const colors: Record<string, ColorClasses> = {
                 <h2 class="text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
                 <div class="flex flex-wrap gap-2 mb-4">
                   {project.tags?.map((tag: string) => (
-                    <span class={`inline-block ${pc.tagBg} !text-black dark:!text-orange-100 rounded-full px-3 py-1 text-sm font-black tracking-wide border border-current opacity-90`}>
+                    <span class={`inline-block ${pc.tagBg} rounded-full px-3 py-1 text-sm font-black tracking-wide border border-current opacity-90`}>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <p class="text-xl text-gray-950 dark:text-gray-200 leading-relaxed max-w-2xl font-medium">
+                <p class="text-xl leading-relaxed max-w-2xl font-medium opacity-90">
                   {project.description}
                 </p>
                 <a 
