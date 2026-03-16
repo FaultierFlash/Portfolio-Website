@@ -16,9 +16,10 @@ interface Props {
   homePath: string;
   navLinks: { href: string; text: LocalizedString | string }[];
   projectPages: { href: string; text: LocalizedString | string }[];
+  accentColor?: string;
 }
 
-const { currentLocale, t, homePath, navLinks, projectPages } = Astro.props;
+const { currentLocale, t, homePath, navLinks, projectPages, accentColor = "primary" } = Astro.props;
 
 // --- Generate Path Segments for Logo with Full Translation ---
 const pathSegments: PathSegment[] = [];
@@ -139,6 +140,7 @@ const projectsSubmenuLabel = t("dropdown.projects.label") || "Projects submenu";
     projectPages={projectPages}
     mainNavigationLabel={mainNavigationLabel}
     projectsSubmenuLabel={projectsSubmenuLabel}
+    accentColor={accentColor}
   >
     <Fragment slot="hamburger-button">
       <HamburgerButton toggleMenuLabel={toggleMenuLabel} />
@@ -154,14 +156,14 @@ const projectsSubmenuLabel = t("dropdown.projects.label") || "Projects submenu";
     align-items: center;
     padding: 0.8rem 1.5rem;
     background-color: var(--color-bg, #fff);
-    border-bottom: 1px solid var(--color-border, #e0e0e0);
+    border-bottom: 2px solid var(--color-project-accent-border, rgba(255,125,26,0.5));
     color: var(--color-text, #333);
     position: sticky;
     top: 0;
     z-index: 110;
     transition:
       background-color 0.3s ease,
-      border-color 0.3s ease;
+      border-color 0.5s ease;
     height: var(--header-height, 60px);
   }
 </style>

@@ -1,8 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import { getTranslationOverrides, getHomePageData, urlFor } from "../../lib/sanity";
+import { getTranslationOverrides, getHomePageData, getProjects, urlFor } from "../../lib/sanity";
 import DynamicBackground from "../../components/DynamicBackground.astro";
+import HomeSpinWheel from "../../components/HomeSpinWheel.astro";
+import TerminalContactForm from "../../components/TerminalContactForm.astro";
 
 const lang = Astro.currentLocale as Locale;
 const overrides = await getTranslationOverrides(lang);
@@ -10,6 +12,9 @@ const t = useTranslations(lang, overrides);
 const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
 const timelineItems = homeData?.timeline || [];
+const allProjects = await getProjects(lang);
+const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
+const nonFeaturedProjects = allProjects.filter((p: any) => !featuredSlugs.has(p.slug.current));
 
 // --- Timescale Math Logic ---
 // We lock the timeline container strictly to the user-defined bounds.
@@ -72,14 +77,78 @@ for (let y = startYear; y <= endYear; y++) {
 }
 
 // Color mapper
-type ColorClasses = { bg: string, border: string, text: string, textDark: string, dot: string, shadow: string };
+type ColorClasses = { bg: string, bgSolid?: string, border: string, text: string, textDark: string, textSolid?: string, dot: string, shadow: string, btn: string, tagBg: string };
 const colors: Record<string, ColorClasses> = {
-    primary: { bg: 'bg-primary/20 hover:bg-primary/40 dark:bg-primary/30 dark:hover:bg-primary/50', border: 'border-primary', text: '!text-orange-900', textDark: 'dark:!text-orange-100', dot: 'bg-primary', shadow: 'shadow-[0_0_15px_rgba(255,125,26,0.6)]' },
-    blue:    { bg: 'bg-blue-500/20 hover:bg-blue-500/40 dark:bg-blue-500/30 dark:hover:bg-blue-500/50', border: 'border-blue-500', text: '!text-blue-900', textDark: 'dark:!text-blue-100', dot: 'bg-blue-500', shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.6)]' },
-    green:   { bg: 'bg-green-500/20 hover:bg-green-500/40 dark:bg-green-500/30 dark:hover:bg-green-500/50', border: 'border-green-500', text: '!text-green-900', textDark: 'dark:!text-green-100', dot: 'bg-green-500', shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.6)]' },
-    purple:  { bg: 'bg-purple-500/20 hover:bg-purple-500/40 dark:bg-purple-500/30 dark:hover:bg-purple-500/50', border: 'border-purple-500', text: '!text-purple-900', textDark: 'dark:!text-purple-100', dot: 'bg-purple-500', shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.6)]' },
-    rose:    { bg: 'bg-rose-500/20 hover:bg-rose-500/40 dark:bg-rose-500/30 dark:hover:bg-rose-500/50', border: 'border-rose-500', text: '!text-rose-900', textDark: 'dark:!text-rose-100', dot: 'bg-rose-500', shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.6)]' },
-    gray:    { bg: 'bg-gray-500/20 hover:bg-gray-500/40 dark:bg-gray-500/30 dark:hover:bg-gray-500/50', border: 'border-gray-500', text: '!text-gray-900', textDark: 'dark:!text-gray-100', dot: 'bg-gray-500', shadow: 'shadow-[0_0_15px_rgba(107,114,128,0.6)]' },
+    primary: { 
+        bg: 'bg-primary/20 dark:bg-primary/30', 
+        bgSolid: 'bg-primary shadow-[0_2px_10px_rgba(255,125,26,0.3)]',
+        border: 'border-primary', 
+        text: '!text-black', 
+        textDark: 'dark:!text-orange-100', 
+        btn: 'bg-primary hover:bg-orange-600 focus:ring-orange-300 dark:focus:ring-orange-800 text-white', 
+        tagBg: 'bg-primary/20 dark:bg-primary/20',
+        textSolid: 'text-black dark:text-white' 
+    },
+    blue: { 
+        bg: 'bg-blue-500/20 dark:bg-blue-500/30', 
+        bgSolid: 'bg-blue-600 shadow-[0_2px_10px_rgba(37,99,235,0.3)]',
+        border: 'border-blue-500', 
+        text: '!text-black', 
+        textDark: 'dark:!text-blue-100', 
+        textSolid: 'text-white',
+        dot: 'bg-blue-500', 
+        shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.6)]', 
+        btn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-300 dark:focus:ring-blue-800 text-white', 
+        tagBg: 'bg-blue-500/15 dark:bg-blue-500/20' 
+    },
+    green: { 
+        bg: 'bg-green-500/20 dark:bg-green-500/30', 
+        bgSolid: 'bg-green-600 shadow-[0_2px_10px_rgba(22,163,74,0.3)]',
+        border: 'border-green-500', 
+        text: '!text-black', 
+        textDark: 'dark:!text-green-100', 
+        textSolid: 'text-white',
+        dot: 'bg-green-500', 
+        shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.6)]', 
+        btn: 'bg-green-600 hover:bg-green-700 focus:ring-green-300 dark:focus:ring-green-800 text-white', 
+        tagBg: 'bg-green-500/15 dark:bg-green-500/20' 
+    },
+    purple: { 
+        bg: 'bg-purple-500/20 dark:bg-purple-500/30', 
+        bgSolid: 'bg-purple-600 shadow-[0_2px_10px_rgba(147,51,234,0.3)]',
+        border: 'border-purple-500', 
+        text: '!text-black', 
+        textDark: 'dark:!text-purple-100', 
+        textSolid: 'text-white',
+        dot: 'bg-purple-500', 
+        shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.6)]', 
+        btn: 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-300 dark:focus:ring-purple-800 text-white', 
+        tagBg: 'bg-purple-500/15 dark:bg-purple-500/20' 
+    },
+    rose: { 
+        bg: 'bg-rose-500/20 dark:bg-rose-500/30', 
+        bgSolid: 'bg-rose-600 shadow-[0_2px_10px_rgba(225,29,72,0.3)]',
+        border: 'border-rose-500', 
+        text: '!text-black', 
+        textDark: 'dark:!text-rose-100', 
+        textSolid: 'text-white',
+        dot: 'bg-rose-500', 
+        shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.6)]', 
+        btn: 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-300 dark:focus:ring-rose-800 text-white', 
+        tagBg: 'bg-rose-500/15 dark:bg-rose-500/20' 
+    },
+    gray: { 
+        bg: 'bg-gray-500/20 dark:bg-gray-500/30', 
+        bgSolid: 'bg-gray-700 shadow-[0_2px_10px_rgba(55,65,81,0.3)]',
+        border: 'border-gray-500', 
+        text: '!text-gray-950', 
+        textDark: 'dark:!text-gray-200', 
+        textSolid: 'text-white',
+        dot: 'bg-gray-500', 
+        shadow: 'shadow-[0_0_15px_rgba(107,114,128,0.6)]', 
+        btn: 'bg-gray-700 hover:bg-gray-800 focus:ring-gray-300 dark:focus:ring-gray-800 text-white', 
+        tagBg: 'bg-gray-500/15 dark:bg-gray-500/20' 
+    },
 };
 ---
 
@@ -87,13 +156,17 @@ const colors: Record<string, ColorClasses> = {
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
-      <DynamicBackground effect={homeData?.backgroundEffect || "none"} isAbsolute={true} />
+      <DynamicBackground 
+        effect={homeData?.backgroundEffect || "none"} 
+        config={homeData?.topographyConfig}
+        isAbsolute={true} 
+      />
       
       <div class="z-10 text-center px-4 max-w-4xl">
         <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-xl md:text-2xl mb-8 text-gray-700 dark:text-gray-300">
+        <p class="text-xl md:text-2xl mb-8 text-black dark:text-gray-300 font-bold">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
 
@@ -106,7 +179,7 @@ const colors: Record<string, ColorClasses> = {
         )}
 
         {homeData?.aboutText && (
-          <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+          <p class="text-lg text-black dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-black">
             {homeData.aboutText}
           </p>
         )}
@@ -114,8 +187,8 @@ const colors: Record<string, ColorClasses> = {
 
       {featuredProjects.length > 0 && (
         <button id="scroll-down-btn" class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
-           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Reise beginnen</span>
-           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+           <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">Reise beginnen</span>
+           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       )}
     </section>
@@ -126,8 +199,8 @@ const colors: Record<string, ColorClasses> = {
         <DynamicBackground effect="grid" isAbsolute={true} />
         
         <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none">
-            <h2 class="text-3xl md:text-5xl font-black heading-font text-gray-800 dark:text-gray-200">Meine Reise</h2>
-            <p class="text-gray-500 mt-2 uppercase tracking-widest text-sm">Hover über ein Event für Details</p>
+            <h2 class="text-3xl md:text-5xl font-black heading-font text-gray-950 dark:text-gray-100">Meine Reise</h2>
+            <p class="text-gray-900 dark:text-gray-400 mt-2 uppercase tracking-widest text-sm font-black">Hover über ein Event für Details</p>
         </div>
 
         <div class="timeline-container w-full overflow-x-auto flex items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
@@ -148,8 +221,8 @@ const colors: Record<string, ColorClasses> = {
                 {/* Year Markers on Axis */}
                 {yearMarkers.map((marker, index) => (
                     <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={`left: ${marker.left};`}>
-                        <div class="w-[2px] h-6 bg-gray-400 dark:bg-gray-700"></div>
-                        <span class="text-xs font-bold text-gray-400 dark:text-gray-600 mt-2 absolute top-full">{marker.year}</span>
+                        <div class="w-[2px] h-6 bg-gray-600 dark:bg-gray-700"></div>
+                        <span class="text-xs font-black text-gray-950 dark:text-gray-500 mt-2 absolute top-full">{marker.year}</span>
                     </div>
                 ))}
 
@@ -167,18 +240,22 @@ const colors: Record<string, ColorClasses> = {
                         'far-below': 'translate-y-[106px]'
                     };
                     const verticalOffset = isDuration ? (verticalMap[item.verticalPosition] || '-translate-y-12') : '-translate-y-1/2';
-                    const c = colors[item.color] || colors.primary;
+                    const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                    const c = colors[resolvedColor] || colors.primary;
+                    
+                    const EventWrapper = item.relatedProject ? 'a' : 'div';
+                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
 
                     return (
                     <div class="timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10" style={`left: ${styles.left}; width: ${styles.width}; transform: translate(0, -50%);`}>
                         
                         {isDuration ? (
-                            <div class={`relative w-full h-8 rounded-full px-4 ${c.bg} border ${c.border} transition-all duration-300 flex items-center cursor-pointer backdrop-blur-sm ${verticalOffset}`}>
-                                <h4 class={`flex-1 min-w-0 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis drop-shadow-md relative z-10 ${c.text} ${c.textDark}`} style={(styles.textOffsetPx || 0) > 0 ? `padding-left: ${styles.textOffsetPx || 0}px` : ''}>{item.title}</h4>
-                                {item.isOngoing && <div class={`shrink-0 absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full ${c.dot} animate-pulse ${c.shadow}`}></div>}
-                            </div>
+                            <EventWrapper href={eventHref} class={`relative w-full h-8 rounded-full px-4 ${c.bgSolid} transition-all duration-300 flex items-center cursor-pointer backdrop-blur-sm ${verticalOffset} block hover:scale-[1.02] border border-white/20`}>
+                                <h4 class={`flex-1 min-w-0 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis drop-shadow-md relative z-10 ${c.textSolid}`} style={(styles.textOffsetPx || 0) > 0 ? `padding-left: ${styles.textOffsetPx || 0}px` : ''}>{item.title}</h4>
+                                {item.isOngoing && <div class={`shrink-0 absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white animate-pulse shadow-[0_0_10px_white]`}></div>}
+                            </EventWrapper>
                         ) : (
-                            <div class={`relative w-6 h-6 -translate-x-1/2 rounded-full bg-white dark:bg-black border-4 ${c.border} hover:scale-150 transition-transform duration-300 cursor-pointer ${c.shadow} z-20`}></div>
+                            <EventWrapper href={eventHref} class={`relative w-6 h-6 -translate-x-1/2 rounded-full bg-white dark:bg-black border-4 ${c.border} hover:scale-150 transition-transform duration-300 cursor-pointer ${c.shadow} z-20 block`}></EventWrapper>
                         )}
 
                         {/* HOVER INFO CARD */}
@@ -206,8 +283,10 @@ const colors: Record<string, ColorClasses> = {
     {/* Sections 2+: Featured Projects */}
     {featuredProjects.map((project: any, index: number) => {
         const isLastSection = index === featuredProjects.length - 1;
+        const projectColor = project.accentColor || 'primary';
+        const pc = colors[projectColor] || colors.primary;
         return (
-          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] w-full" data-project-slug={project.slug.current}>
+          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] w-full" data-project-slug={project.slug.current} data-accent-color={projectColor}>
             <DynamicBackground effect={project.backgroundEffect || "none"} isAbsolute={true} />
             
             <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-8 gap-12">
@@ -215,17 +294,17 @@ const colors: Record<string, ColorClasses> = {
                 <h2 class="text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
                 <div class="flex flex-wrap gap-2 mb-4">
                   {project.tags?.map((tag: string) => (
-                    <span class="inline-block bg-primary/10 text-primary dark:bg-primary/20 rounded-full px-3 py-1 text-sm font-semibold tracking-wide">
+                    <span class={`inline-block ${pc.tagBg} !text-black dark:!text-orange-100 rounded-full px-3 py-1 text-sm font-black tracking-wide border border-current opacity-90`}>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <p class="text-xl text-gray-700 dark:text-gray-300 leading-relaxed max-w-2xl">
+                <p class="text-xl text-gray-950 dark:text-gray-200 leading-relaxed max-w-2xl font-medium">
                   {project.description}
                 </p>
                 <a 
                   href={`/${lang}/projects/${project.slug.current}`} 
-                  class="inline-block mt-8 px-8 py-3 bg-primary text-white font-bold rounded shadow-lg hover:shadow-xl hover:bg-orange-600 transition-all focus:ring-4 focus:ring-orange-300 dark:focus:ring-orange-800"
+                  class={`inline-block mt-8 px-8 py-3 font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
                 >
                   Explore Project →
                 </a>
@@ -258,8 +337,86 @@ const colors: Record<string, ColorClasses> = {
           </section>
         );
     })}
+
+    {/* Section: Rad drehen (nicht Featured Projekte) */}
+    {nonFeaturedProjects.length > 0 && (
+      <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
+        <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
+        <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+          <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
+        </button>
+        <button class="nav-down-btn absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Nächster Abschnitt">
+          <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Kontakt</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+        </button>
+      </section>
+    )}
+
+    {/* Section: Kontakt */}
+    <section class="scroll-section contact-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
+      <div class="contact-terminal-wrapper">
+        <TerminalContactForm translations={{
+          title: t("terminal.title"),
+          welcome1: t("terminal.welcome1"),
+          welcome2: t("terminal.welcome2"),
+          promptName: t("terminal.promptName"),
+          promptEmail: t("terminal.promptEmail"),
+          promptMessageInfo: t("terminal.promptMessageInfo"),
+          editorInfo: t("terminal.editorInfo"),
+          promptConfirm: t("terminal.promptConfirm"),
+          errorName: t("terminal.errorName"),
+          errorEmail: t("terminal.errorEmail"),
+          errorMessage: t("terminal.errorMessage"),
+          errorConfirm: t("terminal.errorConfirm"),
+          errorSending: t("terminal.errorSending"),
+          sending: t("terminal.sending"),
+          sentSuccess: t("terminal.sentSuccess"),
+          cancelled: t("terminal.cancelled"),
+          editInfo: t("terminal.editInfo"),
+          endPrompt: t("terminal.endPrompt"),
+          exitMessage: t("terminal.exitMessage"),
+          confirmDetails: t("terminal.confirmDetails"),
+          confirmName: t("terminal.confirmName"),
+          confirmEmail: t("terminal.confirmEmail"),
+          confirmMessage: t("terminal.confirmMessage"),
+          confirmEnd: t("terminal.confirmEnd"),
+          sendButton: t("terminal.sendButton"),
+        }} />
+      </div>
+      <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
+      </button>
+    </section>
   </div>
 </BaseLayout>
+
+{/* Override: force the terminal to stay inside the contact scroll section on the homepage */}
+<style is:global>
+  .contact-terminal-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; /* Anchor terminal within this slide */
+  }
+
+  .contact-terminal-wrapper .component-terminal-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+
+  .contact-terminal-wrapper #terminal {
+    position: absolute !important;
+    /* Do NOT set top/left here, let JS handle initial centering relative to this absolute parent */
+  }
+</style>
 
 <script>
   function initializeScrollLogic() {
@@ -359,24 +516,44 @@ const colors: Record<string, ColorClasses> = {
         });
     }
 
-    // Intercept scroll at the bottom of the last section
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.9) {
-          const langMatch = window.location.pathname.match(/^\/([a-z]{2})\//);
-          const lang = langMatch ? langMatch[1] : 'en';
-          
-          // Small delay so the user understands what happened before routing
-          setTimeout(() => {
-              window.location.href = `/${lang}/projects`;
-          }, 400); 
-        }
-      });
-    }, { root: null, threshold: 1.0 });
+    // Library Section Horizontal Scroll Support (if needed)
+    // Currently vertical snap works best for the Library layout
 
-    const marker = document.querySelector('.last-section-marker');
-    if (marker) {
-      observer.observe(marker);
+    // --- Accent Color Observer: update CSS vars as project slides scroll into view ---
+    const colorMap = (window as any).__accentColorMap || {
+      primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.15)', border: 'rgba(255,125,26,0.5)' },
+      blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.5)' },
+      green:   { main: '#22c55e', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.5)'  },
+      purple:  { main: '#a855f7', bg: 'rgba(168,85,247,0.15)',  border: 'rgba(168,85,247,0.5)' },
+      rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.15)',   border: 'rgba(244,63,94,0.5)'  },
+      gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.15)', border: 'rgba(107,114,128,0.5)'},
+    };
+    function setAccentColor(colorKey: string) {
+      const c = colorMap[colorKey] || colorMap.primary;
+      document.documentElement.style.setProperty('--color-project-accent', c.main);
+      document.documentElement.style.setProperty('--color-project-accent-bg', c.bg);
+      document.documentElement.style.setProperty('--color-project-accent-border', c.border);
+    }
+    const projectSections = document.querySelectorAll('.project-section[data-accent-color]');
+    if (projectSections.length > 0) {
+      const accentObserver = new IntersectionObserver((entries) => {
+        let best: IntersectionObserverEntry | null = null;
+        entries.forEach(entry => {
+          if (entry.isIntersecting && (!best || (entry as any).intersectionRatio > (best as any).intersectionRatio)) {
+            best = entry;
+          }
+        });
+        if (best) setAccentColor(((best as any).target as HTMLElement).dataset.accentColor || 'primary');
+      }, { threshold: [0.4, 0.6, 0.8] });
+  
+      const nonProjectSections = document.querySelectorAll('.hero-section, .timeline-section');
+      const resetObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) setAccentColor('primary');
+        });
+      }, { threshold: 0.5 });
+      projectSections.forEach(s => accentObserver.observe(s));
+      nonProjectSections.forEach(s => resetObserver.observe(s));
     }
   }
 

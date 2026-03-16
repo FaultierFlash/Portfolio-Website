@@ -1,0 +1,233 @@
+---
+/**
+ * TopographicRipple.astro
+ * Renders an interactive topographic contour background using Marching Squares.
+ */
+interface Props {
+  source?: 'earth' | 'mars-olympus' | 'mars-gale' | 'mars-procedural';
+  lat?: number;
+  lng?: number;
+  intensity?: number;
+  scale?: number;
+  color?: string; // Hex code or CSS variable
+}
+
+const { 
+  source = 'mars-procedural', 
+  lat = 0, 
+  lng = 0, 
+  intensity = 1.0,
+  scale = 1.0,
+  color = 'var(--color-primary)' 
+} = Astro.props;
+---
+
+<div class="topography-container" 
+     data-source={source} 
+     data-lat={lat} 
+     data-lng={lng} 
+     data-intensity={intensity} 
+     data-scale={scale}
+     data-color={color}>
+  <canvas id="topoCanvas"></canvas>
+</div>
+
+<style>
+  .topography-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.2; /* Increased from 0.15 */
+    background: transparent;
+    transition: opacity 0.3s ease;
+  }
+
+  :global(.dark) .topography-container {
+    opacity: 0.5; /* Increased from 0.35 */
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script>
+  import { getElevationGrid } from '../utils/topoData';
+
+  class TopoRenderer {
+    container: HTMLElement;
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    grid: number[][] = [];
+    rippleGrid: number[][] = [];
+    gridSize = 40;
+    cellSize = 0;
+    width = 0;
+    height = 0;
+    
+    mouseX = 0;
+    mouseY = 0;
+    targetMouseX = 0;
+    targetMouseY = 0;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.canvas = container.querySelector('canvas')!;
+      this.ctx = this.canvas.getContext('2d', { alpha: true })!;
+      
+      window.addEventListener('resize', () => this.resize());
+      window.addEventListener('mousemove', (e) => {
+        this.targetMouseX = e.clientX;
+        this.targetMouseY = e.clientY;
+      });
+
+      this.init();
+    }
+
+    async init() {
+      const source = this.container.dataset.source as any;
+      const lat = parseFloat(this.container.dataset.lat || '0');
+      const lng = parseFloat(this.container.dataset.lng || '0');
+      const scale = parseFloat(this.container.dataset.scale || '1.0');
+      
+      try {
+        this.grid = await getElevationGrid({
+          source,
+          latitude: lat,
+          longitude: lng,
+          gridSize: this.gridSize,
+          scale: scale
+        });
+      } catch (e) {
+        // Fallback handled in util
+      }
+
+      // Initialize ripple grid with zeros
+      this.rippleGrid = Array(this.gridSize).fill(0).map(() => Array(this.gridSize).fill(0));
+
+      this.resize();
+      this.animate();
+    }
+
+    resize() {
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+      this.cellSize = Math.max(this.width, this.height) / (this.gridSize - 1);
+    }
+
+    animate() {
+      // Smooth mouse follow
+      this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
+      this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+
+      this.updateRipples();
+      this.draw();
+      requestAnimationFrame(() => this.animate());
+    }
+
+    updateRipples() {
+      const mouseCol = Math.floor(this.mouseX / this.cellSize);
+      const mouseRow = Math.floor(this.mouseY / this.cellSize);
+      const radius = 5;
+
+      for (let y = 0; y < this.gridSize; y++) {
+        for (let x = 0; x < this.gridSize; x++) {
+          // Decpate ripple
+          this.rippleGrid[y][x] *= 0.95;
+
+          // Add mouse influence
+          const dx = x - mouseCol;
+          const dy = y - mouseRow;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < radius) {
+            this.rippleGrid[y][x] += (radius - dist) * 2;
+          }
+        }
+      }
+    }
+
+    getContourValue(x: number, y: number) {
+      if (x < 0 || y < 0 || x >= this.gridSize || y >= this.gridSize) return 0;
+      return this.grid[y][x] + this.rippleGrid[y][x];
+    }
+
+    draw() {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+      const color = this.container.dataset.color || 'var(--color-primary)';
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 1;
+
+      const levels = 8;
+      const intensity = parseFloat(this.container.dataset.intensity || '1.0');
+
+      for (let l = 1; l <= levels; l++) {
+        const threshold = l * (20 / intensity);
+        this.ctx.beginPath();
+        // Increased base alpha to 0.4 and scale to 0.6
+        this.ctx.globalAlpha = 0.5 + (l / levels) * 0.5;
+        
+        for (let y = 0; y < this.gridSize - 1; y++) {
+          for (let x = 0; x < this.gridSize - 1; x++) {
+            this.drawMarchingSquare(x, y, threshold);
+          }
+        }
+        this.ctx.stroke();
+      }
+    }
+
+    drawMarchingSquare(x: number, y: number, threshold: number) {
+      const v1 = this.getContourValue(x, y);
+      const v2 = this.getContourValue(x + 1, y);
+      const v3 = this.getContourValue(x + 1, y + 1);
+      const v4 = this.getContourValue(x, y + 1);
+
+      let config = 0;
+      if (v1 >= threshold) config += 8;
+      if (v2 >= threshold) config += 4;
+      if (v3 >= threshold) config += 2;
+      if (v4 >= threshold) config += 1;
+
+      const px = x * this.cellSize;
+      const py = y * this.cellSize;
+      const s = this.cellSize;
+
+      // Interpolation helpers
+      const lerp = (v_a: number, v_b: number, t: number) => (t - v_a) / (v_b - v_a);
+      
+      const top = { x: px + s * lerp(v1, v2, threshold), y: py };
+      const right = { x: px + s, y: py + s * lerp(v2, v3, threshold) };
+      const bottom = { x: px + s * lerp(v4, v3, threshold), y: py + s };
+      const left = { x: px, y: py + s * lerp(v1, v4, threshold) };
+
+      switch (config) {
+        case 1: case 14: this.line(left, bottom); break;
+        case 2: case 13: this.line(bottom, right); break;
+        case 3: case 12: this.line(left, right); break;
+        case 4: case 11: this.line(top, right); break;
+        case 5: this.line(top, left); this.line(right, bottom); break;
+        case 6: case 9: this.line(top, bottom); break;
+        case 7: case 8: this.line(top, left); break;
+        case 10: this.line(top, right); this.line(left, bottom); break;
+      }
+    }
+
+    line(p1: {x:number, y:number}, p2: {x:number, y:number}) {
+      this.ctx.moveTo(p1.x, p1.y);
+      this.ctx.lineTo(p2.x, p2.y);
+    }
+  }
+
+  // Initialize on page load
+  document.addEventListener('astro:page-load', () => {
+    const containers = document.querySelectorAll('.topography-container');
+    containers.forEach(c => new TopoRenderer(c as HTMLElement));
+  });
+</script>

@@ -38,6 +38,8 @@
   "nav": {
     "breadcrumbAriaLabel": "Aktuelle Seite",
     "contact": "Kontakt",
+    "library": "Bibliothek",
+    "goToLabel": "Gehe zu {page}",
     "home": {
       "label": "Startseite",
       "ariaLabel": "Startseite",
@@ -72,6 +74,12 @@
     },
     "contact": {
       "_title_": "Kontakt" 
+    },
+    "projekte": {
+      "_title_": "Projekte"
+    },
+    "library": {
+      "_title_": "Bibliothek"
     },
     "about": {
       "_title_": "Über-Uns"

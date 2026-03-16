@@ -6,13 +6,15 @@ import Footer from "../components/Footer.astro"; // New Footer component
 import ThemeScript from "../components/ThemeScript.astro";
 import DynamicBackground from "../components/DynamicBackground.astro"; // New background component
 import "../styles/global.css";
-import { ViewTransitions } from "astro:transitions";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title?: string;
   description?: string;
   hidePageScrollbar?: boolean;
   backgroundEffect?: string | null;
+  topographyConfig?: any;
+  accentColor?: string;
 }
 
 const {
@@ -20,6 +22,8 @@ const {
   description: propDescription,
   hidePageScrollbar = false,
   backgroundEffect = "none",
+  topographyConfig = null,
+  accentColor = "primary",
 } = Astro.props;
 
 const currentLocale = (Astro.currentLocale as Locale) || "de";
@@ -28,6 +32,17 @@ const t = useTranslations(currentLocale); // 't' function for translations
 const pageTitle = propTitle || t("site.title");
 const pageDescription =
   propDescription || t("site.description") || "Default site description.";
+
+// Map accent color names to actual CSS color values for injection
+const accentColorMap: Record<string, { main: string, bg: string, border: string }> = {
+  primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.15)', border: 'rgba(255,125,26,0.5)' },
+  blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.5)' },
+  green:   { main: '#22c55e', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.5)'  },
+  purple:  { main: '#a855f7', bg: 'rgba(168,85,247,0.15)',  border: 'rgba(168,85,247,0.5)' },
+  rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.15)',   border: 'rgba(244,63,94,0.5)'  },
+  gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.15)', border: 'rgba(107,114,128,0.5)'},
+};
+const resolvedAccent = accentColorMap[accentColor] || accentColorMap.primary;
 
 // --- Data needed by Header ---
 // Project Pages Fetching (moved to Header, but BaseLayout needs to do it to pass to Header)
@@ -72,6 +87,7 @@ if (allProjectFilesGlob) {
 }
 
 const navLinks = [
+  { href: `/${currentLocale}/library`, text: t("nav.library") },
   { href: `/${currentLocale}/contact`, text: t("nav.contact") },
 ];
 const homePath = `/${currentLocale}/`;
@@ -82,6 +98,7 @@ const homePath = `/${currentLocale}/`;
   lang={currentLocale}
   dir="ltr"
   class={hidePageScrollbar ? "page-hides-scrollbar" : ""}
+  style={`--color-project-accent:${resolvedAccent.main};--color-project-accent-bg:${resolvedAccent.bg};--color-project-accent-border:${resolvedAccent.border}`}
 >
   <head>
     <meta charset="UTF-8" />
@@ -91,16 +108,21 @@ const homePath = `/${currentLocale}/`;
     <meta name="description" content={pageDescription} />
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
-    <ViewTransitions />
+    <ClientRouter />
+    <script define:vars={{ accentColorMap: JSON.stringify(accentColorMap) }}>
+      // Expose color map globally so homepage scroll JS can update the accent vars
+      window.__accentColorMap = JSON.parse(accentColorMap);
+    </script>
   </head>
   <body>
-    <DynamicBackground effect={backgroundEffect} />
+    <DynamicBackground effect={backgroundEffect} config={topographyConfig} />
     <Header
       currentLocale={currentLocale}
       t={t}
       homePath={homePath}
       navLinks={navLinks}
       projectPages={projectPages}
+      accentColor={accentColor}
     />
 
     <main>

@@ -24,7 +24,8 @@ const currentYear = new Date().getFullYear();
     color: var(--color-secondary, #6c757d); /* Use a secondary text color */
     padding: 2rem 1.5rem;
     text-align: center;
-    border-top: 1px solid var(--color-border, #e0e0e0);
+    border-top: 2px solid var(--color-project-accent-border, rgba(255,125,26,0.5));
+    transition: border-color 0.5s ease;
     font-size: 0.9rem;
   }
 
@@ -38,8 +39,9 @@ const currentYear = new Date().getFullYear();
   }
 
   .footer-content a {
-    color: var(--color-primary, #007bff); /* Use primary color for links */
+    color: var(--color-project-accent, var(--color-primary, #007bff));
     text-decoration: none;
+    transition: color 0.5s ease;
   }
 
   .footer-content a:hover {

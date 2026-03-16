@@ -16,6 +16,11 @@
     --color-secondary: #4b5563;
     --color-accent: #8b5cf6;
     --color-border: #CCCCCC;
+
+    /* Project Accent – updated dynamically by JS when browsing projects */
+    --color-project-accent: #FF7D1A;
+    --color-project-accent-bg: rgba(255, 125, 26, 0.15);
+    --color-project-accent-border: rgba(255, 125, 26, 0.5);
   }
   
   /* Dark-Mode Variablen */
@@ -32,7 +37,22 @@
     overflow-y: scroll; /* Or 'scroll' */
     scroll-behavior: smooth;
     height: 100%;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
 }
+
+  html::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+  }
+  
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  body::-webkit-scrollbar {
+    display: none;
+  }
   
   /* Basis-Styles mit Variablen */
   /* In src/styles/global.css */

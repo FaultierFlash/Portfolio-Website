@@ -1,14 +1,35 @@
 ---
+import TopographicRipple from './TopographicRipple.astro';
+
 interface Props {
-  effect?: 'none' | 'grid' | 'dots' | string | null;
+  effect?: 'none' | 'grid' | 'dots' | 'topography' | string | null;
   isAbsolute?: boolean;
+  config?: {
+    source: any;
+    latitude?: number;
+    longitude?: number;
+    intensity?: number;
+    scale?: number;
+  };
 }
 
-const { effect = 'none', isAbsolute = false } = Astro.props;
+const { effect = 'none', isAbsolute = false, config } = Astro.props;
 ---
 
-{effect !== 'none' && effect && (
-  <div class={`dynamic-background ${effect} ${isAbsolute ? 'is-absolute' : 'is-fixed'}`} aria-hidden="true"></div>
+{effect === 'topography' ? (
+  <div class={`dynamic-background topography-wrapper ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}>
+    <TopographicRipple 
+      source={config?.source}
+      lat={config?.latitude}
+      lng={config?.longitude}
+      intensity={config?.intensity}
+      scale={config?.scale}
+    />
+  </div>
+) : (
+  effect !== 'none' && effect && (
+    <div class={`dynamic-background ${effect} ${isAbsolute ? 'is-absolute' : 'is-fixed'}`} aria-hidden="true"></div>
+  )
 )}
 
 <style>
@@ -34,26 +55,24 @@ const { effect = 'none', isAbsolute = false } = Astro.props;
     background-image: 
       linear-gradient(to right, var(--color-border) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
-    opacity: 0.15;
-    /* Fades the grid out towards the edges so it feels subtle */
-    mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
-    -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+    opacity: 0.2;
+    mask-image: radial-gradient(circle at center, black 60%, transparent 95%);
+    -webkit-mask-image: radial-gradient(circle at center, black 60%, transparent 95%);
   }
 
-  /* Specific adjustment for dark mode to make it subtle enough */
   :global(.dark) .dynamic-background.grid {
-    opacity: 0.2; 
+    opacity: 0.4; 
   }
 
   .dynamic-background.dots {
     background-size: 20px 20px;
     background-image: radial-gradient(var(--color-text) 1px, transparent 1px);
-    opacity: 0.1;
-    mask-image: radial-gradient(circle at center, black 30%, transparent 70%);
-    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 70%);
+    opacity: 0.15;
+    mask-image: radial-gradient(circle at center, black 50%, transparent 90%);
+    -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 90%);
   }
 
   :global(.dark) .dynamic-background.dots {
-    opacity: 0.15;
+    opacity: 0.3;
   }
 </style>

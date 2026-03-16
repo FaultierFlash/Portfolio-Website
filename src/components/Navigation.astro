@@ -21,6 +21,7 @@ interface Props {
   projectPages: ProjectPage[];
   mainNavigationLabel: LocalizedString | string;
   projectsSubmenuLabel: LocalizedString | string;
+  accentColor?: string;
 }
 
 const {
@@ -30,6 +31,7 @@ const {
   projectPages,
   mainNavigationLabel,
   projectsSubmenuLabel,
+  accentColor = "primary",
 } = Astro.props;
 ---
 
@@ -95,7 +97,7 @@ const {
       }
     </div>
     <div class="controls">
-      <LanguageSwitcher />
+      <LanguageSwitcher accentColor={accentColor} />
       <ThemeToggle />
     </div>
   </nav>
@@ -419,11 +421,11 @@ const {
   }
   .nav-item:hover,
   .nav-item:focus-visible {
-    color: var(--color-primary, #007bff);
-    background-color: var(--color-bg-accent, rgba(0, 0, 0, 0.05));
+    color: var(--color-project-accent, var(--color-primary, #FF7D1A));
+    background-color: var(--color-project-accent-bg, rgba(255,125,26,0.08));
   }
   .nav-item:focus-visible {
-    outline: 2px solid var(--color-primary, #007bff);
+    outline: 2px solid var(--color-project-accent, var(--color-primary, #FF7D1A));
     outline-offset: 2px;
   }
   .controls {
@@ -488,8 +490,8 @@ const {
   }
   .dropdown-item:hover,
   .dropdown-item:focus-visible {
-    background-color: var(--color-primary-light, rgba(0, 123, 255, 0.1));
-    color: var(--color-primary-dark, var(--color-primary, #0056b3));
+    background-color: var(--color-project-accent-bg, rgba(255,125,26,0.1));
+    color: var(--color-project-accent, var(--color-primary, #FF7D1A));
   }
 
   @media (max-width: 768px) {

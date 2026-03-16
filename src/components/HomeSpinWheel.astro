@@ -1,0 +1,556 @@
+---
+import { urlFor } from "../lib/sanity";
+
+export interface WheelProject {
+  title: string;
+  slug: { current: string };
+  description?: string;
+  tags?: string[];
+  accentColor?: string;
+  mainImage?: any;
+}
+
+interface Props {
+  projects: WheelProject[];
+  lang: string;
+}
+
+const { projects: rawProjects, lang } = Astro.props;
+const projects = rawProjects.map((p) => ({
+  ...p,
+  image: p.mainImage ? urlFor(p.mainImage).width(1200).height(1200).url() : null,
+}));
+const count = projects.length;
+---
+
+{count > 0 && (
+<div class="hsw-root scroll-section" data-accent-color="primary">
+  <div class="hsw-layout">
+    <!-- Left Side: Clipped Wheel -->
+    <div class="hsw-wheel-viewport">
+      <div id="hsw-wheel-container" class="hsw-wheel-container">
+        <!-- The actual spinning element -->
+        <div id="hsw-wheel" class="hsw-rotating-surface">
+          <!-- Slices will be injected here. We only need 2-3 for infinite feel if they swap. 
+               However, for 180deg segments, we keep 2 slices (Front & Back). -->
+          <div id="hsw-slice-0" class="hsw-slice" style="transform: rotate(0deg);"></div>
+          <div id="hsw-slice-1" class="hsw-slice" style="transform: rotate(180deg);"></div>
+        </div>
+        
+        <!-- Center Cap (mimics ProjectWheel) -->
+        <div class="hsw-center-cap">
+          <div class="hsw-center-inner"></div>
+        </div>
+      </div>
+      
+      <!-- Pointer -->
+      <div class="hsw-pointer">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 12L4 2V22L24 12Z" fill="var(--color-project-accent, #FF7D1A)" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Right Side: Content & UI -->
+    <div class="hsw-content">
+      <div class="hsw-content-inner">
+        <div class="hsw-header">
+          <p class="hsw-eyebrow">Discover more</p>
+          <h2 class="hsw-title">Project Roulette</h2>
+          <p class="hsw-subtitle">Your next masterpiece is one spin away.</p>
+        </div>
+
+        <div class="hsw-controls">
+          <button id="hsw-spin-btn" class="hsw-spin-btn">
+            <span class="btn-text">SPIN</span>
+            <span class="btn-icon">🎰</span>
+          </button>
+        </div>
+
+        <!-- Result Card -->
+        <div id="hsw-result" class="hsw-result-card" hidden>
+           <div class="hsw-result-header">
+             <span class="hsw-result-label">YOU LANDED ON</span>
+             <h3 id="hsw-result-title" class="hsw-result-title">Project Name</h3>
+           </div>
+           <p id="hsw-result-desc" class="hsw-result-desc">Short project description goes here...</p>
+           <div class="hsw-result-actions">
+             <a id="hsw-result-link" href="#" class="hsw-result-link">View Project →</a>
+             <button id="hsw-respin-btn" class="hsw-respin-btn">Try again</button>
+           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+)}
+
+{count === 0 && (
+<div class="hsw-root empty-state scroll-section">
+  <div class="empty-content">
+    <p class="hsw-eyebrow">All caught up</p>
+    <h2 class="hsw-title">Everything is Featured</h2>
+    <p class="hsw-subtitle">Check back later for more hidden gems.</p>
+  </div>
+</div>
+)}
+
+<script define:vars={{ projects, lang }}>
+(function() {
+  const COLOR_MAP = {
+    primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.1)', border: 'rgba(255,125,26,0.3)' },
+    blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
+    green:   { main: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.3)' },
+    purple:  { main: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)' },
+    rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.1)',   border: 'rgba(244,63,94,0.3)' },
+    gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.3)' },
+  };
+
+  const N = projects.length;
+  if (N <= 0) return;
+
+  let currentRotation = 0; // Total accumulated rotation
+  let isSpinning = false;
+  let targetProjectIndex = 0;
+
+  function getProject(index) {
+    return projects[((index % N) + N) % N];
+  }
+
+  function updateSliceContent(sliceEl, project) {
+    if (!sliceEl || !project) return;
+    const colors = COLOR_MAP[project.accentColor] || COLOR_MAP.primary;
+    
+    // Mimic ProjectSlice.astro structure but in a reusable way
+    sliceEl.innerHTML = `
+      <div class="slice-inner" style="--accent: ${colors.main}; --accent-bg: ${colors.bg}; --accent-border: ${colors.border}">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <clipPath id="clip-${project.slug.current}">
+              <path d="M 50,50 L 50,0 A 50,50 0 0,1 50,100 Z" />
+            </clipPath>
+          </defs>
+          <image 
+            href="${project.image || ''}" 
+            x="0" y="0" width="100" height="100" 
+            preserveAspectRatio="xMidYMid slice"
+            clip-path="url(#clip-${project.slug.current})"
+            class="slice-image"
+          />
+          <path d="M 50,0 A 50,50 0 0,1 50,100" class="slice-border" fill="none" stroke="${colors.main}" stroke-width="0.5" />
+        </svg>
+        <div class="slice-content">
+          <h4 class="slice-title">${project.title}</h4>
+          <span class="slice-tag">${project.tags?.[0] || 'Project'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function init() {
+    const wheel = document.getElementById('hsw-wheel');
+    const spinBtn = document.getElementById('hsw-spin-btn');
+    const respinBtn = document.getElementById('hsw-respin-btn');
+    const resultCard = document.getElementById('hsw-result');
+    const slices = [document.getElementById('hsw-slice-0'), document.getElementById('hsw-slice-1')];
+
+    if (!wheel || !spinBtn) return;
+
+    let lastBaseIndex = -1;
+
+    // Secret loading: Update slices as they go behind the scenes
+    function refreshSlices(rot) {
+      // Every 180 deg, we swap which slice is "front"
+      // baseIndex: which 180-deg period we are in
+      // Adding 90 shifts the logic so the swap happens when slices are vertical
+      const baseIndex = Math.floor((rot + 90) / 180);
+      
+      if (baseIndex !== lastBaseIndex) {
+        // Update both to be safe, but specifically the one that just went back
+        // slice 0 is at 0, 360, 720...
+        // slice 1 is at 180, 540, 900...
+        updateSliceContent(slices[0], getProject(Math.floor(rot / 180 / 2) * 2));
+        updateSliceContent(slices[1], getProject(Math.floor((rot - 180) / 180 / 2) * 2 + 1));
+        
+        // Actually, simpler mapping:
+        // slice i should have project (Math.round((i * 180 + rot) / 180))? No.
+        
+        // Let's just use the floor logic:
+        const s0Index = Math.round((0 + rot) / 180);
+        const s1Index = Math.round((180 + rot) / 180);
+        
+        // Only update if index changed
+        updateSliceContent(slices[0], getProject(s0Index));
+        updateSliceContent(slices[1], getProject(s1Index));
+        
+        lastBaseIndex = baseIndex;
+      }
+    }
+
+    // Initial setup
+    refreshSlices(0);
+
+    function spin() {
+      if (isSpinning) return;
+      isSpinning = true;
+      resultCard.hidden = true;
+      spinBtn.disabled = true;
+
+      const spins = 5 + Math.floor(Math.random() * 5); // 5-10 full spins
+      const randomProject = Math.floor(Math.random() * N);
+      
+      // Calculate target rotation to land on randomProject
+      // currentRotation is total accumulated
+      const currentVirtualIndex = Math.round(currentRotation / 180);
+      // We want (nextMatchingVirtualIndex % N) == randomProject
+      let nextMatchingVirtualIndex = currentVirtualIndex + spins * 2;
+      while (nextMatchingVirtualIndex % N !== randomProject) {
+        nextMatchingVirtualIndex++;
+      }
+      
+      const targetRotation = nextMatchingVirtualIndex * 180;
+      const duration = 5000;
+      const startTime = performance.now();
+      const startRotation = currentRotation;
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Cubic ease out
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const rot = startRotation + (targetRotation - startRotation) * ease;
+        currentRotation = rot;
+        
+        wheel.style.transform = `rotate(${-rot}deg)`;
+        refreshSlices(rot);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          finishSpin(randomProject);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function finishSpin(index) {
+      isSpinning = false;
+      spinBtn.disabled = false;
+      targetProjectIndex = index;
+
+      const p = getProject(index);
+      const colors = COLOR_MAP[p.accentColor] || COLOR_MAP.primary;
+
+      document.getElementById('hsw-result-title').textContent = p.title;
+      document.getElementById('hsw-result-desc').textContent = p.description || 'Discover more about this project.';
+      const link = document.getElementById('hsw-result-link');
+      link.href = `/${lang}/projects/${p.slug.current}`;
+      link.style.backgroundColor = colors.main;
+      
+      resultCard.hidden = false;
+    }
+
+    spinBtn.addEventListener('click', spin);
+    respinBtn.addEventListener('click', () => {
+      resultCard.hidden = true;
+      spin();
+    });
+  }
+
+  document.addEventListener('astro:page-load', init);
+  init(); // Fallback
+})();
+</script>
+
+<style>
+  .hsw-root {
+    width: 100%;
+    height: 100vh;
+    background: var(--color-bg);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .hsw-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+  }
+
+  @media (max-width: 1024px) {
+    .hsw-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .hsw-wheel-viewport {
+      transform: translateY(10%) scale(0.8);
+    }
+  }
+
+  /* --- Left Side: Wheel --- */
+  .hsw-wheel-viewport {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    /* This clips the wheel to the left */
+    justify-content: flex-start;
+    padding-left: 0;
+    pointer-events: none;
+  }
+
+  .hsw-wheel-container {
+    position: absolute;
+    /* Circular drum, sized by VH to stay proportional */
+    width: 160vh; 
+    height: 160vh;
+    left: -80vh; /* Center is exactly on the left edge */
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: auto;
+  }
+
+  .hsw-rotating-surface {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    border-radius: 50%;
+    /* No transition - managed by JS animate */
+    transform: rotate(0deg);
+  }
+
+  .hsw-slice {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center;
+  }
+
+  /* Mimic ProjectSlice styles */
+  :global(.slice-inner) {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  :global(.slice-inner svg) {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* The actual semicircular content positioning */
+  :global(.slice-content) {
+    position: absolute;
+    top: 50%;
+    left: 75%; /* Middle of the right hemisphere */
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    pointer-events: none;
+    width: 40vh;
+  }
+
+  :global(.slice-title) {
+    font-family: 'Raleway', sans-serif;
+    font-size: clamp(1.5rem, 4vh, 3rem);
+    font-weight: 900;
+    margin: 0;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  :global(.slice-tag) {
+    display: inline-block;
+    margin-top: 1vh;
+    padding: 0.5vh 1.5vh;
+    background: var(--accent);
+    font-size: clamp(0.7rem, 1.5vh, 1rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 4px;
+  }
+
+  :global(.slice-image) {
+    filter: brightness(0.6) contrast(1.1);
+    transition: filter 0.5s ease;
+  }
+
+  .hsw-center-cap {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10vh;
+    height: 10vh;
+    background: var(--color-bg);
+    border-radius: 50%;
+    z-index: 10;
+    border: 2px solid var(--color-border);
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  .hsw-center-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--color-project-accent) 0%, transparent 70%);
+    opacity: 0.5;
+  }
+
+  .hsw-pointer {
+    position: absolute;
+    left: 80vh; /* Exactly at the edge of the wheel (center is at 0, radius is 80vh) */
+    top: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    width: 6vh;
+    height: 6vh;
+    z-index: 20;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  }
+
+  /* --- Right Side: Content --- */
+  .hsw-content {
+    padding: 2rem 5% 2rem 0;
+    z-index: 30;
+  }
+
+  .hsw-content-inner {
+    max-width: 500px;
+  }
+
+  .hsw-eyebrow {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-project-accent, #FF7D1A);
+    margin-bottom: 1rem;
+  }
+
+  .hsw-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+  }
+
+  .hsw-subtitle {
+     font-size: 1.1rem;
+     color: var(--color-text-muted);
+     line-height: 1.6;
+     margin-bottom: 3rem;
+  }
+
+  .hsw-spin-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 3rem;
+    background: var(--color-project-accent, #FF7D1A);
+    border-radius: 100px;
+    border: none;
+    color: white;
+    font-family: 'Raleway', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    box-shadow: 0 10px 40px rgba(255,125,26,0.3);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .hsw-spin-btn:hover:not(:disabled) {
+    transform: scale(1.05) translateY(-3px);
+    box-shadow: 0 15px 50px rgba(255,125,26,0.4);
+  }
+
+  .hsw-spin-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+
+  .hsw-result-card {
+    margin-top: 3rem;
+    padding: 2.5rem;
+    background: var(--color-bg-elevated);
+    border-radius: 2rem;
+    border: 1px solid var(--color-border);
+    animation: slideIn 0.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+    backdrop-filter: blur(20px);
+  }
+
+  .hsw-result-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: var(--color-text-muted);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .hsw-result-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    margin-bottom: 1rem;
+  }
+
+  .hsw-result-desc {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .hsw-result-actions {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .hsw-result-link {
+    padding: 0.8rem 2rem;
+    border-radius: 100px;
+    color: white;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.2s;
+  }
+
+  .hsw-result-link:hover {
+    transform: translateX(5px);
+  }
+
+  .hsw-respin-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    justify-content: center;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>

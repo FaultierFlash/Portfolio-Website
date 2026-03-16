@@ -43,8 +43,9 @@
   "nav": {
     "home": "Home",
     "about": "About", 
-    "projects": "Test",
+    "projects": "Projects",
     "contact": "Contact",
+    "library": "Library",
     "toggleMenu": "Toggle menu",
     "mainNavigation": "Main navigation",
     "logo": {
@@ -60,16 +61,19 @@
   },
   "paths": {
     "home": {
-      "_title_": "Home" 
+      "_title_": "Home"
     },
     "projects": {
-      "_title_": "Projects", 
-      "circon": "Circon", 
+      "_title_": "Projects",
+      "circon": "Circon",
       "photeia": "Photeia",
-      "another-project-slug": "Translated Another Project Name" 
+      "another-project-slug": "Translated Another Project Name"
+    },
+    "library": {
+      "_title_": "Library"
     },
     "contact": {
-      "_title_": "Contact-Page" 
+      "_title_": "Contact-Page"
     },
     "about": {
       "_title_": "About-Page"

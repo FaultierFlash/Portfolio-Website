@@ -53,9 +53,61 @@ export const homePage = defineType({
                     { title: 'None', value: 'none' },
                     { title: 'Subtle Grid', value: 'grid' },
                     { title: 'Subtle Dots', value: 'dots' },
+                    { title: 'Topography', value: 'topography' },
                 ],
             },
             initialValue: 'none',
+        }),
+        defineField({
+            name: 'topographyConfig',
+            title: 'Topography Configuration',
+            type: 'object',
+            hidden: ({ document }) => document?.backgroundEffect !== 'topography',
+            fields: [
+                defineField({
+                    name: 'source',
+                    title: 'Data Source',
+                    type: 'string',
+                    options: {
+                        list: [
+                            { title: 'Earth (API)', value: 'earth' },
+                            { title: 'Mars (Olympic Mons)', value: 'mars-olympus' },
+                            { title: 'Mars (Gale Crater)', value: 'mars-gale' },
+                            { title: 'Procedural Mars', value: 'mars-procedural' },
+                        ],
+                    },
+                    initialValue: 'earth',
+                }),
+                defineField({
+                    name: 'latitude',
+                    title: 'Latitude',
+                    type: 'number',
+                    description: 'Used for Earth API data (e.g. 52.5200 for Berlin).',
+                    hidden: ({ parent }) => parent?.source !== 'earth',
+                }),
+                defineField({
+                    name: 'longitude',
+                    title: 'Longitude',
+                    type: 'number',
+                    description: 'Used for Earth API data (e.g. 13.4050 for Berlin).',
+                    hidden: ({ parent }) => parent?.source !== 'earth',
+                }),
+                defineField({
+                    name: 'intensity',
+                    title: 'Contour Intensity',
+                    type: 'number',
+                    initialValue: 1.0,
+                    validation: Rule => Rule.min(0.1).max(5.0),
+                }),
+                defineField({
+                    name: 'scale',
+                    title: 'Map Scale (Zoom)',
+                    type: 'number',
+                    initialValue: 1.0,
+                    description: 'Adjust the detail density. Larger values show more zoomed-in features.',
+                    validation: Rule => Rule.min(0.1).max(10.0),
+                }),
+            ],
         }),
         defineField({
             name: 'featuredProjects',
@@ -131,6 +183,13 @@ export const homePage = defineType({
                                 ]
                             },
                             initialValue: 'above'
+                        },
+                        {
+                            name: 'relatedProject',
+                            title: 'Related Project (Optional Link)',
+                            type: 'reference',
+                            to: [{ type: 'project' }],
+                            description: 'If you link a project here, clicking this timeline event will navigate to the project page, and the event will inherit the project\'s accent color automatically.',
                         }
                     ]
                 }

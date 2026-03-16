@@ -69,7 +69,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   {
     /* --- MODIFIED: Changed position to fixed for better dragging context --- */
   }
-  <div id="terminal" class="terminal-window" style="position: fixed;">
+  <div id="terminal" class="terminal-window">
     {/* --- MODIFIED: Added id to header --- */}
     <div id="terminal-header" class="terminal-header">
       <span class="header-title"
@@ -92,7 +92,6 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           id="commandInput"
           class="terminal-input"
           autocomplete="off"
-          autofocus
         />
         <span class="cursor"></span>
       </div>
@@ -127,7 +126,8 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 
   /* Styles for the floating terminal window */
   .terminal-window {
-    /* Use fixed positioning, set initial size/position via JS */
+    /* Use fixed positioning by default, but allow override (e.g. for homepage anchoring) */
+    position: var(--terminal-position, fixed);
     background-color: var(--color-border); /* Use CSS variables */
     border: 1px solid var(--color-accent);
     color: var(--color-text);
@@ -750,6 +750,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     let resizeStartX, resizeStartY, initialWidth, initialHeight;
 
     function setInitialPositionAndSize() {
+      // If the terminal has been manually moved or resized, skip automatic centering/sizing
+      if (terminalWindow.dataset.terminalInteracted === "true") return;
+
       const initialW = Math.min(768, window.innerWidth * 0.9);
       const vh = window.innerHeight;
       const initialH = Math.max(MIN_TERMINAL_HEIGHT, Math.min(650, vh * 0.75));
@@ -869,6 +872,8 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         } else {
           return;
         }
+      } else if (type === "html") {
+        textSpan.innerHTML = text;
       } else {
         const sanitizedText = String(text)
           .replace(/</g, "&lt;")
@@ -983,7 +988,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       }
     }
 
-    function setInputMode(mode) {
+    function setInputMode(mode, shouldFocus = true) {
       if (
         !inputLine ||
         !messageEditorContainer ||
@@ -998,10 +1003,12 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         messageInput.value = formData.message;
         messageInput.disabled = false;
         commandInput.disabled = true;
-        try {
-          messageInput.focus();
-        } catch (e) {
-          console.warn(`[Attempt ${initId}] Failed to focus messageInput`, e);
+        if (shouldFocus) {
+          try {
+            messageInput.focus();
+          } catch (e) {
+            console.warn(`[Attempt ${initId}] Failed to focus messageInput`, e);
+          }
         }
         setTimeout(() => {
           if (messageInput) messageInput.scrollTop = messageInput.scrollHeight;
@@ -1011,19 +1018,39 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         inputLine.style.display = "flex";
         commandInput.disabled = false;
         messageInput.disabled = true;
-        try {
-          commandInput.focus();
-        } catch (e) {
-          console.warn(`[Attempt ${initId}] Failed to focus commandInput`, e);
+        if (shouldFocus) {
+          try {
+            commandInput.focus();
+          } catch (e) {
+            console.warn(`[Attempt ${initId}] Failed to focus commandInput`, e);
+          }
         }
       }
       updateCommandPrompt();
     }
 
     function triggerSendConfirmation() {
-      if (currentStep !== 3 || isSending || isTyping || isExited) return;
+      // Allow execution if we are editing a VFS file, even if currentStep isn't 3
+      if (
+        (currentStep !== 3 && !formData._edTarget) ||
+        isSending ||
+        isTyping ||
+        isExited
+      )
+        return;
       if (!messageInput || !translations || !messageEditorContainer) return;
 
+      if (formData._edTarget) {
+        // Save VFS file instead of message
+        const file = getVfsItem(formData._edTarget);
+        if (file && file.type === "file") {
+          file.content = messageInput.value;
+          addOutputLine(`Saved ${formData._edTarget.at(-1)}.`, "success");
+        }
+        delete formData._edTarget;
+        setInputMode("command");
+        return;
+      }
       formData.message = messageInput.value.trim();
       if (!formData.message) {
         addOutputLine(
@@ -1097,6 +1124,162 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       updateCommandPrompt();
     }
 
+    // --- Easter Egg: Virtual File System (VFS) ---
+    const vfs = {
+      type: "dir",
+      name: "/",
+      children: [
+        {
+          type: "file",
+          name: "README.txt",
+          content:
+            "Welcome to the Aperture Science Secret Terminal.\nThis is a hidden segment of the interface.\nFeel free to explore the limited bash-like functionality.\nCommands: ls, cd, cat, help, clear, neofetch, whoami, ed",
+        },
+        {
+          type: "dir",
+          name: "usr",
+          children: [
+            {
+              type: "file",
+              name: "note.txt",
+              content: "The cake is a lie.\n- Rattmann",
+            },
+            {
+              type: "file",
+              name: "credits.txt",
+              content: "AI Assistant: Antigravity\nDeveloper: FaultierFlash",
+            },
+          ],
+        },
+        {
+          type: "dir",
+          name: "logs",
+          children: [
+            {
+              type: "file",
+              name: "system.log",
+              content:
+                "[2026-03-15 16:45:01] GLaDOS initialized.\n[2026-03-15 16:45:05] Neurotoxin emitters: ONLINE.\n[2026-03-15 16:45:10] Moral core: DISCONNECTED.",
+            },
+          ],
+        },
+      ],
+    };
+    let currentVfsPath = []; // Array of directory names
+
+    function getVfsItem(pathArray) {
+      let current = vfs;
+      for (const segment of pathArray) {
+        if (current.type !== "dir") return null;
+        current = current.children.find((child) => child.name === segment);
+        if (!current) return null;
+      }
+      return current;
+    }
+
+    async function handleShellCommand(fullInput) {
+      const parts = fullInput.trim().split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const args = parts.slice(1);
+
+      switch (cmd) {
+        case "help":
+          addOutputLine(
+            "Available commands: ls, cd, cat, ed, help, clear, neofetch, whoami, reset, exit",
+            "info",
+          );
+          break;
+
+        case "ls":
+          const item = getVfsItem(currentVfsPath);
+          if (item && item.type === "dir") {
+            const list = item.children
+              .map(
+                (c) =>
+                  `${c.type === "dir" ? "DIR " : "FILE"} ${c.name.padEnd(15)}`,
+              )
+              .join("\n");
+            addOutputLine(list || "(empty directory)", "info-no-prefix", false);
+          }
+          break;
+
+        case "cd":
+          if (!args[0] || args[0] === "/" || args[0] === "~") {
+            currentVfsPath = [];
+          } else if (args[0] === "..") {
+            currentVfsPath.pop();
+          } else {
+            const newPath = [...currentVfsPath, args[0]];
+            const target = getVfsItem(newPath);
+            if (target && target.type === "dir") {
+              currentVfsPath = newPath;
+            } else {
+              addOutputLine(`cd: no such directory: ${args[0]}`, "error");
+            }
+          }
+          break;
+
+        case "cat":
+          if (!args[0]) {
+            addOutputLine("usage: cat <filename>", "error");
+          } else {
+            const filePath = [...currentVfsPath, args[0]];
+            const file = getVfsItem(filePath);
+            if (file && file.type === "file") {
+              addOutputLine(file.content, "info-no-prefix", false);
+            } else {
+              addOutputLine(`cat: no such file: ${args[0]}`, "error");
+            }
+          }
+          break;
+
+        case "ed":
+        case "edit":
+          if (!args[0]) {
+            addOutputLine("usage: ed <filename>", "error");
+          } else {
+            const targetPath = [...currentVfsPath, args[0]];
+            const targetItem = getVfsItem(targetPath);
+            if (targetItem && targetItem.type === "file") {
+              addOutputLine(`Opening editor for ${args[0]}...`, "info");
+              // Temporarily hijack message editor for VFS editing
+              formData._edTarget = targetPath;
+              formData.message = targetItem.content;
+              setInputMode("editor");
+            } else {
+              addOutputLine(`ed: file not found or is a directory`, "error");
+            }
+          }
+          break;
+
+        case "clear":
+          output.innerHTML = "";
+          break;
+
+        case "whoami":
+          addOutputLine(formData.name || "subject_test_portal", "success");
+          break;
+
+        case "neofetch":
+          const info = `
+  <span style="color:var(--color-primary)">USER:</span> ${formData.name || "Subject"}
+  <span style="color:var(--color-primary)">OS:</span> CakeOS 4.11.88
+  <span style="color:var(--color-primary)">HOST:</span> Aperture-Science-Lab
+  <span style="color:var(--color-primary)">KERNEL:</span> GLaDOS-v3.0.1
+  <span style="color:var(--color-primary)">UPTIME:</span> 9999 days
+  <span style="color:var(--color-primary)">SHELL:</span> bash-aperture 1.0
+  <span style="color:var(--color-primary)">THEME:</span> Minimalist-Glow
+  <span style="color:var(--color-primary)">CPU:</span> Neural Core v7
+`;
+          addOutputLine(info, "html", false);
+          break;
+
+        default:
+          return false; // Not a shell command we handle here
+      }
+      return true;
+    }
+
     function showPowerButton() {
       // Use terminalWindow as container so it stays centered even if content is hidden
       if (!terminalWindow) return;
@@ -1126,6 +1309,12 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     async function processInput(input) {
       if (!translations || isExited) return;
       const lowerInput = input.toLowerCase();
+
+      // Check for shell commands first (Easter Egg logic)
+      if (await handleShellCommand(input)) {
+        if (currentStep < 5) focusCommandInput();
+        return;
+      }
 
       switch (currentStep) {
         case 1:
@@ -1370,6 +1559,29 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         return;
       }
 
+      // Check if terminal already started this session
+      if (terminalWindow.dataset.terminalStarted === "true") return;
+
+      // Use Observer to only start typing and focusing when in view
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (
+              entry.isIntersecting &&
+              terminalWindow.dataset.terminalStarted !== "true"
+            ) {
+              terminalWindow.dataset.terminalStarted = "true";
+              runStartSequence();
+              observer.unobserve(terminalWindow);
+            }
+          });
+        },
+        { threshold: 0.5 },
+      ); // Increased threshold to avoid early triggers
+      observer.observe(terminalWindow);
+    }
+
+    function runStartSequence() {
       isExited = false;
       hidePowerButton();
       output.classList.remove("hidden");
@@ -1384,7 +1596,6 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       const startupTextInterval = 50;
 
       function addDelayedLine(text, type, delay, addPrefix = false) {
-        // Changed default for addPrefix
         setTimeout(() => addOutputLine(text, type, addPrefix), delay);
       }
 
@@ -1409,7 +1620,6 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         apertureAscii.length > 0 &&
         apertureAscii[0].startsWith("Error")
       ) {
-        // Check if apertureAscii exists
         addDelayedLine(apertureAscii[0], "error", currentDisplayDelay, false);
         currentDisplayDelay += startupTextInterval;
       }
@@ -1444,9 +1654,6 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
                 focusCommandInput();
               });
             } else {
-              console.error(
-                `[Attempt ${initId}] Prompt for step 1 (Name) is missing.`,
-              );
               addOutputLine("Error: Missing prompt.", "error");
               commandInput.disabled = false;
               isTyping = false;
@@ -1472,6 +1679,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         return;
       }
       isDragging = true;
+      terminalWindow.dataset.terminalInteracted = "true";
       terminalWindow.classList.add("dragging");
       document.body.style.userSelect = "none";
       initialLeft = terminalWindow.offsetLeft;
@@ -1525,6 +1733,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     function resizeStart(e) {
       if (isExited) return;
       isResizing = true;
+      terminalWindow.dataset.terminalInteracted = "true";
       document.body.style.userSelect = "none";
       initialWidth = terminalWindow.offsetWidth;
       initialHeight = terminalWindow.offsetHeight;
@@ -1689,7 +1898,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     };
     window.addEventListener("resize", currentWindowResizeHandler);
 
-    setInputMode("command");
+    setInputMode("command", false);
     startTerminal();
 
     currentTerminalCleanup = () => {

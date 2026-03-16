@@ -38,13 +38,16 @@ export async function getHomePageData(locale: string) {
     aboutText,
     profileImage,
     backgroundEffect,
+    topographyConfig,
     featuredProjects[]->{
       title,
       slug,
       mainImage,
       description,
       tags,
-      backgroundEffect
+      backgroundEffect,
+      topographyConfig,
+      accentColor
     },
     timelineStartDate,
     timelineEndDate,
@@ -56,7 +59,11 @@ export async function getHomePageData(locale: string) {
       endDate,
       isOngoing,
       color,
-      verticalPosition
+      verticalPosition,
+      relatedProject->{
+        slug,
+        accentColor
+      }
     }
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -71,7 +78,40 @@ export async function getProjects(locale: string) {
     tags,
     link,
     order,
-    backgroundEffect
+    backgroundEffect,
+    topographyConfig,
+    accentColor
   }`;
   return await sanityClient.fetch(query, { locale });
+}
+
+export async function getBooks() {
+  const query = `*[_type == "book"] | order(coalesce(sortDate, "0000-00-00") desc) {
+    title,
+    author,
+    series,
+    seriesOrder,
+    cover,
+    status,
+    progress,
+    rating,
+    reviewEn,
+    reviewDe,
+    genres,
+    dateFinished
+  }`;
+  return await sanityClient.fetch(query);
+}
+
+export async function getLibrarySettings() {
+  const query = `*[_type == "librarySettings"][0] {
+    titleEn,
+    titleDe,
+    subtitleEn,
+    subtitleDe,
+    backgroundEffect,
+    accentColor,
+    topographyConfig
+  }`;
+  return await sanityClient.fetch(query);
 }

@@ -1,44 +1,26 @@
 ---
 // src/components/LanguageSwitcher.astro
-const locales = ["de", "en"] as const; // Define available locales
+// No longer needs accentColor prop - reads from CSS custom property set by JS
+const locales = ["de", "en"] as const;
 type Locale = (typeof locales)[number];
 
-const currentLocale = (Astro.currentLocale as Locale) || "de"; // Default to 'de' if undefined
+const currentLocale = (Astro.currentLocale as Locale) || "de";
 const currentPath = Astro.url.pathname;
 
-// Determine the target locale and its abbreviation
 const targetLocale: Locale = currentLocale === "de" ? "en" : "de";
-const targetAbbreviation = targetLocale.toUpperCase(); // "EN" or "DE"
+const targetAbbreviation = targetLocale.toUpperCase();
 
-// Helper function to get path without the locale prefix
 function getPathWithoutLocale(path: string, locale: Locale): string {
   const prefix = `/${locale}`;
-  // Handle root path with locale prefix explicitly
-  if (path === prefix) {
-    return "/";
-  }
-  // Handle other paths with locale prefix
-  if (path.startsWith(`${prefix}/`)) {
-    // Keep the leading slash for subpaths
-    return path.substring(prefix.length);
-  }
-  // Handle root path without locale prefix (should ideally not happen if default locale isn't prefixed)
-  if (path === "/") {
-    return "/";
-  }
-  // If path doesn't start with the locale prefix, return it as is (or handle default locale logic if needed)
+  if (path === prefix) return "/";
+  if (path.startsWith(`${prefix}/`)) return path.substring(prefix.length);
+  if (path === "/") return "/";
   return path;
 }
 
-// Generate the URL for the target language
 const pathWithoutLocale = getPathWithoutLocale(currentPath, currentLocale);
-// Ensure the target URL doesn't end up with double slashes like /en//somepage
 const targetPathSegment =
-  pathWithoutLocale === "/"
-    ? ""
-    : pathWithoutLocale.startsWith("/")
-      ? pathWithoutLocale
-      : `/${pathWithoutLocale}`;
+  pathWithoutLocale === "/" ? "" : pathWithoutLocale.startsWith("/") ? pathWithoutLocale : `/${pathWithoutLocale}`;
 const targetUrl = `/${targetLocale}${targetPathSegment}`;
 ---
 
@@ -55,35 +37,37 @@ const targetUrl = `/${targetLocale}${targetPathSegment}`;
 
 <style>
   .language-switcher-button {
-    display: inline-flex; /* Use flexbox for easy centering */
-    align-items: center; /* Center content vertically */
-    justify-content: center; /* Center content horizontally */
-    width: 2.5rem; /* Adjust size as needed */
-    height: 2.5rem; /* Make width and height equal for a circle */
-    border-radius: 50%; /* Make it round */
-    background-color: var(--color-primary); /* Use primary color variable */
-    color: var(--color-text); /* Use text color variable */
-    font-family: "Raleway", sans-serif; /* Use Raleway font */
-    font-weight: 800; /* Use the heavier weight */
-    font-size: 0.9rem; /* Adjust text size as needed */
-    text-decoration: none; /* Remove underline from link */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    /* Solid accent color fill — vivid and project-specific */
+    background-color: var(--color-project-accent, #FF7D1A);
+    /* Text is always bright grey — independent of light/dark mode */
+    color: #E5E7EB;
+    font-family: "Raleway", sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-decoration: none;
     text-align: center;
     cursor: pointer;
+    border: none;
     transition:
+      background-color 0.5s ease,
       transform 0.2s ease,
-      box-shadow 0.2s ease; /* Smooth transition */
-    border: 1px solid transparent; /* Optional: reserve space for potential focus ring */
+      box-shadow 0.2s ease;
   }
 
   .language-switcher-button:hover,
   .language-switcher-button:focus {
-    transform: scale(1.05); /* Slight scale effect on hover/focus */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Optional shadow */
+    transform: scale(1.1);
+    box-shadow: 0 0 14px var(--color-project-accent-border, rgba(255,125,26,0.6));
   }
 
-  /* Optional: Style for focus state for accessibility */
   .language-switcher-button:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-project-accent, #FF7D1A);
+    outline-offset: 3px;
   }
 </style>

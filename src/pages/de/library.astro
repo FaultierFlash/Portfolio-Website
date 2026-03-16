@@ -1,0 +1,36 @@
+---
+// Re-saved to trigger Astro reload
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { useTranslations, type Locale } from "../../i18n/utils";
+import { getBooks, getLibrarySettings } from "../../lib/sanity";
+import BookArchive from "../../components/BookArchive.astro";
+
+const lang = Astro.currentLocale as Locale;
+const t = useTranslations(lang);
+
+const books = await getBooks();
+const settings = await getLibrarySettings();
+
+const pageTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
+const pageSubtitle = (lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn);
+const backgroundEffect = settings?.backgroundEffect || "grid";
+const accentColor = settings?.accentColor || "primary";
+---
+
+<BaseLayout 
+  title={pageTitle} 
+  backgroundEffect={backgroundEffect} 
+  accentColor={accentColor}
+  topographyConfig={settings?.topographyConfig}
+>
+  <div class="library-page-container">
+    <BookArchive books={books} locale={lang} />
+  </div>
+</BaseLayout>
+
+<style>
+  .library-page-container {
+    min-height: 100vh;
+    padding-bottom: 5rem;
+  }
+</style>

@@ -9,18 +9,35 @@ const { slug } = Astro.params;
 const lang = "en"; // Hardcoded for this route directory
 
 const projectData = await sanityClient.fetch(
-  `*[_type == "project" && slug.current == $slug && locale == $lang][0]`,
+  `*[_type == "project" && slug.current == $slug && locale == $lang][0] {
+    ...,
+    topographyConfig
+  }`,
   { slug, lang }
 );
 
 if (!projectData) {
   return Astro.redirect("/404");
 }
+
+type ColorClasses = { text: string, borderGhost: string, btn: string, tagBg: string };
+const colors: Record<string, ColorClasses> = {
+    primary: { text: 'text-black', borderGhost: 'border-primary hover:bg-primary/10 text-primary', btn: 'bg-primary hover:bg-orange-600 focus:ring-orange-300 dark:focus:ring-orange-800 text-white', tagBg: 'bg-primary/25 dark:bg-primary/20 !text-black dark:!text-orange-100 !font-black' },
+    blue:    { text: 'text-black', borderGhost: 'border-blue-600 hover:bg-blue-600/10 text-blue-600 dark:text-blue-400 dark:border-blue-500', btn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-300 dark:focus:ring-blue-800 text-white', tagBg: 'bg-blue-500/25 dark:bg-blue-500/20 !text-black dark:!text-blue-100 !font-black' },
+    green:   { text: 'text-black', borderGhost: 'border-green-600 hover:bg-green-600/10 text-green-600 dark:text-green-400 dark:border-green-500', btn: 'bg-green-600 hover:bg-green-700 focus:ring-green-300 dark:focus:ring-green-800 text-white', tagBg: 'bg-green-500/25 dark:bg-green-500/20 !text-black dark:!text-green-100 !font-black' },
+    purple:  { text: 'text-black', borderGhost: 'border-purple-600 hover:bg-purple-600/10 text-purple-600 dark:text-purple-400 dark:border-purple-500', btn: 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-300 dark:focus:ring-purple-800 text-white', tagBg: 'bg-purple-500/25 dark:bg-purple-500/20 !text-black dark:!text-purple-100 !font-black' },
+    rose:    { text: 'text-black', borderGhost: 'border-rose-600 hover:bg-rose-600/10 text-rose-600 dark:text-rose-400 dark:border-rose-500', btn: 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-300 dark:focus:ring-rose-800 text-white', tagBg: 'bg-rose-500/25 dark:bg-rose-500/20 !text-black dark:!text-rose-100 !font-black' },
+    gray:    { text: 'text-black', borderGhost: 'border-gray-700 hover:bg-gray-700/10 text-gray-700 dark:text-gray-400 dark:border-gray-500', btn: 'bg-gray-700 hover:bg-gray-800 focus:ring-gray-300 dark:focus:ring-gray-800 text-white', tagBg: 'bg-gray-500/25 dark:bg-gray-500/20 !text-black dark:!text-gray-100 !font-black' },
+};
+
+const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
 ---
 <BaseLayout 
   title={projectData.title} 
   description={projectData.description}
   backgroundEffect={projectData.backgroundEffect}
+  topographyConfig={projectData.topographyConfig}
+  accentColor={projectData.accentColor || 'primary'}
 >
   <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
     <div class="z-10 mt-16 max-w-5xl">
@@ -30,7 +47,7 @@ if (!projectData) {
         </h1>
       </TextFadeIn>
       
-      <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-600 dark:text-slate-400 text-sm md:text-base font-medium">
+      <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-950 dark:text-slate-100 text-sm md:text-base font-bold uppercase tracking-wider">
         {projectData.publishDate && (
           <time datetime={projectData.publishDate}>
             Published: {new Date(projectData.publishDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
@@ -39,7 +56,7 @@ if (!projectData) {
         {projectData.tags && projectData.tags.length > 0 && (
           <div class="flex gap-2">
             {projectData.tags.map((tag: string) => (
-              <span class="bg-primary/10 text-primary dark:bg-primary/20 rounded-full px-3 py-1 text-xs">
+              <span class={`rounded-full px-3 py-1 text-xs font-semibold ${pc.tagBg}`}>
                 #{tag}
               </span>
             ))}
@@ -60,12 +77,12 @@ if (!projectData) {
     )}
 
     <div class="absolute bottom-8 animate-bounce">
-      <p class="text-sm text-gray-400 uppercase tracking-widest mb-2">Scroll to discover</p>
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-primary opacity-70"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+      <p class="text-sm text-slate-900 dark:text-slate-400 font-bold uppercase tracking-widest mb-2">Scroll to discover</p>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={`mx-auto opacity-80 ${pc.text}`}><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
     </div>
   </section>
 
-  <article class="project-detail-page prose dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl">
+  <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl prose-headings:!text-black dark:prose-headings:!text-white prose-p:!text-gray-950 dark:prose-p:!text-gray-100 prose-li:!text-gray-950 dark:prose-li:!text-gray-100 !font-bold">
     <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
       {/* If we had a Portable Text renderer we'd use it here. Currently falling back to standard description. */}
       {projectData.body ? (
@@ -73,17 +90,17 @@ if (!projectData) {
       ) : (
           <section class="content-section mb-10">
             <h2 class="text-2xl md:text-3xl font-semibold mb-4">Project Overview</h2>
-            <p>{projectData.description}</p>
+            <p class="text-gray-900 dark:text-gray-100 font-medium leading-relaxed">{projectData.description}</p>
           </section>
       )}
 
       <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">
         <h2 class="text-2xl md:text-3xl font-semibold mb-4 text-center w-full">Next Steps</h2>
         <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-8 not-prose">
-          <a href="/en/projects" class="px-6 py-3 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors font-semibold">
+          <a href="/en/projects" class={`px-6 py-3 border rounded-lg transition-colors font-semibold ${pc.borderGhost}`}>
             &larr; Back to all projects
           </a>
-          <a href="/en/contact" class="px-6 py-3 bg-primary text-white rounded-lg shadow-lg hover:bg-orange-600 hover:shadow-xl transition-all font-semibold focus:ring-4 focus:ring-orange-300 dark:focus:ring-orange-800">
+          <a href="/en/contact" class={`px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all font-semibold focus:ring-4 ${pc.btn}`}>
             Get in touch
           </a>
         </div>
