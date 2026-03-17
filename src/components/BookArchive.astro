@@ -107,13 +107,13 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         {/* --- Currently Reading --- */}
         {reading.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-primary flex items-center gap-4">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.reading}</span>
-                    <span class="h-[1px] flex-1 bg-primary/20"></span>
+                    <span class="h-[1px] flex-1" style="background-color: var(--color-project-accent-border)"></span>
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {reading.map(item => (
-                        <div class="group relative bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-card-border)] p-6 transition-all hover:shadow-2xl hover:shadow-primary/5">
+                        <div class="group relative bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-card-border)] p-6 transition-all hover:shadow-2xl hover:shadow-[var(--color-project-accent)]/5">
                             <div class="flex gap-6">
                                 <div class="w-24 h-36 flex-shrink-0 bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-lg transform group-hover:scale-105 transition-transform duration-500">
                                     {item.cover ? (
@@ -127,12 +127,12 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                                     <p class="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-4">{t.author} {item.author}</p>
                                     
                                     <div class="space-y-2">
-                                        <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
+                                        <div class="flex justify-between text-[10px] font-black uppercase tracking-widest" style="color: var(--color-project-accent)">
                                             <span>{t.progress}</span>
                                             <span>{item.progress}%</span>
                                         </div>
                                         <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div class="h-full bg-primary transition-all duration-1000" style={`width: ${item.progress}%`}></div>
+                                            <div class="h-full transition-all duration-1000" style={`width: ${item.progress}%; background-color: var(--color-project-accent)`}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -146,7 +146,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         {/* --- Finished Archives --- */}
         {finished.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-primary flex items-center gap-4">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.finished}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
                 </h3>
@@ -154,28 +154,72 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                     {finished.map(item => {
                         if (item.type === 'series') {
                             return (
-                                <div class="group relative flex flex-col items-center">
-                                    <button 
-                                        class="open-series-btn relative w-full aspect-[2/3] transition-all duration-500 hover:-translate-y-2"
-                                        data-series={JSON.stringify(item.books)}
-                                        data-series-name={item.seriesName}
-                                    >
-                                        <div class="absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-xl translate-x-3 -translate-y-3 opacity-40 shadow-sm transition-transform group-hover:translate-x-4 group-hover:-translate-y-4"></div>
-                                        <div class="absolute inset-0 bg-slate-400 dark:bg-slate-600 rounded-xl translate-x-1.5 -translate-y-1.5 opacity-60 shadow-md transition-transform group-hover:translate-x-2 group-hover:-translate-y-2"></div>
-                                        <div class="absolute inset-0 bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-black/5 dark:border-white/5 z-10 transition-transform group-hover:scale-[1.02]">
-                                            {item.cover ? (
-                                                <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover" />
-                                            ) : (
-                                                <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-black">{item.seriesName}</div>
-                                            )}
+                                <div class="series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName}>
+                                    {/* --- Stack View --- */}
+                                    <div class="series-stack-view group relative flex flex-col items-center">
+                                        <button 
+                                            class="open-series-btn relative w-full aspect-[2/3] transition-all duration-500 hover:-translate-y-2"
+                                            data-series-name={item.seriesName}
+                                        >
+                                            <div class="absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-xl translate-x-3 -translate-y-3 opacity-40 shadow-sm transition-transform group-hover:translate-x-4 group-hover:-translate-y-4"></div>
+                                            <div class="absolute inset-0 bg-slate-400 dark:bg-slate-600 rounded-xl translate-x-1.5 -translate-y-1.5 opacity-60 shadow-md transition-transform group-hover:translate-x-2 group-hover:-translate-y-2"></div>
+                                            <div class="absolute inset-0 bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-black/5 dark:border-white/5 z-10 transition-transform group-hover:scale-[1.02]">
+                                                {item.cover ? (
+                                                    <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-black">{item.seriesName}</div>
+                                                )}
+                                            </div>
+                                            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden" style="background-color: var(--color-project-accent-bg); border: 1px solid var(--color-project-accent-border)">
+                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} Books</span>
+                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full">Expand Series</span>
+                                            </div>
+                                        </button>
+                                        <h4 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h4>
+                                        <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h4>
+                                    </div>
+
+                                    {/* --- Expanded Shelf View --- */}
+                                    <div class="series-expanded-view hidden opacity-0 scale-95 transition-all duration-500">
+                                        <div class="relative bg-slate-100 dark:bg-slate-900/50 rounded-3xl p-8 md:p-12 border border-[var(--color-project-accent-border)] shadow-inner">
+                                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                                                <div>
+                                                    <h3 class="text-2xl md:text-3xl font-black text-[var(--color-text)] italic uppercase tracking-tight">
+                                                        {item.seriesName}
+                                                    </h3>
+                                                    <p class="text-[10px] font-black uppercase tracking-[0.3em] mt-1" style="color: var(--color-project-accent)">
+                                                        {item.books.length} {t.series} Books
+                                                    </p>
+                                                </div>
+                                                <button class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                    {t.close} {t.series}
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
+                                                {item.books.map((book: any) => (
+                                                    <div class="group relative flex flex-col items-center">
+                                                        <button 
+                                                            class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]"
+                                                            data-item={JSON.stringify(book)}
+                                                        >
+                                                            {book.cover ? (
+                                                                <img src={urlFor(book.cover).width(300).url()} alt={book.title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                            ) : (
+                                                                <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{book.title}</div>
+                                                            )}
+                                                            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]" style="background-color: var(--color-project-accent-bg)">
+                                                                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-2 border border-[var(--color-project-accent-border)] rounded-full text-[var(--color-text)]">{t.readReview}</span>
+                                                            </div>
+                                                        </button>
+                                                        <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. {book.seriesOrder}</h4>
+                                                        <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{book.title}</h4>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div class="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden">
-                                            <span class="text-[12px] font-black uppercase tracking-tight text-white mb-2">{item.books.length} Books</span>
-                                            <span class="text-[8px] font-black uppercase tracking-widest text-white px-3 py-1.5 border border-white/30 rounded-full">Expand Series</span>
-                                        </div>
-                                    </button>
-                                    <h4 class="mt-4 text-[10px] font-black text-center text-primary uppercase tracking-widest">{t.series}</h4>
-                                    <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h4>
+                                    </div>
                                 </div>
                             );
                         }
@@ -183,7 +227,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                         return (
                             <div class="group relative flex flex-col items-center">
                                 <button 
-                                    class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-primary/50"
+                                    class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]"
                                     data-item={JSON.stringify(item)}
                                 >
                                     {item.cover ? (
@@ -191,8 +235,8 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                                     ) : (
                                         <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{item.title}</div>
                                     )}
-                                    <div class="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                        <span class="text-[10px] font-black uppercase tracking-widest text-white px-3 py-2 border border-white/30 rounded-full">{t.readReview}</span>
+                                    <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]" style="background-color: var(--color-project-accent-bg)">
+                                        <span class="text-[10px] font-black uppercase tracking-widest px-3 py-2 border border-[var(--color-project-accent-border)] rounded-full text-[var(--color-text)]">{t.readReview}</span>
                                     </div>
                                 </button>
                                 <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h4>
@@ -206,7 +250,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         {/* --- Shortlist --- */}
         {shortlist.length > 0 && (
             <div>
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 text-primary flex items-center gap-4">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.shortlist}</span>
                     <span class="h-[1px] flex-1 bg-black/5 dark:bg-white/5"></span>
                 </h3>
@@ -237,7 +281,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                     <div class="flex-1">
                         <div id="modal-genres" class="flex flex-wrap gap-2 mb-4"></div>
                         <h3 id="modal-title" class="text-3xl md:text-4xl font-black text-black dark:text-white mb-2 leading-tight"></h3>
-                        <p id="modal-author" class="text-sm font-black uppercase tracking-[0.2em] text-primary mb-6"></p>
+                        <p id="modal-author" class="text-sm font-black uppercase tracking-[0.2em] mb-6" style="color: var(--color-project-accent)"></p>
                         
                         <div class="mb-8">
                             <div class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">{t.rating}</div>
@@ -252,9 +296,9 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
 
                 <div id="series-books-view" class="hidden">
                     <h3 id="modal-series-name" class="text-4xl md:text-5xl font-black text-[var(--color-text)] mb-4 italic uppercase"></h3>
-                    <p class="text-xs font-black uppercase tracking-widest text-primary mb-12 flex items-center gap-4">
+                    <p class="text-xs font-black uppercase tracking-widest mb-12 flex items-center gap-4" style="color: var(--color-project-accent)">
                         <span>{t.series} Books</span>
-                        <span class="h-[1px] flex-1 bg-primary/20"></span>
+                        <span class="h-[1px] flex-1" style="background-color: var(--color-project-accent-border)"></span>
                     </p>
                     <div id="series-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
                 </div>
@@ -308,7 +352,7 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
                 const star = document.createElement('span');
                 const isFilled = i <= (book.rating || 0);
                 star.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="${isFilled ? '#FF7D1A' : 'none'}" stroke="${isFilled ? '#FF7D1A' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="${isFilled ? 'var(--color-project-accent)' : 'none'}" stroke="${isFilled ? 'var(--color-project-accent)' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
                 `;
@@ -351,14 +395,14 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
 
         books.forEach((book, idx) => {
             const card = document.createElement('button');
-            card.className = 'group/item flex gap-4 text-left bg-[var(--color-card-bg)] p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all border border-[var(--color-card-border)] hover:border-primary/20 hover:shadow-lg transition-transform hover:-translate-y-1';
+            card.className = 'group/item flex gap-4 text-left bg-[var(--color-card-bg)] p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all border border-[var(--color-card-border)] hover:border-[var(--color-project-accent-border)] hover:shadow-lg transition-transform hover:-translate-y-1';
             
             card.innerHTML = `
                 <div class="w-16 h-24 flex-shrink-0 bg-slate-300 dark:bg-slate-700 rounded shadow-md overflow-hidden">
                     ${book.coverUrl ? `<img src="${book.coverUrl}" class="w-full h-full object-cover" />` : '<div class="w-full h-full flex items-center justify-center text-[8px] opacity-10 font-black">#</div>'}
                 </div>
                 <div class="flex-1 py-1">
-                    <div class="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Vol. ${book.seriesOrder || (idx + 1)}</div>
+                    <div class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. ${book.seriesOrder || (idx + 1)}</div>
                     <h4 class="text-sm font-black text-[var(--color-text)] line-clamp-2">${book.title}</h4>
                 </div>
             `;
@@ -394,21 +438,72 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
 
     openSeriesBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            const seriesName = (btn as HTMLElement).dataset.seriesName || '';
-            const booksInSeries = JSON.parse((btn as HTMLElement).dataset.series || '[]');
-            
-            // Enrich books with their cover URLs from the hidden images on the page if we wanted, 
-            // but it's cleaner to pre-calculate them.
-            // For now, I'll pass them in the dataset.
-            
-            openSeries(seriesName, booksInSeries);
+            const container = btn.closest('.series-container');
+            if (!container) return;
+
+            // Close other expanded series if any? 
+            // For now, let's allow multiple or just focus one. 
+            // Better to close others for a cleaner UX.
+            document.querySelectorAll('.series-container.is-expanded').forEach(other => {
+                if (other !== container) {
+                    other.classList.remove('is-expanded');
+                    const otherExpanded = other.querySelector('.series-expanded-view');
+                    const otherStack = other.querySelector('.series-stack-view');
+                    if (otherExpanded) {
+                        otherExpanded.classList.add('hidden', 'opacity-0', 'scale-95');
+                    }
+                    if (otherStack) {
+                        otherStack.classList.remove('hidden');
+                    }
+                }
+            });
+
+            const stackView = container.querySelector('.series-stack-view');
+            const expandedView = container.querySelector('.series-expanded-view');
+
+            if (stackView && expandedView) {
+                container.classList.add('is-expanded');
+                stackView.classList.add('hidden');
+                expandedView.classList.remove('hidden');
+                
+                // Trigger animation in next frame
+                requestAnimationFrame(() => {
+                    expandedView.classList.remove('opacity-0', 'scale-95');
+                });
+
+                // Scroll to view
+                setTimeout(() => {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        });
+    });
+
+    document.querySelectorAll('.close-series-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const container = btn.closest('.series-container');
+            const stackView = container?.querySelector('.series-stack-view');
+            const expandedView = container?.querySelector('.series-expanded-view');
+
+            if (container && stackView && expandedView) {
+                expandedView.classList.add('opacity-0', 'scale-95');
+                
+                setTimeout(() => {
+                    expandedView.classList.add('hidden');
+                    stackView.classList.remove('hidden');
+                    container.classList.remove('is-expanded');
+                }, 500);
+            }
         });
     });
 
     backBtn?.addEventListener('click', () => {
         singleView?.classList.add('hidden');
-        seriesView?.classList.remove('hidden');
-        backBtn.classList.add('hidden');
+        // If it was a series book, we don't go back to series modal, 
+        // because we are already on the shelf.
+        // We just close the book modal.
+        closeModal();
     });
 
     function closeModal() {
@@ -433,7 +528,12 @@ const getReview = (book: any) => locale === 'de' ? book.reviewDe : book.reviewEn
         background: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(var(--color-primary-rgb, 255, 125, 26), 0.2);
+        background: var(--color-project-accent-bg);
+        border: 1px solid var(--color-project-accent-border);
         border-radius: 20px;
+    }
+
+    .series-container.is-expanded {
+        grid-column: 1 / -1;
     }
 </style>
