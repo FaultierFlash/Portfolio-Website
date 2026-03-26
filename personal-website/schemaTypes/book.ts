@@ -109,6 +109,13 @@ export const book = defineType({
       type: 'date',
       hidden: ({ document }) => document?.status !== 'finished',
     }),
+    defineField({
+      name: 'physicalCopy',
+      title: 'Physical Copy Available?',
+      type: 'boolean',
+      initialValue: false,
+      description: 'Check if you own a physical copy of this book.',
+    }),
   ],
   preview: {
     select: {

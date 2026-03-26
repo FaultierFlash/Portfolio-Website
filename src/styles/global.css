@@ -28,6 +28,9 @@
     --color-surface: rgba(255, 255, 255, 0.5);
     --color-card-bg: #f8fafc; /* slate-50 */
     --color-card-border: rgba(15, 23, 42, 0.05);
+
+    /* Side Panel Shadow */
+    --panel-shadow: -20px 0 50px -10px rgba(0, 0, 0, 0.15);
   }
   
   .dark {
@@ -44,6 +47,9 @@
     --color-surface: rgba(2, 6, 23, 0.3);
     --color-card-bg: #0f172a;   /* slate-900 */
     --color-card-border: rgba(248, 250, 252, 0.05);
+
+    /* Side Panel Shadow (Dark Glow) */
+    --panel-shadow: 0 0 80px -20px rgba(255, 255, 255, 0.15);
   }
 
   html {

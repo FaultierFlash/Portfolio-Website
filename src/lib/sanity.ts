@@ -98,7 +98,8 @@ export async function getBooks() {
     reviewEn,
     reviewDe,
     genres,
-    dateFinished
+    dateFinished,
+    physicalCopy
   }`;
   return await sanityClient.fetch(query);
 }
