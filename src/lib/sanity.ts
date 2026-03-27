@@ -39,14 +39,16 @@ export async function getHomePageData(locale: string) {
     profileImage,
     backgroundEffect,
     topographyConfig,
+    solarConfig,
     featuredProjects[]->{
-      title,
+      "title": title[$locale],
       slug,
       mainImage,
-      description,
+      "description": description[$locale],
       tags,
       backgroundEffect,
       topographyConfig,
+      solarConfig,
       accentColor
     },
     timelineStartDate,
@@ -60,6 +62,15 @@ export async function getHomePageData(locale: string) {
       isOngoing,
       color,
       verticalPosition,
+      milestoneEvents[]{
+        title,
+        date,
+        description,
+        color,
+        relatedProject->{
+          slug
+        }
+      },
       relatedProject->{
         slug,
         accentColor
@@ -70,16 +81,17 @@ export async function getHomePageData(locale: string) {
 }
 
 export async function getProjects(locale: string) {
-  const query = `*[_type == "project" && locale == $locale] | order(order asc) {
-    title,
+  const query = `*[_type == "project" && $locale in languages] | order(order asc) {
+    "title": title[$locale],
     slug,
     mainImage,
-    description,
+    "description": description[$locale],
     tags,
     link,
     order,
     backgroundEffect,
     topographyConfig,
+    solarConfig,
     accentColor
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -112,7 +124,8 @@ export async function getLibrarySettings() {
     subtitleDe,
     backgroundEffect,
     accentColor,
-    topographyConfig
+    topographyConfig,
+    solarConfig
   }`;
   return await sanityClient.fetch(query);
 }

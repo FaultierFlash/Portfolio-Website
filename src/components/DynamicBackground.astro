@@ -1,8 +1,9 @@
 ---
 import TopographicRipple from './TopographicRipple.astro';
+import SolarSystemBackground from './SolarSystemBackground.astro';
 
 interface Props {
-  effect?: 'none' | 'grid' | 'dots' | 'topography' | string | null;
+  effect?: 'none' | 'grid' | 'dots' | 'topography' | 'solar' | string | null;
   isAbsolute?: boolean;
   config?: {
     source: any;
@@ -10,6 +11,9 @@ interface Props {
     longitude?: number;
     intensity?: number;
     scale?: number;
+    speed?: number;
+    cursorGravity?: number;
+    startZoom?: number;
   };
 }
 
@@ -24,6 +28,14 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
       lng={config?.longitude}
       intensity={config?.intensity}
       scale={config?.scale}
+    />
+  </div>
+) : effect === 'solar' ? (
+  <div class={`dynamic-background solar-wrapper ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}>
+    <SolarSystemBackground 
+      speed={config?.speed} 
+      cursorGravity={config?.cursorGravity}
+      zoom={config?.startZoom}
     />
   </div>
 ) : (

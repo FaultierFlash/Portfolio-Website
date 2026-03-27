@@ -25,6 +25,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "astro": "^6.0.4",
     "jsonwebtoken": "^9.0.3",
+    "marked": "^17.0.5",
     "nodemailer": "^8.0.2",
     "resend": "^4.8.0",
     "tailwindcss": "^4.2.1"

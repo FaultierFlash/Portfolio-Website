@@ -54,9 +54,41 @@ export const homePage = defineType({
                     { title: 'Subtle Grid', value: 'grid' },
                     { title: 'Subtle Dots', value: 'dots' },
                     { title: 'Topography', value: 'topography' },
+                    { title: 'Solar System', value: 'solar' },
                 ],
             },
             initialValue: 'none',
+        }),
+        defineField({
+            name: 'solarConfig',
+            title: 'Solar System Configuration',
+            type: 'object',
+            hidden: ({ document }) => document?.backgroundEffect !== 'solar',
+            fields: [
+                defineField({
+                    name: 'speed',
+                    title: 'Simulation Speed',
+                    type: 'number',
+                    initialValue: 1.0,
+                    validation: Rule => Rule.min(0.1).max(10.0),
+                }),
+                defineField({
+                    name: 'cursorGravity',
+                    title: 'Cursor Gravity Strength',
+                    type: 'number',
+                    initialValue: 1.0,
+                    description: 'How strongly the mouse cursor pulls objects. (Default: 1.0)',
+                    validation: Rule => Rule.min(0).max(10.0),
+                }),
+                defineField({
+                    name: 'startZoom',
+                    title: 'Initial Zoom Level',
+                    type: 'number',
+                    initialValue: 1.0,
+                    description: 'The starting scale of the solar system. (Default: 1.0)',
+                    validation: Rule => Rule.min(0.1).max(5.0),
+                }),
+            ],
         }),
         defineField({
             name: 'topographyConfig',
@@ -190,6 +222,46 @@ export const homePage = defineType({
                             type: 'reference',
                             to: [{ type: 'project' }],
                             description: 'If you link a project here, clicking this timeline event will navigate to the project page, and the event will inherit the project\'s accent color automatically.',
+                        },
+                        {
+                            name: 'milestoneEvents',
+                            title: 'Project Milestone Events',
+                            type: 'array',
+                            description: 'Add multiple specific sub-events or milestones related to this timeline period (e.g. key moments in a project).',
+                            hidden: ({ parent }) => !parent?.isOngoing && !parent?.endDate,
+                            of: [
+                                {
+                                    type: 'object',
+                                    fields: [
+                                        { name: 'title', title: 'Event Title', type: 'string', validation: Rule => Rule.required() },
+                                        { name: 'date', title: 'Event Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() },
+                                        { name: 'description', title: 'Details', type: 'text', rows: 2 },
+                                        {
+                                            name: 'color',
+                                            title: 'Accent Color',
+                                            type: 'string',
+                                            options: {
+                                                list: [
+                                                    { title: 'Primary (Orange)', value: 'primary' },
+                                                    { title: 'Blue', value: 'blue' },
+                                                    { title: 'Green', value: 'green' },
+                                                    { title: 'Purple', value: 'purple' },
+                                                    { title: 'Rose/Red', value: 'rose' },
+                                                    { title: 'Neutral Gray', value: 'gray' },
+                                                ]
+                                            },
+                                            initialValue: 'primary'
+                                        },
+                                        {
+                                            name: 'relatedProject',
+                                            title: 'Related Project',
+                                            type: 'reference',
+                                            to: [{ type: 'project' }],
+                                            description: 'Optional link to a specific project mentioned in this event.'
+                                        }
+                                    ]
+                                }
+                            ]
                         }
                     ]
                 }

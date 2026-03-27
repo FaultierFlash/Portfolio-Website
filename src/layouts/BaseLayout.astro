@@ -14,6 +14,7 @@ interface Props {
   hidePageScrollbar?: boolean;
   backgroundEffect?: string | null;
   topographyConfig?: any;
+  solarConfig?: any;
   accentColor?: string;
 }
 
@@ -23,6 +24,7 @@ const {
   hidePageScrollbar = false,
   backgroundEffect = "none",
   topographyConfig = null,
+  solarConfig = null,
   accentColor = "primary",
 } = Astro.props;
 
@@ -115,7 +117,10 @@ const homePath = `/${currentLocale}/`;
     </script>
   </head>
   <body>
-    <DynamicBackground effect={backgroundEffect} config={topographyConfig} />
+    <DynamicBackground 
+      effect={backgroundEffect} 
+      config={backgroundEffect === 'solar' ? solarConfig : topographyConfig} 
+    />
     <Header
       currentLocale={currentLocale}
       t={t}

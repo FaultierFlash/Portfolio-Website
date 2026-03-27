@@ -1,0 +1,567 @@
+---
+/**
+ * SolarSystemBackground.astro
+ * Renders an interactive, top-down solar system with lightweight gravity simulation.
+ */
+interface Props {
+  speed?: number;
+  color?: string;
+  cursorGravity?: number;
+  zoom?: number;
+}
+
+const { 
+  speed = 1.0, 
+  color = 'var(--color-primary)', 
+  cursorGravity = 1.0,
+  zoom = 1.0
+} = Astro.props;
+---
+
+<div class="solar-system-container" 
+  data-speed={speed} 
+  data-color={color}
+  data-gravity={cursorGravity}
+  data-zoom={zoom}
+>
+  <canvas id="solarCanvas"></canvas>
+</div>
+
+<style>
+  .solar-system-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none; /* Capture via window listener instead */
+    background: transparent;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script>
+  class Planet {
+    name: string;
+    distance: number;
+    period: number;
+    size: number;
+    features: string[];
+    
+    x = 0;
+    y = 0;
+    vx = 0;
+    vy = 0;
+    ax = 0;
+    ay = 0;
+    trail: {x: number, y: number}[] = [];
+    maxTrail = 200; // Much longer trails
+
+    constructor(name: string, distance: number, period: number, size: number, features: string[] = []) {
+      this.name = name;
+      this.distance = distance;
+      this.period = period;
+      this.size = size;
+      this.features = features;
+      
+      const now = Date.now();
+      const yearInMs = 365.25 * 24 * 60 * 60 * 1000;
+      const angle = ((now / (period * yearInMs)) * Math.PI * 2 * 100) % (Math.PI * 2);
+
+      // Initial Position
+      this.x = Math.cos(angle) * distance;
+      this.y = Math.sin(angle) * distance;
+
+      // Initial Velocity for circular orbit: v = sqrt(GM/r)
+      // We use a constant GM that makes the period approximately correct
+      const k = 4000000; // Updated to match physics loop
+      const v = Math.sqrt(k / distance);
+      this.vx = -Math.sin(angle) * v;
+      this.vy = Math.cos(angle) * v;
+    }
+
+    updateTrail(centerX: number, centerY: number) {
+      const worldX = centerX + this.x;
+      const worldY = centerY + this.y;
+      const lastP = this.trail[this.trail.length - 1];
+      const distToLast = lastP ? Math.hypot(worldX - lastP.x, worldY - lastP.y) : 999;
+      
+      if (distToLast > 10) { 
+        this.trail.push({x: worldX, y: worldY});
+        if (this.trail.length > this.maxTrail) this.trail.shift();
+      }
+    }
+
+    draw(ctx: CanvasRenderingContext2D, color: string) {
+      const worldX = ctx.canvas.width / (2 * (window.devicePixelRatio || 1)) + this.x;
+      const worldY = ctx.canvas.height / (2 * (window.devicePixelRatio || 1)) + this.y;
+
+      // Draw artistic dots trail
+      if (this.trail.length > 0) {
+        ctx.fillStyle = color;
+        for (let i = 0; i < this.trail.length; i++) {
+          const p = this.trail[i];
+          ctx.globalAlpha = (i / this.trail.length) * 0.4;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 0.5 + (i / this.trail.length) * 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = 1;
+
+      // Draw planet
+      ctx.beginPath();
+      ctx.arc(worldX, worldY, this.size, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.stroke();
+
+      // Features
+      ctx.lineWidth = 0.5;
+      const angle = Math.atan2(this.y, this.x);
+
+      if (this.features.includes('rings')) {
+        ctx.beginPath();
+        ctx.ellipse(worldX, worldY, this.size * 2.2, this.size * 0.6, angle + 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(worldX, worldY, this.size * 1.8, this.size * 0.4, angle + 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (this.features.includes('storm')) {
+        ctx.beginPath();
+        const sx = Math.cos(angle + 0.4) * (this.size * 0.6);
+        const sy = Math.sin(angle + 0.4) * (this.size * 0.6);
+        ctx.ellipse(worldX + sx, worldY + sy, this.size * 0.4, this.size * 0.2, angle, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (this.features.includes('oceans')) {
+        ctx.beginPath();
+        ctx.arc(worldX, worldY, this.size * 0.7, angle + 0.2, angle + 2.5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(worldX, worldY, this.size * 0.7, angle + 3.5, angle + 5.5);
+        ctx.stroke();
+      }
+
+      // Dynamic Label
+      ctx.font = '8px var(--font-mono, monospace)';
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.4;
+      ctx.textAlign = 'center';
+      ctx.fillText(this.name, worldX, worldY + this.size + 12);
+      ctx.globalAlpha = 1.0;
+    }
+  }
+
+  class SolarSimulator {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    planets: Planet[] = [];
+    asteroids: {x: number, y: number, vx: number, vy: number, size: number, baseDistance: number, phase: number}[] = [];
+    mouseX = -2000;
+    mouseY = -2000;
+    targetMouseX = -2000;
+    targetMouseY = -2000;
+    isPressed = false;
+    speed = 1.0;
+    gravityMultiplier = 1.0;
+    zoom = 1.0;
+    color = '#FF7D1A'; 
+    lastTime = 0;
+    isRunning = false;
+
+    constructor(container: HTMLElement) {
+      this.canvas = container.querySelector('canvas')!;
+      this.ctx = this.canvas.getContext('2d', { alpha: true })!;
+      this.speed = parseFloat(container.dataset.speed || '1.0');
+      this.gravityMultiplier = parseFloat(container.dataset.gravity || '1.0');
+      this.zoom = parseFloat(container.dataset.zoom || '1.0');
+
+      this.initPlanets();
+      this.initAsteroids();
+      this.updateColors();
+      this.resize();
+      
+      window.addEventListener('resize', () => this.resize());
+      window.addEventListener('mousemove', (e) => {
+        const rect = this.canvas.getBoundingClientRect();
+        this.targetMouseX = e.clientX - rect.left;
+        this.targetMouseY = e.clientY - rect.top;
+      });
+      window.addEventListener('mousedown', () => this.isPressed = true);
+      window.addEventListener('mouseup', () => this.isPressed = false);
+
+      // Listen for theme changes
+      const observer = new MutationObserver(() => this.updateColors());
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+      this.drawStaticFrame();
+
+      const io = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !this.isRunning) {
+          this.isRunning = true;
+          this.lastTime = performance.now();
+          requestAnimationFrame((t) => this.animate(t));
+          io.disconnect();
+        }
+      }, { threshold: 0.1 });
+      io.observe(container);
+    }
+
+    drawStaticFrame() {
+      this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      this.drawSpaceTimeGrid(centerX, centerY);
+      
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, 15 * this.zoom, 0, Math.PI * 2);
+      this.ctx.strokeStyle = this.color;
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.stroke();
+
+      this.planets.forEach((p) => p.draw(this.ctx, this.color));
+      
+      this.ctx.fillStyle = this.color;
+      this.asteroids.forEach((a) => {
+         const worldX = centerX + a.x;
+         const worldY = centerY + a.y;
+         this.ctx.globalAlpha = 0.2 * (0.5 + Math.sin(a.phase) * 0.5);
+         this.ctx.beginPath();
+         this.ctx.arc(worldX, worldY, a.size, 0, Math.PI * 2);
+         this.ctx.fill();
+      });
+      this.ctx.globalAlpha = 1.0;
+    }
+
+    updateColors() {
+      const isDark = document.documentElement.classList.contains('dark');
+      // Slate-600 for light mode, Slate-200 for dark mode
+      this.color = isDark ? '#e2e8f0' : '#475569';
+      if (!this.isRunning && this.ctx) this.drawStaticFrame();
+    }
+
+    initPlanets() {
+      // Responsive distance scaling + user zoom
+      const baseScale = Math.min(window.innerWidth, window.innerHeight) / 1000;
+      const scale = baseScale * this.zoom;
+      this.planets = [
+        new Planet('Mercury', 70 * scale, 0.24, 2 * this.zoom),
+        new Planet('Venus', 110 * scale, 0.62, 4 * this.zoom),
+        new Planet('Earth', 160 * scale, 1.0, 4.5 * this.zoom, ['oceans']),
+        new Planet('Mars', 210 * scale, 1.88, 3.5 * this.zoom),
+        new Planet('Jupiter', 320 * scale, 11.86, 12 * this.zoom, ['storm']),
+        new Planet('Saturn', 430 * scale, 29.45, 10 * this.zoom, ['rings']),
+        new Planet('Uranus', 520 * scale, 84.01, 7 * this.zoom),
+        new Planet('Neptune', 600 * scale, 164.79, 7 * this.zoom)
+      ];
+    }
+
+    initAsteroids() {
+      const baseScale = Math.min(window.innerWidth, window.innerHeight) / 1000;
+      const scale = baseScale * this.zoom;
+      this.asteroids = [];
+      for (let i = 0; i < 200; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        // Make the belt slightly more spread out
+        const baseDistance = (260 + Math.random() * 80) * scale;
+        const x = Math.cos(angle) * baseDistance;
+        const y = Math.sin(angle) * baseDistance;
+        
+        // Initial velocity with a touch of randomized eccentricity so they aren't completely uniform
+        const k = 4000000;
+        const v = Math.sqrt(k / baseDistance) * (0.95 + Math.random() * 0.1);
+
+        this.asteroids.push({
+          x: x,
+          y: y,
+          vx: -Math.sin(angle) * v,
+          vy: Math.cos(angle) * v,
+          baseDistance: baseDistance,
+          size: (0.5 + Math.random() * 1.5) * this.zoom,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    resize() {
+      const dpr = window.devicePixelRatio || 1;
+      this.canvas.width = window.innerWidth * dpr;
+      this.canvas.height = window.innerHeight * dpr;
+      this.canvas.style.width = window.innerWidth + 'px';
+      this.canvas.style.height = window.innerHeight + 'px';
+      this.ctx.resetTransform();
+      this.ctx.scale(dpr, dpr);
+      this.initPlanets(); // Re-init for scaling
+      if (!this.isRunning && this.ctx) this.drawStaticFrame();
+    }
+
+    drawSpaceTimeGrid(centerX: number, centerY: number) {
+      const spacing = 50;
+      const rows = Math.ceil(window.innerHeight / spacing) + 1;
+      const cols = Math.ceil(window.innerWidth / spacing) + 1;
+      
+      this.ctx.beginPath();
+      this.ctx.strokeStyle = this.color;
+      // Increased base opacity for much better visibility in dark mode
+      this.ctx.globalAlpha = 0.12 + (this.isPressed ? 0.15 : 0);
+      this.ctx.lineWidth = 0.5;
+
+      const warpRadius = 600;
+      const warpForce = this.isPressed ? 1.2 : 0.3;
+
+      // Vertical lines
+      for (let c = 0; c < cols; c++) {
+        const x = c * spacing;
+        this.ctx.moveTo(x, 0);
+        for (let y = 0; y < window.innerHeight; y += 10) {
+          const dx = this.mouseX - x;
+          const dy = this.mouseY - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          let tx = x;
+          let ty = y;
+
+          if (dist < warpRadius && dist > 0) { // Prevent division by 0
+            const rawPull = (1 - dist / warpRadius) * 50 * warpForce;
+            const pull = Math.min(rawPull, dist * 0.85); // Cap pull to prevent "knot" artifacts
+            tx += (dx / dist) * pull;
+            ty += (dy / dist) * pull;
+          }
+          this.ctx.lineTo(tx, ty);
+        }
+      }
+
+      // Horizontal lines
+      for (let r = 0; r < rows; r++) {
+        const y = r * spacing;
+        this.ctx.moveTo(0, y);
+        for (let x = 0; x < window.innerWidth; x += 10) {
+          const dx = this.mouseX - x;
+          const dy = this.mouseY - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          let tx = x;
+          let ty = y;
+
+          if (dist < warpRadius && dist > 0) {
+            const rawPull = (1 - dist / warpRadius) * 50 * warpForce;
+            const pull = Math.min(rawPull, dist * 0.85); // Cap pull to prevent crossovers
+            tx += (dx / dist) * pull;
+            ty += (dy / dist) * pull;
+          }
+          this.ctx.lineTo(tx, ty);
+        }
+      }
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1.0;
+    }
+
+    animate(time: number) {
+      const dt = Math.min((time - this.lastTime) / 1000, 0.1);
+      this.lastTime = time;
+
+      this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      
+      // Smooth mouse
+      this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
+      this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+
+      // Draw Grid
+      this.drawSpaceTimeGrid(centerX, centerY);
+
+      // Draw Sun
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, 15 * this.zoom, 0, Math.PI * 2);
+      this.ctx.strokeStyle = this.color;
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.stroke();
+      
+      // Sun rays (simple lines)
+      for(let i=0; i<8; i++) {
+        const a = (i/8) * Math.PI * 2 + time * 0.0005;
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX + Math.cos(a) * 18 * this.zoom, centerY + Math.sin(a) * 18 * this.zoom);
+        this.ctx.lineTo(centerX + Math.cos(a) * 22 * this.zoom, centerY + Math.sin(a) * 22 * this.zoom);
+        this.ctx.stroke();
+      }
+
+      // --- UNIFIED INTEGRATION LOOP (Symplectic / Semi-Implicit Euler) ---
+      const steps = 10;
+      const subDt = (dt * this.speed * 15) / steps;
+      const k = 4000000;
+      
+      for (let s = 0; s < steps; s++) {
+          
+          // STEP A: Reset and accumulate generic forces (Sun, Anchor, Mouse) for PLANETS
+          this.planets.forEach(p => {
+              const relX = p.x; const relY = p.y;
+              const distSq = relX*relX + relY*relY;
+              const dist = Math.sqrt(distSq);
+              
+              const sunAccel = k / Math.max(distSq, 500);
+              p.ax = (-relX / dist) * sunAccel;
+              p.ay = (-relY / dist) * sunAccel;
+
+              if (this.isPressed) {
+                const worldX = centerX + p.x;
+                const worldY = centerY + p.y;
+                const dx = this.mouseX - worldX;
+                const dy = this.mouseY - worldY;
+                const mDistSq = dx*dx + dy*dy;
+                const mDist = Math.sqrt(mDistSq);
+                if (mDist < 600) {
+                   const mouseK = 150000 * this.gravityMultiplier;
+                   const mouseAccel = mouseK / (mDist + 50);
+                   p.ax += (dx / mDist) * mouseAccel;
+                   p.ay += (dy / mDist) * mouseAccel;
+                }
+              }
+
+              if (!this.isPressed && dist < p.distance * 3) {
+                  const drift = dist - p.distance;
+                  const anchorForce = 0.002;
+                  p.ax -= (relX / dist) * drift * anchorForce;
+                  p.ay -= (relY / dist) * drift * anchorForce;
+              }
+          });
+
+          // STEP B: Mutual Planet Gravity (N-Body O(N^2))
+          // Calculated simultaneously BEFORE integration to respect Newton's 3rd Law momentum conservation!
+          for (let i = 0; i < this.planets.length; i++) {
+              for (let j = i + 1; j < this.planets.length; j++) {
+                  const p1 = this.planets[i];
+                  const p2 = this.planets[j];
+                  const dx = p2.x - p1.x;
+                  const dy = p2.y - p1.y;
+                  const dSq = Math.max(dx*dx + dy*dy, 2000); 
+                  const d = Math.sqrt(dSq);
+                  const f = (2000 * p1.size * p2.size) / dSq;
+                  
+                  const fax = (dx / d) * f;
+                  const fay = (dy / d) * f;
+                  
+                  p1.ax += fax / p1.size;
+                  p1.ay += fay / p1.size;
+                  p2.ax -= fax / p2.size;
+                  p2.ay -= fay / p2.size;
+              }
+          }
+
+          // STEP C: Integrate Planets (Update V, then update X using new V)
+          this.planets.forEach(p => {
+              const dist = Math.sqrt(p.x*p.x + p.y*p.y);
+              const maxRange = p.distance * 5;
+              if (dist > maxRange) {
+                  const pull = (dist - maxRange) * 0.01;
+                  p.vx -= (p.x / dist) * pull;
+                  p.vy -= (p.y / dist) * pull;
+              }
+
+              p.vx += p.ax * subDt;
+              p.vy += p.ay * subDt;
+              p.x += p.vx * subDt;
+              p.y += p.vy * subDt;
+          });
+
+          // STEP D: Asteroid Forces & Integration
+          this.asteroids.forEach(a => {
+              const relX = a.x; const relY = a.y;
+              const distSq = relX*relX + relY*relY;
+              const dist = Math.sqrt(distSq);
+
+              const sunAccel = k / Math.max(distSq, 500);
+              let ax = (-relX / dist) * sunAccel;
+              let ay = (-relY / dist) * sunAccel;
+
+              if (this.isPressed) {
+                  const worldX = centerX + a.x;
+                  const worldY = centerY + a.y;
+                  const dx = this.mouseX - worldX;
+                  const dy = this.mouseY - worldY;
+                  const mDistSq = dx*dx + dy*dy;
+                  const mDist = Math.sqrt(mDistSq);
+                  if (mDist < 600) {
+                     const mouseK = 150000 * this.gravityMultiplier;
+                     const mouseAccel = mouseK / (mDist + 50);
+                     ax += (dx / mDist) * mouseAccel;
+                     ay += (dy / mDist) * mouseAccel;
+                  }
+              }
+
+              for (let p = 0; p < this.planets.length; p++) {
+                  const planet = this.planets[p];
+                  const dx = planet.x - a.x;
+                  const dy = planet.y - a.y;
+                  const pdSq = Math.max(dx*dx + dy*dy, 2000);
+                  const pd = Math.sqrt(pdSq);
+                  const accel = (2000 * planet.size) / pdSq;
+                  ax += (dx / pd) * accel;
+                  ay += (dy / pd) * accel;
+              }
+
+              if (!this.isPressed && dist < 1500) {
+                  const drift = dist - a.baseDistance;
+                  const anchorForce = 0.002;
+                  ax -= (relX / dist) * drift * anchorForce;
+                  ay -= (relY / dist) * drift * anchorForce;
+              }
+
+              a.vx += ax * subDt;
+              a.vy += ay * subDt;
+              a.x += a.vx * subDt;
+              a.y += a.vy * subDt;
+          });
+      }
+
+      // Cleanup & Draw
+      this.planets.forEach(p => {
+        p.updateTrail(centerX, centerY);
+        p.draw(this.ctx, this.color);
+      });
+
+      this.ctx.fillStyle = this.color;
+      this.asteroids.forEach((a) => {
+        // e) Asteroid bounds failsafe
+        if (Math.abs(a.x) > 3000 || Math.abs(a.y) > 3000) {
+           const resetAngle = Math.random() * Math.PI * 2;
+           a.x = Math.cos(resetAngle) * a.baseDistance;
+           a.y = Math.sin(resetAngle) * a.baseDistance;
+           const resetV = Math.sqrt(k / a.baseDistance);
+           a.vx = -Math.sin(resetAngle) * resetV;
+           a.vy = Math.cos(resetAngle) * resetV;
+        }
+
+        // 2. Draw Asteroid
+        const worldX = centerX + a.x;
+        const worldY = centerY + a.y;
+        this.ctx.globalAlpha = 0.2 * (0.5 + Math.sin(time * 0.002 + a.phase) * 0.5);
+        this.ctx.beginPath();
+        this.ctx.arc(worldX, worldY, a.size, 0, Math.PI * 2);
+        this.ctx.fill();
+      });
+
+      this.ctx.globalAlpha = 1.0;
+      requestAnimationFrame((t) => this.animate(t));
+    }
+  }
+
+  // Handle multiple instances and Astro view transitions
+  document.addEventListener('astro:page-load', () => {
+    const containers = document.querySelectorAll('.solar-system-container');
+    containers.forEach(container => {
+      if (!container.hasAttribute('data-initialized')) {
+        container.setAttribute('data-initialized', 'true');
+        new SolarSimulator(container as HTMLElement);
+      }
+    });
+  });
+</script>

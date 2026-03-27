@@ -23,7 +23,7 @@ export const project = defineType({
             title: 'Slug',
             type: 'slug',
             options: {
-                source: 'title',
+                source: 'title.en',
                 maxLength: 96,
             },
             validation: (rule) => rule.required(),
@@ -46,8 +46,33 @@ export const project = defineType({
         defineField({
             name: 'description',
             title: 'Description',
-            type: 'text',
-            rows: 4,
+            type: 'object',
+            fields: [
+                { name: 'en', title: 'English', type: 'text', rows: 4 },
+                { name: 'de', title: 'German', type: 'text', rows: 4 }
+            ]
+        }),
+        defineField({
+            name: 'body',
+            title: 'Project Body (Markdown)',
+            type: 'object',
+            fields: [
+                { name: 'en', title: 'English Body', type: 'markdown' },
+                { name: 'de', title: 'German Body', type: 'markdown' }
+            ]
+        }),
+        defineField({
+            name: 'languages',
+            title: 'Active Languages',
+            type: 'array',
+            of: [{ type: 'string' }],
+            options: {
+                list: [
+                    { title: 'English', value: 'en' },
+                    { title: 'German', value: 'de' },
+                ],
+            },
+            initialValue: ['en', 'de'],
         }),
         defineField({
             name: 'tags',
@@ -64,18 +89,6 @@ export const project = defineType({
             type: 'url',
         }),
         defineField({
-            name: 'locale',
-            title: 'Locale',
-            type: 'string',
-            options: {
-                list: [
-                    { title: 'English', value: 'en' },
-                    { title: 'German', value: 'de' },
-                ],
-            },
-            initialValue: 'en',
-        }),
-        defineField({
             name: 'backgroundEffect',
             title: 'Background Effect',
             type: 'string',
@@ -86,9 +99,41 @@ export const project = defineType({
                     { title: 'Subtle Grid', value: 'grid' },
                     { title: 'Subtle Dots', value: 'dots' },
                     { title: 'Topography', value: 'topography' },
+                    { title: 'Solar System', value: 'solar' },
                 ],
             },
             initialValue: 'none',
+        }),
+        defineField({
+            name: 'solarConfig',
+            title: 'Solar System Configuration',
+            type: 'object',
+            hidden: ({ document }) => document?.backgroundEffect !== 'solar',
+            fields: [
+                defineField({
+                    name: 'speed',
+                    title: 'Simulation Speed',
+                    type: 'number',
+                    initialValue: 1.0,
+                    validation: Rule => Rule.min(0.1).max(10.0),
+                }),
+                defineField({
+                    name: 'cursorGravity',
+                    title: 'Cursor Gravity Strength',
+                    type: 'number',
+                    initialValue: 1.0,
+                    description: 'How strongly the mouse cursor pulls objects. (Default: 1.0)',
+                    validation: Rule => Rule.min(0).max(10.0),
+                }),
+                defineField({
+                    name: 'startZoom',
+                    title: 'Initial Zoom Level',
+                    type: 'number',
+                    initialValue: 1.0,
+                    description: 'The starting scale of the solar system. (Default: 1.0)',
+                    validation: Rule => Rule.min(0.1).max(5.0),
+                }),
+            ],
         }),
         defineField({
             name: 'accentColor',

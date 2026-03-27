@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import TextFadeIn from "../../../components/TextFadeIn.astro";
 import { sanityClient, urlFor } from "../../../lib/sanity";
+import { marked } from "marked";
 
 // Using SSR mode, retrieve the slug from params.
 // In SSR, we don't need getStaticPaths. We can just query Sanity directly.
@@ -9,9 +10,13 @@ const { slug } = Astro.params;
 const lang = "en"; // Hardcoded for this route directory
 
 const projectData = await sanityClient.fetch(
-  `*[_type == "project" && slug.current == $slug && locale == $lang][0] {
+  `*[_type == "project" && slug.current == $slug && $lang in languages][0] {
     ...,
-    topographyConfig
+    "title": title[$lang],
+    "description": description[$lang],
+    "body": body[$lang],
+    topographyConfig,
+    solarConfig
   }`,
   { slug, lang }
 );
@@ -19,6 +24,8 @@ const projectData = await sanityClient.fetch(
 if (!projectData) {
   return Astro.redirect("/404");
 }
+
+const parsedBody = projectData.body ? marked.parse(projectData.body, { async: false }) as string : "";
 
 type ColorClasses = { text: string, borderGhost: string, btn: string, tagBg: string };
 const colors: Record<string, ColorClasses> = {
@@ -37,6 +44,7 @@ const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
   description={projectData.description}
   backgroundEffect={projectData.backgroundEffect}
   topographyConfig={projectData.topographyConfig}
+  solarConfig={projectData.solarConfig}
   accentColor={projectData.accentColor || 'primary'}
 >
   <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
@@ -86,7 +94,7 @@ const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
     <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
       {/* If we had a Portable Text renderer we'd use it here. Currently falling back to standard description. */}
       {projectData.body ? (
-          <div set:html={projectData.body} />
+          <div class="markdown-content space-y-6" set:html={parsedBody} />
       ) : (
           <section class="content-section mb-10">
             <h2 class="text-2xl md:text-3xl font-semibold mb-4">Project Overview</h2>
