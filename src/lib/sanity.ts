@@ -41,7 +41,7 @@ export async function getHomePageData(locale: string) {
     topographyConfig,
     solarConfig,
     featuredProjects[]->{
-      "title": title[$locale],
+      "title": title,
       slug,
       mainImage,
       "description": description[$locale],
@@ -82,7 +82,7 @@ export async function getHomePageData(locale: string) {
 
 export async function getProjects(locale: string) {
   const query = `*[_type == "project" && $locale in languages] | order(order asc) {
-    "title": title[$locale],
+    "title": title,
     slug,
     mainImage,
     "description": description[$locale],

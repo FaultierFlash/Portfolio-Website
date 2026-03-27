@@ -1005,7 +1005,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         commandInput.disabled = true;
         if (shouldFocus) {
           try {
-            messageInput.focus();
+            messageInput.focus({ preventScroll: true });
           } catch (e) {
             console.warn(`[Attempt ${initId}] Failed to focus messageInput`, e);
           }
@@ -1020,7 +1020,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         messageInput.disabled = true;
         if (shouldFocus) {
           try {
-            commandInput.focus();
+            commandInput.focus({ preventScroll: true });
           } catch (e) {
             console.warn(`[Attempt ${initId}] Failed to focus commandInput`, e);
           }
@@ -1062,7 +1062,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           if (messageEditorContainer) messageEditorContainer.style.outline = "";
         }, 1500);
         try {
-          messageInput.focus();
+          messageInput.focus({ preventScroll: true });
         } catch (e) {}
         return;
       }
@@ -1091,7 +1091,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         addOutputLine("", currentStep === 4 ? "prompt-secondary" : "prompt");
         if (!isTyping && currentStep !== 3 && currentStep < 5) {
           try {
-            commandInput.focus();
+            commandInput.focus({ preventScroll: true });
           } catch (e) {}
         }
       }
@@ -1115,7 +1115,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       ) {
         try {
           if (document.activeElement !== commandInput) {
-            commandInput.focus();
+            commandInput.focus({ preventScroll: true });
           }
         } catch (e) {
           console.warn(`[Attempt ${initId}] Could not focus command input:`, e);
@@ -1840,7 +1840,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           ) {
             if (messageInput && !messageInput.disabled)
               try {
-                messageInput.focus();
+                messageInput.focus({ preventScroll: true });
               } catch (err) {}
           } else if (currentStep < 5) {
             if (commandInput && !commandInput.disabled) focusCommandInput();
