@@ -5,6 +5,7 @@ import Header from "../components/Header.astro"; // New Header component
 import Footer from "../components/Footer.astro"; // New Footer component
 import ThemeScript from "../components/ThemeScript.astro";
 import DynamicBackground from "../components/DynamicBackground.astro"; // New background component
+import { getProjects } from "../lib/sanity";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 
@@ -50,43 +51,12 @@ const resolvedAccent = accentColorMap[accentColor] || accentColorMap.primary;
 // Project Pages Fetching (moved to Header, but BaseLayout needs to do it to pass to Header)
 // Alternatively, Header could fetch its own data if it doesn't need `currentLocale` or `t` from BaseLayout for this.
 // For now, keeping fetching logic here to pass down.
-const allProjectFilesGlob = import.meta.glob("/src/pages/**/*.astro");
-let projectPages: { href: string; text: string }[] = [];
-if (allProjectFilesGlob) {
-  const resolvedFiles = await Promise.all(
-    Object.entries(allProjectFilesGlob).map(async ([filePath, resolver]) => {
-      const langProjectRegex = new RegExp(
-        `^/src/pages/${currentLocale}/(projects|projekte)/`,
-        "i",
-      );
-      if (langProjectRegex.test(filePath)) {
-        try {
-          const projectModule = (await resolver()) as any;
-          if (!projectModule.url) return null;
-          const segments = filePath.split("/");
-          const fileName = segments[segments.length - 1].replace(
-            /\.(mdoc|md|astro)$/,
-            "",
-          );
-          const projectTitle =
-            projectModule.frontmatter?.navTitle ||
-            projectModule.frontmatter?.title ||
-            fileName
-              .replace(/-/g, " ")
-              .replace(/\b\w/g, (char) => char.toUpperCase());
-          return { href: projectModule.url, text: projectTitle };
-        } catch (e) {
-          console.error("Error processing project file:", filePath, e);
-          return null;
-        }
-      }
-      return null;
-    }),
-  );
-  projectPages = resolvedFiles
-    .filter((p): p is { href: string; text: string } => p !== null)
-    .sort((a, b) => a.text.localeCompare(b.text));
-}
+// Fetch all available projects via Sanity CMS for the dropdown
+const allSanityProjects = await getProjects(currentLocale);
+let projectPages: { href: string; text: string }[] = allSanityProjects.map((p: any) => ({
+  href: `/${currentLocale}/projects/${p.slug.current}`,
+  text: p.title
+}));
 
 const navLinks = [
   { href: `/${currentLocale}/library`, text: t("nav.library") },

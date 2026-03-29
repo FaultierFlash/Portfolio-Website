@@ -536,13 +536,20 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     .ascii-art {
       display: none;
     }
-    /* Terminal window size/position now handled by JS */
     .terminal-window {
-      min-width: 280px; /* Adjust min width for small screens */
-      min-height: 200px; /* Adjust min height */
-    }
-    .terminal-window {
+      width: 100% !important;
+      height: 100% !important;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      transform: none !important;
+      top: 0 !important;
+      left: 0 !important;
+      position: relative !important;
       font-size: 0.8rem;
+    }
+    .resize-handle {
+      display: none !important;
     }
     .terminal-input-line,
     .message-textarea {
@@ -744,6 +751,13 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     let isTyping = false;
     let isSending = false;
     let isExited = false;
+    
+    // Check if we are on a mobile device to prevent aggressive autofocusing
+    let isMobile = false;
+    try {
+      isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    } catch (e) {}
+
     let isDragging = false;
     let dragStartX, dragStartY, initialLeft, initialTop;
     let isResizing = false;
@@ -1003,7 +1017,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         messageInput.value = formData.message;
         messageInput.disabled = false;
         commandInput.disabled = true;
-        if (shouldFocus) {
+        if (shouldFocus && !isMobile) {
           try {
             messageInput.focus({ preventScroll: true });
           } catch (e) {
@@ -1018,7 +1032,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         inputLine.style.display = "flex";
         commandInput.disabled = false;
         messageInput.disabled = true;
-        if (shouldFocus) {
+        if (shouldFocus && !isMobile) {
           try {
             commandInput.focus({ preventScroll: true });
           } catch (e) {
@@ -1089,7 +1103,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         processInput(command);
       } else {
         addOutputLine("", currentStep === 4 ? "prompt-secondary" : "prompt");
-        if (!isTyping && currentStep !== 3 && currentStep < 5) {
+        if (!isTyping && currentStep !== 3 && currentStep < 5 && !isMobile) {
           try {
             commandInput.focus({ preventScroll: true });
           } catch (e) {}
@@ -1106,7 +1120,11 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       }
     }
 
-    function focusCommandInput() {
+    function focusCommandInput(isUserAction = false) {
+      if (isMobile && !isUserAction) {
+        updateCommandPrompt();
+        return;
+      }
       if (
         commandInput &&
         !isExited &&
@@ -1843,7 +1861,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
                 messageInput.focus({ preventScroll: true });
               } catch (err) {}
           } else if (currentStep < 5) {
-            if (commandInput && !commandInput.disabled) focusCommandInput();
+            if (commandInput && !commandInput.disabled) focusCommandInput(true);
           }
         }
       }

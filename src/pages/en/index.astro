@@ -29,6 +29,7 @@ const totalYears = totalDurationMs / MS_PER_YEAR;
 
 // Calculate the total track width based on the CMS slider
 const timelineWidthPx = Math.max(1000, totalYears * PX_PER_YEAR);
+const mobileTimelineHeightPx = Math.max(1200, totalYears * 500); // Massive boost for scaling to physically push cards apart and prevent overlap
 
 // Helper to calc left position % and width % based on dates across the clamped track
 function getTimescaleStyles(item: any) {
@@ -188,7 +189,7 @@ const colors: Record<string, ColorClasses> = {
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
+        <button id="scroll-down-btn" class="absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">Start Journey</span>
            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -202,10 +203,11 @@ const colors: Record<string, ColorClasses> = {
         
         <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font">My Journey</h2>
-            <p class="text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover events for details</p>
+            <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover events for details</p>
+            <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Tap events for details</p>
         </div>
 
-        <div class="timeline-container w-full overflow-x-auto flex items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
+        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
             {/* The Track Canvas */}
             <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: 80vw; margin: 0 25vw 0 0;`}>
                 
@@ -357,15 +359,121 @@ const colors: Record<string, ColorClasses> = {
             </div>
         </div>
 
+        {/* --- MOBILE VERTICAL TIMELINE --- */}
+        <div class="block md:hidden w-full px-6 pt-16 pb-32 relative no-scrollbar overflow-y-auto z-10" id="mobile-timeline">
+            
+            <div class="relative w-full" style={`height: ${mobileTimelineHeightPx}px;`}>
+                
+                {/* Visual Timeline Spine - Solid Past/Present */}
+                <div class="absolute left-[1.35rem] top-0 bottom-0 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none z-0 rounded-t-full"></div>
+                
+                {/* Infinite Future Continuation */}
+                <div class="absolute left-[1.35rem] w-full border-l-[2px] border-dashed border-slate-400 dark:border-slate-600 opacity-60 z-0 pointer-events-none" style={`top: ${mobileTimelineHeightPx}px; height: 100vh;`}>
+                    <svg width="12" height="8" viewBox="0 0 12 8" fill="none" class="absolute top-10 -translate-x-1/2 text-primary animate-pulse" style="left: -1px;">
+                        <path d="M0 0L6 8L12 0H0Z" fill="currentColor"/>
+                    </svg>
+                </div>
+
+                {/* Mobile Wireframe Year Markers */}
+                {yearMarkers.map((marker, index) => (
+                    <div class="absolute w-[calc(100%-1.35rem)] flex items-center justify-start z-0 pointer-events-none" style={`top: ${marker.left}; left: 1.35rem;`}>
+                        <div class="w-6 h-[2px] bg-slate-300 dark:bg-slate-700"></div>
+                        <span class="text-[10px] font-black opacity-30 ml-2 whitespace-nowrap">{marker.year}</span>
+                        <div class="flex-1 h-[1px] ml-4 bg-transparent border-t border-dashed border-slate-400 opacity-20"></div>
+                    </div>
+                ))}
+
+                {timelineItems.map((item: any, index: number) => {
+                    const styles = getTimescaleStyles(item);
+                    if (!styles.isVisible) return null;
+
+                    const isDuration = !!item.endDate || item.isOngoing;
+                    const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                    const c = colors[resolvedColor] || colors.primary;
+                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
+
+                    // Convert Sanity vertical map to Mobile horizontal overlap prevention map
+                    const mobileHorizontalMap: any = {
+                        'far-above': 'ml-[0%]',
+                        'above': 'ml-[4%]',
+                        'below': 'ml-[8%]',
+                        'far-below': 'ml-[12%]'
+                    };
+                    const hOffset = mobileHorizontalMap[item.verticalPosition] || 'ml-[0%]';
+                    const sDate = new Date(item.startDate);
+                    const zIdx = Math.floor(Number(styles.left.replace('%', '')));
+                    const barHeightPx = isDuration && styles.width !== 'auto' 
+                        ? (parseFloat(styles.width) / 100) * mobileTimelineHeightPx 
+                        : 0;
+
+                    return (
+                        <div class={`absolute left-0 right-0 max-w-[90%] group ${hOffset}`} style={`top: ${styles.left}; z-index: ${zIdx}; transform: translateY(-50%);`} >
+                            
+                            {/* Dynamic Absolute Highlight Bar */}
+                            {isDuration && (
+                              <div class={`absolute left-[1.35rem] -translate-x-1/2 top-4 w-[4px] ${c.bgSolid} rounded-full z-0 pointer-events-none opacity-80`} style={`height: max(2rem, ${barHeightPx}px);`}></div>
+                            )}
+
+                            {/* Node Dot */}
+                            <div class={`absolute left-[1.35rem] -translate-x-1/2 top-4 w-3 h-3 rounded-full border-[2px] border-[var(--color-bg)] ${c.bgSolid} ring-[2px] ring-black/10 dark:ring-white/10 z-20`}></div>
+                            
+                            {/* Card Content */}
+                            <div class={`relative ml-12 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-4 shadow-[0_5px_25px_-5px_rgba(0,0,0,0.15)] transition-all`}>
+                                {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
+                                <span class={`text-[9px] font-black uppercase tracking-widest ${c.text} mb-1 block opacity-80`}>
+                                    {sDate.getFullYear()} {isDuration && `- ${item.isOngoing ? 'PRESENT' : new Date(item.endDate).getFullYear()}`}
+                                </span>
+                                <h3 class={`text-sm font-black mb-1 text-[var(--color-text)] leading-tight`}>{item.title}</h3>
+                                {item.description && <p class="text-[11px] border-t border-black/5 dark:border-white/5 pt-2 mt-2 text-[var(--color-text-dim)] font-medium leading-relaxed">{item.description}</p>}
+                                
+                                {/* Milestones */}
+                                {item.milestoneEvents && item.milestoneEvents.length > 0 && (
+                                    <div class="mt-2 pt-2 border-t border-black/5 dark:border-white/5 flex flex-col gap-2 relative z-20 pointer-events-auto">
+                                        {item.milestoneEvents.map((evt: any) => {
+                                            const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
+                                            return (
+                                            <div class="flex flex-col relative z-20 pl-2 border-l-2 border-dashed border-black/10 dark:border-white/10">
+                                                {subEventHref && <a href={subEventHref} class="absolute inset-0 z-10"></a>}
+                                                <h4 class="text-[10px] font-bold text-[var(--color-text)] leading-snug group-hover:text-[var(--color-project-accent)] transition-colors relative z-0">{evt.title}</h4>
+                                            </div>
+                                        )})}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+            {/* Observer anchor to trigger Next Section button */}
+            <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
+        </div>
+
         {/* Future Infinite Dashed Line (restricts overflow inside timeline section) */}
         <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden">
             <div id="future-line" class="absolute h-0 w-[100vw] border-t-[2px] border-dashed border-gray-500 dark:border-gray-400 opacity-50 z-0 transition-opacity duration-300 -translate-y-1/2" style="left: 100vw; top: 50%;"></div>
         </div>
 
-        <button class="nav-down-btn absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
+        <button id="mobile-next-btn" class="nav-down-btn absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20 max-md:opacity-0 max-md:pointer-events-none transition-opacity duration-500" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Featured Projects</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+                const obs = new IntersectionObserver((entries) => {
+                    const btn = document.getElementById("mobile-next-btn");
+                    if (window.innerWidth >= 768) return; // Only process hiding logic strictly on Mobile viewport!
+                    if(entries[0].isIntersecting) {
+                        btn?.classList.remove("max-md:opacity-0", "max-md:pointer-events-none");
+                        btn?.classList.add("max-md:opacity-100", "max-md:pointer-events-auto");
+                    } else {
+                        btn?.classList.add("max-md:opacity-0", "max-md:pointer-events-none");
+                        btn?.classList.remove("max-md:opacity-100", "max-md:pointer-events-auto");
+                    }
+                }, { threshold: 0.1 });
+                const target = document.getElementById("mobile-timeline-end");
+                if(target) obs.observe(target);
+            });
+        </script>
     </section>
     )}
 
@@ -419,7 +527,7 @@ const colors: Record<string, ColorClasses> = {
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Previous</span>
             </button>
-            <button class="nav-down-btn absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
+            <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
                  {isLastSection ? 'View All Projects' : 'Next Project'}
               </span>
@@ -440,7 +548,7 @@ const colors: Record<string, ColorClasses> = {
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
         </button>
-        <button class="nav-down-btn absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
+        <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Contact</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -549,7 +657,7 @@ const colors: Record<string, ColorClasses> = {
     const timelineSection = document.querySelector('.timeline-section');
     const timelineContainer = document.getElementById('timeline-scroll-area');
 
-    if (timelineSection && timelineContainer) {
+    if (timelineSection && timelineContainer && window.innerWidth >= 768) {
         timelineSection.addEventListener('wheel', (e) => {
             const wheelEvent = e as WheelEvent;
             const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
@@ -575,7 +683,7 @@ const colors: Record<string, ColorClasses> = {
         let maxRevealPos = 0; // High-water mark relative to timeline track
 
         function updateReveal() {
-            if (!timelineTrack || !movingArrow || !actualMarker) return;
+            if (!timelineTrack || !movingArrow || !actualMarker || window.innerWidth < 768) return;
             
             if (maxRevealPos === 0) {
                 maxRevealPos = window.innerWidth * 0.75;
