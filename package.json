@@ -19,7 +19,7 @@
     "typecheck": "astro check && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/node": "^10.0.1",
+    "@astrojs/netlify": "^7.0.6",
     "@sanity/client": "^7.13.2",
     "@sanity/image-url": "^2.0.2",
     "@tailwindcss/vite": "^4.2.1",
