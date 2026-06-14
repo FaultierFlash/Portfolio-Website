@@ -1,5 +1,5 @@
 import { createClient } from '@sanity/client';
-import imageUrlBuilder from '@sanity/image-url';
+import { createImageUrlBuilder } from '@sanity/image-url';
 
 export const sanityClient = createClient({
   projectId: import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'k4t36b6u',
@@ -8,7 +8,7 @@ export const sanityClient = createClient({
   useCdn: false, // Disabled CDN to ensure slider values hot-reload immediately
 });
 
-const builder = imageUrlBuilder(sanityClient);
+const builder = createImageUrlBuilder(sanityClient);
 
 export function urlFor(source: any) {
   return builder.image(source);
@@ -54,7 +54,7 @@ export async function getHomePageData(locale: string) {
     timelineStartDate,
     timelineEndDate,
     timelineScale,
-    timeline[]{
+    timeline[isVisible != false]{
       title,
       description,
       startDate,
@@ -62,18 +62,35 @@ export async function getHomePageData(locale: string) {
       isOngoing,
       color,
       verticalPosition,
-      milestoneEvents[]{
+      widgetImage,
+      widgetButtonLabel,
+      widgetButtonLink,
+      openByDefault,
+      milestoneEvents[isVisible != false]{
         title,
         date,
         description,
         color,
+        widgetImage,
+        widgetButtonLabel,
+        widgetButtonLink,
+        openByDefault,
         relatedProject->{
-          slug
+          slug,
+          title,
+          "description": description[$locale],
+          mainImage,
+          tags,
+          accentColor
         }
       },
       relatedProject->{
         slug,
-        accentColor
+        accentColor,
+        title,
+        "description": description[$locale],
+        mainImage,
+        tags
       }
     }
   }`;
@@ -129,3 +146,35 @@ export async function getLibrarySettings() {
   }`;
   return await sanityClient.fetch(query);
 }
+
+export async function getLegalPage(type: string, locale: string) {
+  const query = `*[_type == "legalPage" && type == $type && locale == $locale][0] {
+    title,
+    content
+  }`;
+  return await sanityClient.fetch(query, { type, locale });
+}
+
+export async function getLabEntries() {
+  const query = `*[_type == "labEntry" && status == "published"] | order(date desc) {
+    title,
+    slug,
+    date,
+    category,
+    tags,
+    language,
+    body,
+    images[]{
+      asset->,
+      alt,
+      caption
+    },
+    relatedProject->{
+      title,
+      slug,
+      accentColor
+    }
+  }`;
+  return await sanityClient.fetch(query);
+}
+

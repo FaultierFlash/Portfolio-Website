@@ -29,25 +29,30 @@ const totalYears = totalDurationMs / MS_PER_YEAR;
 
 // Calculate the total track width based on the CMS slider
 const timelineWidthPx = Math.max(1000, totalYears * PX_PER_YEAR);
-const mobileTimelineHeightPx = Math.max(1200, totalYears * 500); // Massive boost for scaling to physically push cards apart and prevent overlap
+
+const today = new Date();
+const presentOffsetMs = today.getTime() - timelineStartDate.getTime();
+const presentLeftPct = Math.max(0, Math.min(100, (presentOffsetMs / totalDurationMs) * 100));
 
 // Helper to calc left position % and width % based on dates across the clamped track
 function getTimescaleStyles(item: any) {
     const sDate = new Date(item.startDate);
-    const isOngoing = item.isOngoing;
-    const eDate = isOngoing ? timelineEndDate : (item.endDate ? new Date(item.endDate) : sDate);
+    const today = new Date();
+    const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+    const eDate = isActuallyOngoing ? timelineEndDate : (item.endDate ? new Date(item.endDate) : sDate);
 
     // If item ends before our timeline even begins, skip it
     if (eDate.getTime() < timelineStartDate.getTime()) {
-        return { isVisible: false, leftPercentage: 0, left: "0%", width: "0px" };
+        return { isVisible: false, leftPercentage: 0, left: "0%", width: "0px", isActuallyOngoing: false, isDuration: false };
     }
 
     // No clamping! Render true negative start coords so the overflow clips it naturally
     const offsetMs = sDate.getTime() - timelineStartDate.getTime();
     const leftPercentage = (offsetMs / totalDurationMs) * 100;
 
+    const isDuration = !!item.endDate || isActuallyOngoing;
     let widthPercentage = 0;
-    if (item.endDate || isOngoing) {
+    if (isDuration) {
         // Render true widths without clamps
         const durationMs = eDate.getTime() - sDate.getTime();
         widthPercentage = Math.max(0.5, (durationMs / totalDurationMs) * 100); 
@@ -60,9 +65,12 @@ function getTimescaleStyles(item: any) {
         isVisible: true,
         textOffsetPx,
         left: `${leftPercentage}%`,
-        width: item.endDate || isOngoing ? `${widthPercentage}%` : "auto"
+        width: isDuration ? `${widthPercentage}%` : "auto",
+        isActuallyOngoing,
+        isDuration
     };
 }
+
 
 // Generate background Year Markers for the X-Axis
 const yearMarkers = [];
@@ -78,7 +86,7 @@ for (let y = startYear; y <= endYear; y++) {
 }
 
 // Color mapper
-type ColorClasses = { bg: string, bgSolid?: string, border: string, text: string, textDark: string, textSolid?: string, dot: string, shadow: string, btn: string, tagBg: string };
+type ColorClasses = { bg: string, bgSolid?: string, border: string, text: string, textDark: string, textSolid?: string, dot: string, shadow: string, btn: string, tagBg: string, hex: string };
 const colors: Record<string, ColorClasses> = {
     primary: { 
         bg: 'bg-primary/20 dark:bg-primary/30', 
@@ -90,7 +98,8 @@ const colors: Record<string, ColorClasses> = {
         tagBg: 'bg-primary/20 dark:bg-primary/20',
         textSolid: 'text-slate-900 dark:text-white',
         dot: 'bg-primary',
-        shadow: 'shadow-[0_0_15px_rgba(255,125,26,0.6)]'
+        shadow: 'shadow-[0_0_15px_rgba(255,125,26,0.6)]',
+        hex: '#FF7D1A'
     },
     blue: { 
         bg: 'bg-blue-500/20 dark:bg-blue-500/30', 
@@ -102,7 +111,8 @@ const colors: Record<string, ColorClasses> = {
         dot: 'bg-blue-500', 
         shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.6)]', 
         btn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-300 dark:focus:ring-blue-800 text-white', 
-        tagBg: 'bg-blue-500/15 dark:bg-blue-500/20' 
+        tagBg: 'bg-blue-500/15 dark:bg-blue-500/20',
+        hex: '#3b82f6'
     },
     green: { 
         bg: 'bg-green-500/20 dark:bg-green-500/30', 
@@ -114,7 +124,8 @@ const colors: Record<string, ColorClasses> = {
         dot: 'bg-green-500', 
         shadow: 'shadow-[0_0_15px_rgba(34,197,94,0.6)]', 
         btn: 'bg-green-600 hover:bg-green-700 focus:ring-green-300 dark:focus:ring-green-800 text-white', 
-        tagBg: 'bg-green-500/15 dark:bg-green-500/20' 
+        tagBg: 'bg-green-500/15 dark:bg-green-500/20',
+        hex: '#22c55e'
     },
     purple: { 
         bg: 'bg-purple-500/20 dark:bg-purple-500/30', 
@@ -126,7 +137,8 @@ const colors: Record<string, ColorClasses> = {
         dot: 'bg-purple-500', 
         shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.6)]', 
         btn: 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-300 dark:focus:ring-purple-800 text-white', 
-        tagBg: 'bg-purple-500/15 dark:bg-purple-500/20' 
+        tagBg: 'bg-purple-500/15 dark:bg-purple-500/20',
+        hex: '#a855f7'
     },
     rose: { 
         bg: 'bg-rose-500/20 dark:bg-rose-500/30', 
@@ -138,7 +150,8 @@ const colors: Record<string, ColorClasses> = {
         dot: 'bg-rose-500', 
         shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.6)]', 
         btn: 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-300 dark:focus:ring-rose-800 text-white', 
-        tagBg: 'bg-rose-500/15 dark:bg-rose-500/20' 
+        tagBg: 'bg-rose-500/15 dark:bg-rose-500/20',
+        hex: '#f43f5e'
     },
     gray: { 
         bg: 'bg-gray-500/20 dark:bg-gray-500/30', 
@@ -150,9 +163,120 @@ const colors: Record<string, ColorClasses> = {
         dot: 'bg-gray-500', 
         shadow: 'shadow-[0_0_15px_rgba(107,114,128,0.6)]', 
         btn: 'bg-gray-700 hover:bg-gray-800 focus:ring-gray-300 dark:focus:ring-gray-800 text-white', 
-        tagBg: 'bg-gray-500/15 dark:bg-gray-500/20' 
+        tagBg: 'bg-gray-500/15 dark:bg-gray-500/20',
+        hex: '#6b7280'
     },
 };
+
+// --- Overlap Resolution for Timeline Widget Cards ---
+interface TimelineWidget {
+    id: string;
+    targetX: number;
+    x: number;
+}
+
+const topWidgets: TimelineWidget[] = [];
+const bottomWidgets: TimelineWidget[] = [];
+
+const registerWidget = (id: string, targetX: number, isTop: boolean) => {
+    const w = { id, targetX, x: targetX };
+    if (isTop) {
+        topWidgets.push(w);
+    } else {
+        bottomWidgets.push(w);
+    }
+};
+
+timelineItems.forEach((item: any, itemIdx: number) => {
+    const styles = getTimescaleStyles(item);
+    if (!styles.isVisible) return;
+
+    const isDuration = styles.isDuration;
+    // Default to above for duration items (matches CSS default of -translate-y-12)
+    const isTopHalf = item.verticalPosition === 'far-above' || item.verticalPosition === 'above' || (!item.verticalPosition && isDuration);
+    
+    const leftPct = parseFloat(styles.left);
+    const widthPct = isDuration ? parseFloat(styles.width) : 0;
+    
+    const visibleStartPct = Math.max(0, leftPct);
+    const visibleEndPct = isDuration ? Math.min(100, leftPct + widthPct) : leftPct;
+    const parentTargetPct = isDuration ? (visibleStartPct + visibleEndPct) / 2 : leftPct;
+    const parentTargetX = (parentTargetPct / 100) * timelineWidthPx;
+    
+    const hasWidget = !!(item.widgetImage || item.widgetButtonLabel || item.widgetButtonLink || item.description || item.relatedProject?.description);
+    if (hasWidget) {
+        registerWidget(`parent-${itemIdx}`, parentTargetX, isTopHalf);
+    }
+    
+    if (item.milestoneEvents) {
+        item.milestoneEvents.forEach((evt: any, evtIdx: number) => {
+            const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
+            const subWidgetDesc = evt.description || evt.relatedProject?.description;
+            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+            const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
+            const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
+            
+            if (hasSubWidget) {
+                const evtDate = new Date(evt.date);
+                const sDate = new Date(item.startDate);
+                const today = new Date();
+                const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                const eDate = isActuallyOngoing ? timelineEndDate : new Date(item.endDate);
+                
+                let evtPct = 0;
+                if (eDate.getTime() > sDate.getTime()) {
+                    evtPct = ((evtDate.getTime() - sDate.getTime()) / (eDate.getTime() - sDate.getTime())) * 100;
+                }
+                evtPct = Math.max(0, Math.min(100, evtPct));
+                
+                const milestoneTargetPct = leftPct + (evtPct / 100) * widthPct;
+                const milestoneTargetX = (milestoneTargetPct / 100) * timelineWidthPx;
+                
+                registerWidget(`milestone-${itemIdx}-${evtIdx}`, milestoneTargetX, isTopHalf);
+            }
+        });
+    }
+});
+
+const CARD_WIDTH_WITH_GAP = 280;
+const resolvePositions = (widgets: TimelineWidget[]) => {
+    widgets.sort((a, b) => a.targetX - b.targetX);
+    
+    for (let pass = 0; pass < 50; pass++) {
+        let hasOverlap = false;
+        for (let i = 0; i < widgets.length - 1; i++) {
+            let left = widgets[i];
+            let right = widgets[i + 1];
+            let dist = right.x - left.x;
+            if (dist < CARD_WIDTH_WITH_GAP) {
+                let overlap = CARD_WIDTH_WITH_GAP - dist;
+                left.x -= overlap / 2;
+                right.x += overlap / 2;
+                hasOverlap = true;
+            }
+        }
+        
+        if (widgets.length > 0) {
+            const margin = CARD_WIDTH_WITH_GAP / 2;
+            if (widgets[0].x < margin) {
+                widgets[0].x = margin;
+            }
+            if (widgets[widgets.length - 1].x > timelineWidthPx + 120) {
+                widgets[widgets.length - 1].x = timelineWidthPx + 120;
+            }
+        }
+        
+        if (!hasOverlap) break;
+    }
+};
+
+resolvePositions(topWidgets);
+resolvePositions(bottomWidgets);
+
+const widgetAdjustedXMap: Record<string, number> = {};
+[...topWidgets, ...bottomWidgets].forEach(w => {
+    widgetAdjustedXMap[w.id] = w.x;
+});
 ---
 
 <BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
@@ -201,22 +325,21 @@ const colors: Record<string, ColorClasses> = {
     <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="absolute top-16 md:top-24 w-full text-center z-20 pointer-events-none px-4">
-            <h2 class="text-3xl md:text-5xl font-black heading-font">My Journey</h2>
+        <div class="timeline-header absolute top-16 md:top-24 w-full text-center z-10 pointer-events-none px-4">
+            <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">My Journey</h2>
             <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover events for details</p>
             <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Tap events for details</p>
-        </div>
-
-        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing" id="timeline-scroll-area">
+        </div>        
+        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-45px);">
             {/* The Track Canvas */}
-            <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: 80vw; margin: 0 25vw 0 0;`}>
+            <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: ${timelineWidthPx}px; margin: 0 25vw 0 0;`}>
                 
                 <div id="timeline-revealed-future" class="absolute inset-y-0 z-0 pointer-events-none" style="left: -50vw; right: 0;">
                     <div class="absolute inset-y-0" style="left: 50vw; right: 0;">
                         <div class="absolute top-1/2 -translate-y-1/2 opacity-50 border-t-2 border-dashed border-gray-500 dark:border-gray-400 z-0" style="left: -50vw; width: calc(100% + 50vw);"></div>
 
                         {/* Wireframe Year Markers */}
-                        {yearMarkers.map((marker, index) => (
+                        {yearMarkers.map((marker) => (
                             <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={`left: ${marker.left};`}>
                                 <div class="w-0 h-6 border-l-2 border-dashed border-gray-500 dark:border-gray-400"></div>
                                 <span class="text-xs font-black opacity-30 mt-2 absolute top-full">{marker.year}</span>
@@ -224,10 +347,10 @@ const colors: Record<string, ColorClasses> = {
                         ))}
 
                         {/* Wireframe Timeline Items */}
-                        {timelineItems.map((item: any, index: number) => {
+                        {timelineItems.map((item: any, itemIdx: number) => {
                             const styles = getTimescaleStyles(item);
                             if (!styles.isVisible) return null;
-                            const isDuration = !!item.endDate || item.isOngoing;
+                            const isDuration = styles.isDuration;
                             
                             const verticalMap: any = {
                                 'far-above': '-translate-y-24',
@@ -237,8 +360,52 @@ const colors: Record<string, ColorClasses> = {
                             };
                             const verticalOffset = isDuration ? (verticalMap[item.verticalPosition] || '-translate-y-12') : '';
 
+                            const hasWidget = !!(item.widgetImage || item.widgetButtonLabel || item.widgetButtonLink || item.description || item.relatedProject?.description);
+                            const isTopHalf = item.verticalPosition === 'far-above' || item.verticalPosition === 'above' || (!item.verticalPosition && isDuration);
+
+                            const leftPct = parseFloat(styles.left);
+                            const widthPct = isDuration ? parseFloat(styles.width) : 0;
+
+                            const visibleStartPct = Math.max(0, leftPct);
+                            const visibleEndPct = isDuration ? Math.min(100, leftPct + widthPct) : leftPct;
+                            const parentTargetPct = isDuration ? (visibleStartPct + visibleEndPct) / 2 : leftPct;
+                            const parentTargetX = (parentTargetPct / 100) * timelineWidthPx;
+
+                            const capsuleCenterPct = leftPct + (isDuration ? widthPct / 2 : 0);
+                            const visibleOffsetPct = parentTargetPct - capsuleCenterPct;
+                            const visibleOffsetPx = (visibleOffsetPct / 100) * timelineWidthPx;
+
+                            const parentId = `parent-${itemIdx}`;
+                            const parentAdjustedX = widgetAdjustedXMap[parentId] !== undefined ? widgetAdjustedXMap[parentId] : parentTargetX;
+                            const parentDx = parentAdjustedX - parentTargetX;
+
+                            const verticalMapPx: any = {
+                                'far-above': -96,
+                                'above': -48,
+                                'below': 58,
+                                'far-below': 106
+                            };
+                            const y1 = isDuration ? (verticalMapPx[item.verticalPosition] || -48) : 0;
+                            const y2 = isTopHalf ? -130 : 140;
+
                             return (
-                                <div class="absolute top-1/2 pointer-events-none opacity-40" style={`left: ${styles.left}; width: ${styles.width}; transform: translate(0, -50%);`}>
+                                <div class="absolute top-1/2 pointer-events-none opacity-40" style={`left: ${styles.left}; width: ${isDuration ? styles.width : '0px'}; transform: translate(0, -50%);`}>
+                                    <svg class="absolute pointer-events-none overflow-visible z-0" style="left: 50%; top: 50%; width: 1px; height: 1px; overflow: visible;">
+                                        {hasWidget && (
+                                            <line 
+                                                x1={visibleOffsetPx} 
+                                                y1={y1} 
+                                                x2={parentDx + visibleOffsetPx} 
+                                                y2={y2} 
+                                                class="timeline-wireframe-line opacity-40"
+                                            />
+                                        )}
+                                    </svg>
+                                    
+                                    {isDuration && (
+                                        <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 z-10"></div>
+                                    )}
+
                                     {isDuration ? (
                                         <div class={`relative w-full h-8 rounded-full border-2 border-dashed border-gray-500 dark:border-gray-400 ${verticalOffset}`}></div>
                                     ) : (
@@ -250,7 +417,7 @@ const colors: Record<string, ColorClasses> = {
                     </div>
                 </div>
 
-                <div id="actual-present-marker" class="absolute top-1/2 flex items-center -translate-y-1/2 z-20" style="left: 100%;">
+                <div id="actual-present-marker" class="absolute top-1/2 flex items-center -translate-y-1/2 z-20" style={`left: ${presentLeftPct}%;`}>
                     <span class="absolute bottom-full left-0 ml-[4px] mb-1 font-bold text-gray-500 tracking-widest uppercase text-xs border border-gray-400 dark:border-gray-600 rounded-full px-3 py-1 backdrop-blur-md bg-white/80 dark:bg-black/80 shadow-sm whitespace-nowrap">Present</span>
                 </div>
 
@@ -267,7 +434,7 @@ const colors: Record<string, ColorClasses> = {
                     <div class="absolute inset-y-0 pointer-events-auto" style="left: 50vw; right: 0;">
                         {/* Timeline Axis Line (extending way off to the left) */}
                         <div class="absolute top-1/2 h-[2px] bg-gray-300 dark:bg-gray-800 -translate-y-1/2 z-0 pointer-events-none" style="left: -50vw; width: calc(100% + 50vw);"></div>
-                {yearMarkers.map((marker, index) => (
+                {yearMarkers.map((marker) => (
                     <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={`left: ${marker.left};`}>
                         <div class="w-[2px] h-6 bg-slate-300 dark:bg-slate-700"></div>
                         <span class="text-xs font-black opacity-60 mt-2 absolute top-full">{marker.year}</span>
@@ -275,11 +442,11 @@ const colors: Record<string, ColorClasses> = {
                 ))}
 
                 {/* Milestones & Duration Bars */}
-                {timelineItems.map((item: any, index: number) => {
+                {timelineItems.map((item: any, itemIdx: number) => {
                     const styles = getTimescaleStyles(item);
                     if (!styles.isVisible) return null;
 
-                    const isDuration = !!item.endDate || item.isOngoing;
+                    const isDuration = styles.isDuration;
                     
                     const verticalMap: any = {
                         'far-above': '-translate-y-24',
@@ -294,20 +461,244 @@ const colors: Record<string, ColorClasses> = {
                     const EventWrapper = 'div';
                     const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
 
+                    const hasWidget = !!(item.widgetImage || item.widgetButtonLabel || item.widgetButtonLink || item.description || item.relatedProject?.description);
+                    const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
+                    const widgetTitle = item.title;
+                    const widgetDesc = item.description || item.relatedProject?.description;
+                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
+
+                    const isTopHalf = item.verticalPosition === 'far-above' || item.verticalPosition === 'above' || (!item.verticalPosition && isDuration);
+
+                    const leftPct = parseFloat(styles.left);
+                    const widthPct = isDuration ? parseFloat(styles.width) : 0;
+                    
+                    // Parent widget positions — use visible-center for items extending beyond the interval
+                    const visibleStartPct = Math.max(0, leftPct);
+                    const visibleEndPct = isDuration ? Math.min(100, leftPct + widthPct) : leftPct;
+                    const parentTargetPct = isDuration ? (visibleStartPct + visibleEndPct) / 2 : leftPct;
+                    const parentTargetX = (parentTargetPct / 100) * timelineWidthPx;
+                    const parentId = `parent-${itemIdx}`;
+                    const parentAdjustedX = widgetAdjustedXMap[parentId] !== undefined ? widgetAdjustedXMap[parentId] : parentTargetX;
+                    const parentDx = parentAdjustedX - parentTargetX;
+
+                    const capsuleCenterPct = leftPct + (isDuration ? widthPct / 2 : 0);
+                    const visibleOffsetPct = parentTargetPct - capsuleCenterPct;
+                    const visibleOffsetPx = (visibleOffsetPct / 100) * timelineWidthPx;
+
+                    const verticalMapPx: any = {
+                        'far-above': -96,
+                        'above': -48,
+                        'below': 58,
+                        'far-below': 106
+                    };
+                    const y1 = isDuration ? (verticalMapPx[item.verticalPosition] || -48) : 0;
+                    const y2 = isTopHalf ? -130 : 140;
+
+                    const showConnector = isDuration || hasWidget;
+
+                    const parentTimeframe = (() => {
+                        const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
+                        if (!isDuration) {
+                            return start;
+                        }
+                        const end = styles.isActuallyOngoing 
+                            ? (lang === 'de' ? 'Heute' : 'Present') 
+                            : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
+                        return end ? `${start} - ${end}` : start;
+                    })();
+
+                    const hasActiveCardOnLoad = item.openByDefault || (item.milestoneEvents && item.milestoneEvents.some((evt: any) => evt.openByDefault));
+
                     return (
-                    <div class="timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10 hover:z-50 pointer-events-none" style={`left: ${styles.left}; width: ${styles.width}; transform: translate(0, -50%);`}>
+                    <div class={`timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10 hover:z-30 pointer-events-none ${hasActiveCardOnLoad ? 'has-active-card' : ''}`} style={`left: ${styles.left}; width: ${isDuration ? styles.width : '0px'}; transform: translate(0, -50%);`}>
                         
+                        {showConnector && (
+                            <>
+                                {/* Connector lines using SVG */}
+                                <svg class="absolute pointer-events-none overflow-visible z-0" style="left: 50%; top: 50%; width: 1px; height: 1px; overflow: visible;">
+                                    {hasWidget && (
+                                        <line 
+                                            x1={visibleOffsetPx} 
+                                            y1={y1} 
+                                            x2={parentDx + visibleOffsetPx} 
+                                            y2={y2} 
+                                            data-original-x2={parentDx + visibleOffsetPx}
+                                            data-original-y2={y2}
+                                            style={`stroke: ${c.hex};`}
+                                            class="line-parent opacity-40 transition-all duration-300"
+                                        />
+                                    )}
+                                </svg>
+                            </>
+                        )}
+
+                        {hasWidget && (
+                            <div 
+                                class={`timeline-parent-card absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${c.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${c.shadow} ${item.openByDefault ? 'active' : ''} ${isTopHalf ? 'bottom-1/2 mb-[130px] max-h-[calc(50vh-180px)]' : 'top-1/2 mt-[140px] max-h-[calc(50vh-190px)]'} overflow-hidden`}
+                                style={`left: calc(50% + ${parentDx + visibleOffsetPx}px);`}
+                            >
+                                {/* Drag Handle */}
+                                <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
+                                    <div class="w-8 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
+                                </div>
+
+                                {/* Close Button */}
+                                <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label="Close card">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                                
+                                <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
+                                    {widgetImage && (
+                                        <img 
+                                            src={urlFor(widgetImage).width(240).url()} 
+                                            alt={widgetTitle}
+                                            class="w-full h-auto rounded-lg"
+                                        />
+                                    )}
+                                    <div class="flex flex-col">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                {item.relatedProject ? (lang === 'de' ? 'Zugehöriges Projekt' : 'Related Project') : (lang === 'de' ? 'Info' : 'Details')}
+                                            </span>
+                                            <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                {parentTimeframe}
+                                            </span>
+                                        </div>
+                                        <h5 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{widgetTitle}</h5>
+                                        {widgetDesc && (
+                                            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-snug">{widgetDesc}</p>
+                                        )}
+                                    </div>
+                                    {item.relatedProject?.tags && item.relatedProject.tags.length > 0 && (
+                                        <div class="flex flex-wrap gap-1">
+                                            {item.relatedProject.tags.slice(0, 3).map((tag: string) => (
+                                                <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">{tag}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {widgetBtnLink && widgetBtnLabel && (
+                                        <a 
+                                            href={widgetBtnLink} 
+                                            class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} ${c.text} ${c.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-0.5`}
+                                        >
+                                            {widgetBtnLabel}
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Subentry Milestone Widgets */}
+                        {item.milestoneEvents && item.milestoneEvents.map((evt: any, evtIdx: number) => {
+                            const evtDate = new Date(evt.date);
+                            const sDate = new Date(item.startDate);
+                            const eDate = styles.isActuallyOngoing ? timelineEndDate : new Date(item.endDate);
+                            let evtPct = 0;
+                            if (eDate.getTime() > sDate.getTime()) {
+                                evtPct = ((evtDate.getTime() - sDate.getTime()) / (eDate.getTime() - sDate.getTime())) * 100;
+                            }
+                            evtPct = Math.max(0, Math.min(100, evtPct));
+
+                            const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
+                            const subWidgetTitle = evt.title;
+                            const subWidgetDesc = evt.description || evt.relatedProject?.description;
+                            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                            const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
+                            const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
+                            
+                            if (!hasSubWidget) return null;
+
+                            const subIsTopHalf = isTopHalf;
+
+                            // Milestone widget positions
+                            const milestoneTargetPct = leftPct + (evtPct / 100) * widthPct;
+                            const milestoneTargetX = (milestoneTargetPct / 100) * timelineWidthPx;
+                            const milestoneId = `milestone-${itemIdx}-${evtIdx}`;
+                            const milestoneAdjustedX = widgetAdjustedXMap[milestoneId] !== undefined ? widgetAdjustedXMap[milestoneId] : milestoneTargetX;
+                            const milestoneDx = milestoneAdjustedX - milestoneTargetX;
+
+                            const subY2 = subIsTopHalf ? -130 : 140;
+
+                            const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
+                            const ec = colors[resolvedEvtColor] || colors.primary;
+
+                            return (
+                                <>
+                                    {/* Subentry connector line using SVG */}
+                                    <svg class="absolute pointer-events-none overflow-visible z-0" style={`left: ${evtPct}%; top: 50%; width: 1px; height: 1px; overflow: visible;`}>
+                                        <line 
+                                            x1="0" 
+                                            y1={y1} 
+                                            x2={milestoneDx} 
+                                            y2={subY2} 
+                                            data-original-x2={milestoneDx}
+                                            data-original-y2={subY2}
+                                            style={`stroke: ${ec.hex};`}
+                                            class={`line-milestone-${itemIdx}-${evtIdx} opacity-40 transition-all duration-300`}
+                                        />
+                                    </svg>
+                                    {/* Subentry Widget Card */}
+                                    <div 
+                                        class={`timeline-milestone-card milestone-card-${itemIdx}-${evtIdx} absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${ec.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${ec.shadow} ${evt.openByDefault ? 'active' : ''} ${subIsTopHalf ? 'bottom-1/2 mb-[130px] max-h-[calc(50vh-180px)]' : 'top-1/2 mt-[140px] max-h-[calc(50vh-190px)]'} overflow-hidden`}
+                                        style={`left: calc(${evtPct}% + ${milestoneDx}px);`}
+                                    >
+                                        {/* Drag Handle */}
+                                        <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
+                                            <div class="w-8 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
+                                        </div>
+
+                                        {/* Close Button */}
+                                        <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label="Close card">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                        
+                                        <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
+                                            {subWidgetImage && (
+                                                <img 
+                                                    src={urlFor(subWidgetImage).width(240).url()} 
+                                                    alt={subWidgetTitle}
+                                                    class="w-full h-auto rounded-lg"
+                                                />
+                                            )}
+                                            <div class="flex flex-col">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                        {evt.relatedProject ? (lang === 'de' ? 'Zugehöriges Projekt' : 'Related Project') : (lang === 'de' ? 'Meilenstein' : 'Milestone')}
+                                                    </span>
+                                                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                        {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                </div>
+                                                <h5 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{subWidgetTitle}</h5>
+                                                {subWidgetDesc && (
+                                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-snug">{subWidgetDesc}</p>
+                                                )}
+                                            </div>
+                                            {subWidgetBtnLink && subWidgetBtnLabel && (
+                                                <a 
+                                                    href={subWidgetBtnLink} 
+                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} ${ec.text} ${ec.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-0.5`}
+                                                >
+                                                    {subWidgetBtnLabel}
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })}
+
                         {isDuration ? (
-                            <EventWrapper class={`relative w-full h-8 rounded-full px-4 ${c.bgSolid} transition-all duration-300 flex items-center cursor-pointer backdrop-blur-sm ${verticalOffset} border border-white/20 pointer-events-auto hover:brightness-125 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:ring-2 hover:ring-white/50`}>
-                                {eventHref && <a href={eventHref} class="absolute inset-0 z-0 rounded-full" aria-label={item.title}></a>}
-                                <h4 class={`flex-1 min-w-0 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis drop-shadow-md relative z-10 ${c.textSolid} pointer-events-none`} style={(styles.textOffsetPx || 0) > 0 ? `padding-left: ${styles.textOffsetPx || 0}px` : ''}>{item.title}</h4>
-                                {item.isOngoing && <div class={`shrink-0 absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white animate-pulse shadow-[0_0_10px_white] z-10`}></div>}
+                            <EventWrapper class={`timeline-parent-capsule relative w-full h-8 rounded-full px-4 bg-white/40 dark:bg-slate-950/40 border-[2px] ${c.border} text-slate-800 dark:text-slate-200 backdrop-blur-md transition-all duration-300 flex items-center cursor-pointer pointer-events-auto hover:bg-white/60 dark:hover:bg-slate-950/60 hover:${c.shadow} ${verticalOffset} z-20`}>
+                                <h4 class={`flex-1 min-w-0 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis relative z-10 text-slate-900 dark:text-slate-100 pointer-events-none`} style={(styles.textOffsetPx || 0) > 0 ? `padding-left: ${styles.textOffsetPx || 0}px` : ''}>{item.title}</h4>
+                                {styles.isActuallyOngoing && <div class={`shrink-0 absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full ${c.dot} animate-pulse z-10 ${c.shadow}`}></div>}
                                 
                                 {/* Milestone Pins */}
-                                {item.milestoneEvents && item.milestoneEvents.map((evt: any) => {
+                                {item.milestoneEvents && item.milestoneEvents.map((evt: any, evtIdx: number) => {
                                     const evtDate = new Date(evt.date);
                                     const sDate = new Date(item.startDate);
-                                    const eDate = item.isOngoing ? timelineEndDate : new Date(item.endDate);
+                                    const eDate = styles.isActuallyOngoing ? timelineEndDate : new Date(item.endDate);
                                     let evtPct = 0;
                                     if (eDate.getTime() > sDate.getTime()) {
                                         evtPct = ((evtDate.getTime() - sDate.getTime()) / (eDate.getTime() - sDate.getTime())) * 100;
@@ -315,10 +706,16 @@ const colors: Record<string, ColorClasses> = {
                                     evtPct = Math.max(0, Math.min(100, evtPct));
 
                                     const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
-                                    const pinColor = colors[evt.color || item.color || 'primary'] || colors.primary;
+                                    const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
+                                    const pinColor = colors[resolvedEvtColor] || colors.primary;
 
                                     return (
-                                        <div class={`milestone-pin absolute top-1/2 w-4 h-4 ${pinColor.dot} rounded-full border-[3px] border-white dark:border-slate-900 shadow-xl transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-auto cursor-help group/pin hover:scale-150 transition-all duration-300`} style={`left: ${evtPct}%;`}>
+                                        <div 
+                                            class={`milestone-pin absolute top-1/2 w-4 h-4 ${pinColor.dot} rounded-full border-[3px] border-white dark:border-slate-900 shadow-xl transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-auto cursor-help group/pin hover:scale-150 transition-all duration-300`} 
+                                            style={`left: ${evtPct}%;`}
+                                            data-item-idx={itemIdx}
+                                            data-evt-idx={evtIdx}
+                                        >
                                             <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-white/95 dark:bg-black/95 backdrop-blur-xl p-4 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 opacity-0 scale-95 pointer-events-none group-hover/pin:opacity-100 group-hover/pin:scale-100 transition duration-300 z-50 origin-bottom cursor-default">
                                                 <span class={`text-[10px] font-bold ${pinColor.text} mb-1 block uppercase tracking-wider`}>{new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}</span>
                                                 {subEventHref ? (
@@ -337,20 +734,11 @@ const colors: Record<string, ColorClasses> = {
                                 })}
                             </EventWrapper>
                         ) : (
-                            <div class={`relative w-6 h-6 -translate-x-1/2 rounded-full bg-white dark:bg-black border-4 ${c.border} hover:scale-150 transition-transform duration-300 cursor-pointer ${c.shadow} z-20 block pointer-events-auto`}>
-                                {eventHref && <a href={eventHref} class="absolute inset-0" aria-label={item.title}></a>}
+                            <div class={`timeline-parent-point relative w-6 h-6 -translate-x-1/2 rounded-full bg-white dark:bg-black border-4 ${c.border} hover:scale-150 transition-transform duration-300 cursor-pointer ${c.shadow} z-20 block pointer-events-auto`}>
                             </div>
                         )}
 
-                        {/* HOVER INFO CARD */}
-                        <div class="hover-info-card absolute top-0 left-0 -translate-x-1/2 -translate-y-[calc(100%+24px)] w-72 bg-white/90 dark:bg-black/90 backdrop-blur-xl p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition duration-300 z-40 origin-bottom">
-                            <span class={`text-xs font-bold ${c.text} mb-1 block uppercase tracking-wider`}>
-                                {new Date(item.startDate).getFullYear()} {isDuration ? `- ${item.isOngoing ? 'Present' : new Date(item.endDate).getFullYear()}` : ''}
-                            </span>
-                            <h3 class="text-xl font-black mb-2 text-gray-900 dark:text-white">{item.title}</h3>
-                            {item.description && <p class="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed">{item.description}</p>}
-                            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white/90 dark:bg-black/90 rotate-45 border-b border-r border-gray-200 dark:border-gray-800"></div>
-                        </div>
+
 
                     </div>
                 )})}
@@ -360,186 +748,126 @@ const colors: Record<string, ColorClasses> = {
         </div>
 
         {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full px-6 pt-16 pb-32 relative no-scrollbar overflow-y-auto z-10" id="mobile-timeline">
-            
-            <div class="relative w-full" style={`height: ${mobileTimelineHeightPx}px;`}>
-                
-                {/* Visual Timeline Spine - Solid Past/Present */}
-                <div class="absolute left-[1.35rem] top-0 bottom-0 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none z-0 rounded-t-full"></div>
-                
-                {/* Infinite Future Continuation */}
-                <div class="absolute left-[1.35rem] w-full border-l-[2px] border-dashed border-slate-400 dark:border-slate-600 opacity-60 z-0 pointer-events-none" style={`top: ${mobileTimelineHeightPx}px; height: 100vh;`}>
-                    <svg width="12" height="8" viewBox="0 0 12 8" fill="none" class="absolute top-10 -translate-x-1/2 text-primary animate-pulse" style="left: -1px;">
-                        <path d="M0 0L6 8L12 0H0Z" fill="currentColor"/>
-                    </svg>
-                </div>
+        <div class="block md:hidden w-full px-6 pt-32 pb-48 relative no-scrollbar overflow-y-auto z-20" id="mobile-timeline">
+            <div class="absolute left-10 top-32 bottom-48 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none"></div>
+            {timelineItems.slice().sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map((item: any) => {
+                const today = new Date();
+                const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                const isDuration = !!item.endDate || isActuallyOngoing;
+                const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                const c = colors[resolvedColor] || colors.primary;
+                const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
 
-                {/* Mobile Wireframe Year Markers */}
-                {yearMarkers.map((marker, index) => (
-                    <div class="absolute w-[calc(100%-1.35rem)] flex items-center justify-start z-0 pointer-events-none" style={`top: ${marker.left}; left: 1.35rem;`}>
-                        <div class="w-6 h-[2px] bg-slate-300 dark:bg-slate-700"></div>
-                        <span class="text-[10px] font-black opacity-30 ml-2 whitespace-nowrap">{marker.year}</span>
-                        <div class="flex-1 h-[1px] ml-4 bg-transparent border-t border-dashed border-slate-400 opacity-20"></div>
-                    </div>
-                ))}
+                const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
+                const widgetTitle = item.title;
+                const widgetDesc = item.description || item.relatedProject?.description;
+                const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
 
-                {timelineItems.map((item: any, index: number) => {
-                    const styles = getTimescaleStyles(item);
-                    if (!styles.isVisible) return null;
+                const mobileTimeframe = (() => {
+                    const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
+                    if (!isDuration) {
+                        return start;
+                    }
+                    const end = isActuallyOngoing 
+                        ? (lang === 'de' ? 'Heute' : 'Present') 
+                        : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
+                    return end ? `${start} - ${end}` : start;
+                })();
 
-                    const isDuration = !!item.endDate || item.isOngoing;
-                    const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                    const c = colors[resolvedColor] || colors.primary;
-                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
-
-                    // Convert Sanity vertical map to Mobile horizontal overlap prevention map
-                    const mobileHorizontalMap: any = {
-                        'far-above': 'ml-[0%]',
-                        'above': 'ml-[4%]',
-                        'below': 'ml-[8%]',
-                        'far-below': 'ml-[12%]'
-                    };
-                    const hOffset = mobileHorizontalMap[item.verticalPosition] || 'ml-[0%]';
-                    const sDate = new Date(item.startDate);
-                    const zIdx = Math.floor(Number(styles.left.replace('%', '')));
-                    const barHeightPx = isDuration && styles.width !== 'auto' 
-                        ? (parseFloat(styles.width) / 100) * mobileTimelineHeightPx 
-                        : 0;
-
-                    return (
-                        <div class={`absolute left-0 right-0 max-w-[90%] group ${hOffset}`} style={`top: ${styles.left}; z-index: ${zIdx}; transform: translateY(-50%);`} >
+                return (
+                    <div class="relative w-full flex mb-12 group">
+                        {/* Timeline node/dot */}
+                        <div class="w-16 shrink-0 flex flex-col justify-start items-center relative pt-4 z-10">
+                            <div class={`w-4 h-4 rounded-full border-[3px] border-white dark:border-[var(--color-bg)] ${c.bgSolid} shadow-lg ring-2 ring-transparent group-active:ring-[var(--color-project-accent-bg)] transition-all`}></div>
+                            <span class={`text-[10px] font-black uppercase tracking-wider mt-3 opacity-60 text-slate-500`}>
+                                {new Date(item.startDate).getFullYear()}
+                            </span>
+                        </div>
+                        {/* Content Card */}
+                        <div class={`flex-1 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-xl transition-all flex flex-col gap-3 relative`}>
+                            {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
                             
-                            {/* Dynamic Absolute Highlight Bar */}
-                            {isDuration && (
-                              <div class={`absolute left-[1.35rem] -translate-x-1/2 top-4 w-[4px] ${c.bgSolid} rounded-full z-0 pointer-events-none opacity-80`} style={`height: max(2rem, ${barHeightPx}px);`}></div>
+                            {widgetImage && (
+                                <img 
+                                    src={urlFor(widgetImage).width(400).url()} 
+                                    alt={widgetTitle}
+                                    class="w-full h-auto rounded-xl"
+                                />
                             )}
 
-                            {/* Node Dot */}
-                            <div class={`absolute left-[1.35rem] -translate-x-1/2 top-4 w-3 h-3 rounded-full border-[2px] border-[var(--color-bg)] ${c.bgSolid} ring-[2px] ring-black/10 dark:ring-white/10 z-20`}></div>
-                            
-                            {/* Card Content */}
-                            <div class={`relative ml-12 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-4 shadow-[0_5px_25px_-5px_rgba(0,0,0,0.15)] transition-all`}>
-                                {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
-                                <span class={`text-[9px] font-black uppercase tracking-widest ${c.text} mb-1 block opacity-80`}>
-                                    {sDate.getFullYear()} {isDuration && `- ${item.isOngoing ? 'PRESENT' : new Date(item.endDate).getFullYear()}`}
+                            <div class="flex flex-col">
+                                <span class={`text-[10px] font-black uppercase tracking-widest ${c.text} mb-1 block`}>
+                                    {mobileTimeframe}
                                 </span>
-                                <h3 class={`text-sm font-black mb-1 text-[var(--color-text)] leading-tight`}>{item.title}</h3>
-                                {item.description && <p class="text-[11px] border-t border-black/5 dark:border-white/5 pt-2 mt-2 text-[var(--color-text-dim)] font-medium leading-relaxed">{item.description}</p>}
-                                
-                                {/* Milestones */}
-                                {item.milestoneEvents && item.milestoneEvents.length > 0 && (
-                                    <div class="mt-2 pt-2 border-t border-black/5 dark:border-white/5 flex flex-col gap-2 relative z-20 pointer-events-auto">
-                                        {item.milestoneEvents.map((evt: any) => {
-                                            const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
-                                            return (
-                                            <div class="flex flex-col relative z-20 pl-2 border-l-2 border-dashed border-black/10 dark:border-white/10">
-                                                {subEventHref && <a href={subEventHref} class="absolute inset-0 z-10"></a>}
-                                                <h4 class="text-[10px] font-bold text-[var(--color-text)] leading-snug group-hover:text-[var(--color-project-accent)] transition-colors relative z-0">{evt.title}</h4>
-                                            </div>
-                                        )})}
-                                    </div>
-                                )}
+                                <h3 class={`text-lg font-black text-[var(--color-text)] leading-tight`}>{widgetTitle}</h3>
+                                {widgetDesc && <p class="text-sm border-t border-[var(--color-card-border)] pt-3 mt-3 text-[var(--color-text-dim)] font-medium leading-relaxed">{widgetDesc}</p>}
                             </div>
+
+                            {widgetBtnLink && widgetBtnLabel && (
+                                <a 
+                                    href={widgetBtnLink} 
+                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} ${c.text} ${c.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                >
+                                    {widgetBtnLabel}
+                                </a>
+                            )}
+                            
+                            {item.milestoneEvents && item.milestoneEvents.length > 0 && (
+                                <div class="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
+                                    <span class="text-[10px] uppercase font-black text-[var(--color-project-accent)] tracking-widest">Milestones</span>
+                                    {item.milestoneEvents.map((evt: any) => {
+                                        const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
+                                        const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
+                                        const subWidgetDesc = evt.description || evt.relatedProject?.description;
+                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                                        const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
+                                        
+                                        const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
+                                        const ec = colors[resolvedEvtColor] || colors.primary;
+
+                                        return (
+                                        <div class="relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub">
+                                            {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl"></a>}
+                                            {subWidgetImage && (
+                                                <img 
+                                                    src={urlFor(subWidgetImage).width(300).url()} 
+                                                    alt={evt.title} 
+                                                    class="w-full h-auto rounded-lg"
+                                                />
+                                            )}
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-black mb-1 opacity-50 text-[var(--color-text)]">
+                                                    {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
+                                                </span>
+                                                <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover/sub:text-[var(--color-project-accent)] transition-colors">
+                                                    {evt.title}
+                                                </h4>
+                                                {subWidgetDesc && (
+                                                    <p class="text-xs text-[var(--color-text-dim)] mt-1 leading-relaxed">
+                                                        {subWidgetDesc}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {subWidgetBtnLink && subWidgetBtnLabel && (
+                                                <a 
+                                                    href={subWidgetBtnLink} 
+                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} ${ec.text} ${ec.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                                >
+                                                    {subWidgetBtnLabel}
+                                                </a>
+                                            )}
+                                        </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
-                    )
-                })}
-            </div>
+                    </div>
+                )
+            })}
             {/* Observer anchor to trigger Next Section button */}
             <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
-        </div>
-
-        </div>
-
-        {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full px-6 pt-32 pb-48 relative no-scrollbar overflow-y-auto z-10" id="mobile-timeline">
-            <div class="absolute left-10 top-32 bottom-48 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none"></div>
-            {timelineItems.slice().sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map((item: any) => {
-                const isDuration = !!item.endDate || item.isOngoing;
-                const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                const c = colors[resolvedColor] || colors.primary;
-                const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
-
-                return (
-                    <div class="relative w-full flex mb-12 group">
-                        {/* Timeline node/dot */}
-                        <div class="w-16 shrink-0 flex flex-col justify-start items-center relative pt-4 z-10">
-                            <div class={`w-4 h-4 rounded-full border-[3px] border-white dark:border-[var(--color-bg)] ${c.bgSolid} shadow-lg ring-2 ring-transparent group-active:ring-[var(--color-project-accent-bg)] transition-all`}></div>
-                            <span class={`text-[10px] font-black uppercase tracking-wider mt-3 opacity-60 text-slate-500`}>
-                                {new Date(item.startDate).getFullYear()}
-                            </span>
-                        </div>
-                        {/* Content Card */}
-                        <div class={`flex-1 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-xl transition-all`}>
-                            {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
-                            <span class={`text-[10px] font-black uppercase tracking-widest ${c.text} mb-1 block`}>{isDuration ? (item.isOngoing ? 'Present' : new Date(item.endDate).getFullYear()) : 'Event'}</span>
-                            <h3 class={`text-lg font-black mb-2 text-[var(--color-text)] leading-tight`}>{item.title}</h3>
-                            {item.description && <p class="text-sm border-t border-[var(--color-card-border)] pt-3 mt-3 text-[var(--color-text-dim)] font-medium leading-relaxed">{item.description}</p>}
-                            
-                            {item.milestoneEvents && item.milestoneEvents.length > 0 && (
-                                <div class="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
-                                    <span class="text-[10px] uppercase font-black text-[var(--color-project-accent)] tracking-widest">Milestones</span>
-                                    {item.milestoneEvents.map((evt: any) => {
-                                        const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
-                                        return (
-                                        <div class="flex flex-col mb-1 relative z-20 pointer-events-auto">
-                                            {subEventHref && <a href={subEventHref} class="absolute inset-0"></a>}
-                                            <span class="text-[9px] font-black mb-1 opacity-50 text-[var(--color-text)]">{new Date(evt.date).getFullYear()}</span>
-                                            <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover:text-[var(--color-project-accent)] transition-colors">{evt.title}</h4>
-                                        </div>
-                                    )})}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
-
-        </div>
-
-        {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full px-6 pt-32 pb-48 relative no-scrollbar overflow-y-auto z-10" id="mobile-timeline">
-            <div class="absolute left-10 top-32 bottom-48 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none"></div>
-            {timelineItems.slice().sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map((item: any) => {
-                const isDuration = !!item.endDate || item.isOngoing;
-                const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                const c = colors[resolvedColor] || colors.primary;
-                const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
-
-                return (
-                    <div class="relative w-full flex mb-12 group">
-                        {/* Timeline node/dot */}
-                        <div class="w-16 shrink-0 flex flex-col justify-start items-center relative pt-4 z-10">
-                            <div class={`w-4 h-4 rounded-full border-[3px] border-white dark:border-[var(--color-bg)] ${c.bgSolid} shadow-lg ring-2 ring-transparent group-active:ring-[var(--color-project-accent-bg)] transition-all`}></div>
-                            <span class={`text-[10px] font-black uppercase tracking-wider mt-3 opacity-60 text-slate-500`}>
-                                {new Date(item.startDate).getFullYear()}
-                            </span>
-                        </div>
-                        {/* Content Card */}
-                        <div class={`flex-1 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-xl transition-all`}>
-                            {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
-                            <span class={`text-[10px] font-black uppercase tracking-widest ${c.text} mb-1 block`}>{isDuration ? (item.isOngoing ? 'Present' : new Date(item.endDate).getFullYear()) : 'Event'}</span>
-                            <h3 class={`text-lg font-black mb-2 text-[var(--color-text)] leading-tight`}>{item.title}</h3>
-                            {item.description && <p class="text-sm border-t border-[var(--color-card-border)] pt-3 mt-3 text-[var(--color-text-dim)] font-medium leading-relaxed">{item.description}</p>}
-                            
-                            {item.milestoneEvents && item.milestoneEvents.length > 0 && (
-                                <div class="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
-                                    <span class="text-[10px] uppercase font-black text-[var(--color-project-accent)] tracking-widest">Milestones</span>
-                                    {item.milestoneEvents.map((evt: any) => {
-                                        const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
-                                        return (
-                                        <div class="flex flex-col mb-1 relative z-20 pointer-events-auto">
-                                            {subEventHref && <a href={subEventHref} class="absolute inset-0"></a>}
-                                            <span class="text-[9px] font-black mb-1 opacity-50 text-[var(--color-text)]">{new Date(evt.date).getFullYear()}</span>
-                                            <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover:text-[var(--color-project-accent)] transition-colors">{evt.title}</h4>
-                                        </div>
-                                    )})}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            })}
         </div>
 
         {/* Future Infinite Dashed Line (restricts overflow inside timeline section) */}
@@ -653,7 +981,10 @@ const colors: Record<string, ColorClasses> = {
     <section class="scroll-section contact-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
       {/* Wrapper clips the fixed-positioned terminal to this section */}
       <div class="contact-terminal-wrapper">
-        <TerminalContactForm translations={{
+        <TerminalContactForm 
+          projects={allProjects}
+          currentLocale={lang}
+          translations={{
           title: t("terminal.title"),
           welcome1: t("terminal.welcome1"),
           welcome2: t("terminal.welcome2"),
@@ -721,6 +1052,12 @@ const colors: Record<string, ColorClasses> = {
     const container = document.querySelector('.scroll-container');
     if (!container) return;
 
+    let maxTimelineZIndex = 100;
+    let allowPushAway = true;
+    setTimeout(() => {
+        allowPushAway = false;
+    }, 1500);
+
     // Up/Down button navigation
     const upBtns = document.querySelectorAll('.nav-up-btn');
     const downBtns = document.querySelectorAll('.nav-down-btn');
@@ -750,12 +1087,178 @@ const colors: Record<string, ColorClasses> = {
     // Timeline Horizontal Scroll Hijack
     const timelineSection = document.querySelector('.timeline-section');
     const timelineContainer = document.getElementById('timeline-scroll-area');
+    const titleHeader = document.querySelector('.timeline-header') as HTMLElement;
+
+    // Boundary Scroll Buffer State
+    let boundaryScrollAccumulator = 0;
+    const BOUNDARY_THRESHOLD = 200; // threshold in pixels
+    let lastScrollDirection = 0;
+    let boundaryTimeoutId: any = null;
+
+    const shouldBlockBoundaryScroll = (deltaY: number) => {
+        if (!timelineContainer) return false;
+        const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
+        const isAtLeft = timelineContainer.scrollLeft <= 0;
+        const isAtRight = timelineContainer.scrollLeft >= maxScroll - 1;
+        
+        const direction = deltaY > 0 ? 1 : -1;
+        
+        if (direction !== lastScrollDirection) {
+            boundaryScrollAccumulator = 0;
+            lastScrollDirection = direction;
+        }
+        
+        if (boundaryTimeoutId) {
+            clearTimeout(boundaryTimeoutId);
+        }
+        boundaryTimeoutId = setTimeout(() => {
+            boundaryScrollAccumulator = 0;
+        }, 500);
+        
+        if (isAtLeft && direction === -1) {
+            boundaryScrollAccumulator += Math.abs(deltaY);
+            if (boundaryScrollAccumulator < BOUNDARY_THRESHOLD) {
+                return true;
+            }
+        } else if (isAtRight && direction === 1) {
+            boundaryScrollAccumulator += Math.abs(deltaY);
+            if (boundaryScrollAccumulator < BOUNDARY_THRESHOLD) {
+                return true;
+            }
+        } else {
+            boundaryScrollAccumulator = 0;
+        }
+        
+        return false;
+    };
+
+    function updateTitleMask() {
+        if (!titleHeader || !timelineContainer) return;
+        
+        const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+        if (activeCards.length === 0) {
+            titleHeader.style.maskImage = '';
+            titleHeader.style.webkitMaskImage = '';
+            return;
+        }
+        
+        const titleRect = titleHeader.getBoundingClientRect();
+        const titleCenterX = titleRect.left + titleRect.width / 2;
+        const titleCenterY = titleRect.top + titleRect.height / 2;
+        
+        let closestCard: HTMLElement | null = null;
+        let minDist = Infinity;
+        let closestCardCenterX = 0;
+        let closestCardCenterY = 0;
+        
+        activeCards.forEach(el => {
+            const card = el as HTMLElement;
+            const cardRect = card.getBoundingClientRect();
+            const cardCenterX = cardRect.left + cardRect.width / 2;
+            const cardCenterY = cardRect.top + cardRect.height / 2;
+            
+            const dist = Math.hypot(cardCenterX - titleCenterX, cardCenterY - titleCenterY);
+            if (dist < minDist) {
+                minDist = dist;
+                closestCard = card;
+                closestCardCenterX = cardCenterX;
+                closestCardCenterY = cardCenterY;
+            }
+        });
+        
+        if (minDist > 550) {
+            titleHeader.style.maskImage = '';
+            titleHeader.style.webkitMaskImage = '';
+            return;
+        }
+        
+        const relativeX = closestCardCenterX - titleRect.left;
+        const relativeY = closestCardCenterY - titleRect.top;
+        
+        const maskStr = `radial-gradient(circle 240px at ${relativeX}px ${relativeY}px, transparent 0px, transparent 130px, black 240px)`;
+        titleHeader.style.maskImage = maskStr;
+        titleHeader.style.webkitMaskImage = maskStr;
+    }
+
+    function pushCardHorizontally(card: HTMLElement) {
+        if (!allowPushAway) return;
+        if (timelineContainer && timelineContainer.scrollLeft > 10) return;
+        if (card.hasAttribute('data-drag-x')) return;
+        
+        const item = card.closest('.timeline-item') as HTMLElement;
+        if (item && item.classList.contains('translate-x-12')) return;
+
+        const isTopCard = card.classList.contains('bottom-1/2');
+        if (!isTopCard) return;
+
+        const titleH2 = titleHeader ? titleHeader.querySelector('h2') : null;
+        if (!titleH2) return;
+
+        const titleWidth = titleH2.getBoundingClientRect().width || 320;
+        const cardRect = card.getBoundingClientRect();
+        if (cardRect.width === 0) return;
+        const cardWidth = cardRect.width;
+
+        const screenWidth = window.innerWidth;
+        const screenCenter = screenWidth / 2;
+        const cardCenterX = cardRect.left + cardWidth / 2;
+        const distToCenter = cardCenterX - screenCenter;
+
+        const safetyMargin = 30; // 30px spacing between card and title text
+        const minCenterDist = titleWidth / 2 + safetyMargin + cardWidth / 2;
+
+        if (Math.abs(distToCenter) < minCenterDist) {
+            const targetDist = distToCenter >= 0 ? minCenterDist : -minCenterDist;
+            const pushX = targetDist - distToCenter;
+
+            card.style.setProperty('--drag-x', `${pushX}px`);
+            card.setAttribute('data-drag-x', pushX.toString());
+
+            if (item) {
+                let line: SVGElement | null = null;
+                if (card.classList.contains('timeline-parent-card')) {
+                    line = item.querySelector('.line-parent') as SVGElement;
+                } else {
+                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                    if (itemIdx && evtIdx) {
+                        line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`) as SVGElement;
+                    }
+                }
+                if (line) {
+                    const origX2 = parseFloat(line.getAttribute('data-original-x2') || '0');
+                    line.setAttribute('x2', (origX2 + pushX).toString());
+                }
+            }
+        }
+    }
+
+    function initPushAway() {
+        const activeCardsOnLoad = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+        activeCardsOnLoad.forEach(card => {
+            pushCardHorizontally(card as HTMLElement);
+        });
+    }
 
     if (timelineSection && timelineContainer && window.innerWidth >= 768) {
         timelineSection.addEventListener('wheel', (e) => {
             const wheelEvent = e as WheelEvent;
+            
+            // If the wheel event is within an active info card, let the card's own wheel listener handle it
+            const target = wheelEvent.target as HTMLElement;
+            const card = target && target.closest('.timeline-parent-card, .timeline-milestone-card') as HTMLElement;
+            if (card) {
+                return;
+            }
+            
             const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
             
+            // Apply boundary buffer
+            if (shouldBlockBoundaryScroll(wheelEvent.deltaY)) {
+                wheelEvent.preventDefault();
+                return;
+            }
+
             // Allow vertical native scrolling down ONLY if we hit the right boundary
             if (wheelEvent.deltaY > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
                 return;
@@ -810,13 +1313,16 @@ const colors: Record<string, ColorClasses> = {
                 futureLine.style.top = `${relativeTop}px`;
             }
             
+            const pastContainer = document.getElementById('timeline-revealed-past');
             const arrowShape = movingArrow.querySelector('svg');
             if (maxRevealPos >= actualEndPos - 1) {
+                pastContainer?.classList.add('fully-revealed');
                 arrowShape?.classList.remove('text-primary');
                 arrowShape?.classList.add('text-gray-400', 'dark:text-gray-600');
                 document.getElementById('scanner-laser-1')?.classList.add('opacity-0');
                 document.getElementById('scanner-laser-2')?.classList.add('opacity-0');
             } else {
+                pastContainer?.classList.remove('fully-revealed');
                 arrowShape?.classList.add('text-primary');
                 arrowShape?.classList.remove('text-gray-400', 'dark:text-gray-600');
                 document.getElementById('scanner-laser-1')?.classList.remove('opacity-0');
@@ -825,9 +1331,23 @@ const colors: Record<string, ColorClasses> = {
         }
         
         timelineContainer.addEventListener('scroll', updateReveal);
-        window.addEventListener('resize', updateReveal);
+        timelineContainer.addEventListener('scroll', updateTitleMask);
+        window.addEventListener('resize', () => {
+            updateReveal();
+            updateTitleMask();
+        });
         updateReveal();
-        setTimeout(updateReveal, 100);
+        initPushAway();
+        updateTitleMask();
+        setTimeout(() => {
+            updateReveal();
+            initPushAway();
+            updateTitleMask();
+        }, 100);
+        setTimeout(() => {
+            initPushAway();
+            updateTitleMask();
+        }, 1200);
         
         // --- Timeline Intersection Animations ---
         const timelineItems = document.querySelectorAll('.timeline-item');
@@ -848,28 +1368,437 @@ const colors: Record<string, ColorClasses> = {
                 threshold: 0.1
             });
 
-            timelineItems.forEach(item => itemObserver.observe(item));
+            timelineItems.forEach(item => {
+                itemObserver.observe(item);
+                item.addEventListener('transitionend', () => {
+                    const activeCards = item.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+                    activeCards.forEach(card => {
+                        pushCardHorizontally(card as HTMLElement);
+                    });
+                    updateTitleMask();
+                });
+            });
         }
 
-        // --- Timeline Hover Card Cursor Tracking ---
+        // --- Draggable & Toggleable Timeline Card Logic ---
+        
+        // Helper to toggle active status and reset card coordinates on drag close
+        function openCard(card: HTMLElement) {
+            card.classList.add('active');
+            
+            // Highlight line and make it visible
+            const item = card.closest('.timeline-item') as HTMLElement;
+            if (item) {
+                item.classList.add('has-active-card');
+                maxTimelineZIndex++;
+                item.style.zIndex = maxTimelineZIndex.toString();
+                if (card.classList.contains('timeline-parent-card')) {
+                    const line = item.querySelector('.line-parent');
+                    line?.classList.add('visible');
+                } else {
+                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                    if (itemIdx && evtIdx) {
+                        const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
+                        line?.classList.add('visible');
+                    }
+                }
+            }
+            updateTitleMask();
+        }
+
+        function closeCard(card: HTMLElement) {
+            card.classList.remove('active');
+            resetCardDrag(card);
+            
+            // Hide line
+            const item = card.closest('.timeline-item') as HTMLElement;
+            if (item) {
+                const otherActiveCards = item.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+                if (otherActiveCards.length === 0) {
+                    item.classList.remove('has-active-card');
+                    item.style.zIndex = '';
+                }
+                if (card.classList.contains('timeline-parent-card')) {
+                    const line = item.querySelector('.line-parent');
+                    line?.classList.remove('visible', 'highlighted');
+                } else {
+                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                    if (itemIdx && evtIdx) {
+                        const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
+                        line?.classList.remove('visible', 'highlighted');
+                    }
+                }
+            }
+            updateTitleMask();
+        }
+
+        function resetCardDrag(card: HTMLElement) {
+            card.style.removeProperty('--drag-x');
+            card.style.removeProperty('--drag-y');
+            card.style.transform = '';
+            card.style.transition = '';
+            card.removeAttribute('data-drag-x');
+            card.removeAttribute('data-drag-y');
+            card.classList.remove('dragging');
+            
+            const item = card.closest('.timeline-item') as HTMLElement;
+            if (!item) return;
+            
+            if (card.classList.contains('timeline-parent-card')) {
+                const line = item.querySelector('.line-parent') as SVGElement;
+                if (line) {
+                    const origX2 = line.getAttribute('data-original-x2');
+                    const origY2 = line.getAttribute('data-original-y2');
+                    if (origX2) line.setAttribute('x2', origX2);
+                    if (origY2) line.setAttribute('y2', origY2);
+                }
+            } else {
+                const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                if (itemIdx && evtIdx) {
+                    const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`) as SVGElement;
+                    if (line) {
+                        const origX2 = line.getAttribute('data-original-x2');
+                        const origY2 = line.getAttribute('data-original-y2');
+                        if (origX2) line.setAttribute('x2', origX2);
+                        if (origY2) line.setAttribute('y2', origY2);
+                    }
+                }
+            }
+        }
+
+        // Initialize visible state for cards starting with 'active' class
+        const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+        activeCards.forEach(card => {
+            const item = card.closest('.timeline-item') as HTMLElement;
+            if (item) {
+                item.classList.add('has-active-card');
+                if (card.classList.contains('timeline-parent-card')) {
+                    const line = item.querySelector('.line-parent');
+                    line?.classList.add('visible');
+                } else {
+                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                    if (itemIdx && evtIdx) {
+                        const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
+                        line?.classList.add('visible');
+                    }
+                }
+            }
+        });
+
+        // 1. Toggle on click of Timeline capsule/point
+        const capsulesAndPoints = document.querySelectorAll('.timeline-parent-capsule, .timeline-parent-point');
+        capsulesAndPoints.forEach(trigger => {
+            trigger.addEventListener('click', (e) => {
+                const item = trigger.closest('.timeline-item') as HTMLElement;
+                if (!item) return;
+                const card = item.querySelector('.timeline-parent-card') as HTMLElement;
+                if (!card) return;
+                
+                const isActive = card.classList.contains('active');
+                if (isActive) {
+                    closeCard(card);
+                } else {
+                    openCard(card);
+                }
+            });
+        });
+
+        // 2. Toggle on click of milestone pin
+        const milestonePins = document.querySelectorAll('.milestone-pin');
+        milestonePins.forEach(pin => {
+            pin.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = pin.closest('.timeline-item') as HTMLElement;
+                if (!item) return;
+                const itemIdx = pin.getAttribute('data-item-idx');
+                const evtIdx = pin.getAttribute('data-evt-idx');
+                const card = item.querySelector(`.milestone-card-${itemIdx}-${evtIdx}`) as HTMLElement;
+                if (!card) return;
+
+                const isActive = card.classList.contains('active');
+                if (isActive) {
+                    closeCard(card);
+                } else {
+                    openCard(card);
+                }
+            });
+        });
+
+        // 3. Bind close button inside cards
+        const closeBtns = document.querySelectorAll('.close-card-btn');
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = btn.closest('.timeline-parent-card, .timeline-milestone-card') as HTMLElement;
+                if (card) {
+                    closeCard(card);
+                }
+            });
+        });
+
+        // 3.5 Bring card to front on click/touch & handle wheel scroll event
+        const timelineCards = document.querySelectorAll('.timeline-parent-card, .timeline-milestone-card');
+        timelineCards.forEach(el => {
+            const card = el as HTMLElement;
+            
+            const bringToFront = () => {
+                const item = card.closest('.timeline-item') as HTMLElement;
+                if (item) {
+                    maxTimelineZIndex++;
+                    item.style.zIndex = maxTimelineZIndex.toString();
+                }
+            };
+            card.addEventListener('mousedown', bringToFront);
+            card.addEventListener('touchstart', bringToFront);
+            
+            card.addEventListener('wheel', (e) => {
+                const wheelEvent = e as WheelEvent;
+                const scrollablePara = card.querySelector('.custom-scrollbar') as HTMLElement;
+                
+                if (scrollablePara && scrollablePara.scrollHeight > scrollablePara.clientHeight) {
+                    const atTop = scrollablePara.scrollTop <= 0;
+                    const atBottom = scrollablePara.scrollTop + scrollablePara.clientHeight >= scrollablePara.scrollHeight - 1;
+                    
+                    if (wheelEvent.deltaY > 0 && !atBottom) {
+                        scrollablePara.scrollTop += wheelEvent.deltaY;
+                        wheelEvent.preventDefault();
+                        return;
+                    }
+                    if (wheelEvent.deltaY < 0 && !atTop) {
+                        scrollablePara.scrollTop += wheelEvent.deltaY;
+                        wheelEvent.preventDefault();
+                        return;
+                    }
+                }
+                
+                const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
+                
+                // Apply boundary buffer
+                if (shouldBlockBoundaryScroll(wheelEvent.deltaY)) {
+                    wheelEvent.preventDefault();
+                    return;
+                }
+
+                if (wheelEvent.deltaY > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
+                    return;
+                }
+                if (wheelEvent.deltaY < 0 && timelineContainer.scrollLeft <= 0) {
+                    return;
+                }
+                
+                wheelEvent.preventDefault();
+                timelineContainer.scrollLeft += wheelEvent.deltaY;
+            }, { passive: false });
+        });
+
+        // 4. Highlight lines on card hover
         timelineItems.forEach(el => {
             const item = el as HTMLElement;
-            const card = item.querySelector('.hover-info-card') as HTMLElement;
-            if (card) {
-                // Pre set to center so it looks good if it renders before mousemove triggers
-                card.style.left = '50%';
-                card.style.top = '0px';
-                
-                item.addEventListener('mousemove', (e) => {
-                    const rect = item.getBoundingClientRect();
-                    // Cursor X/Y relative to the local timeline item wrapper
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    
-                    card.style.left = `${x}px`;
-                    card.style.top = `${y}px`;
+            
+            // Parent card hover highlights
+            const parentCard = item.querySelector('.timeline-parent-card');
+            const parentLines = item.querySelectorAll('.line-parent');
+            
+            const highlightParent = (val: boolean) => {
+                parentLines.forEach(l => {
+                    if (val) l.classList.add('highlighted');
+                    else l.classList.remove('highlighted');
                 });
+            };
+            if (parentCard) {
+                parentCard.addEventListener('mouseenter', () => highlightParent(true));
+                parentCard.addEventListener('mouseleave', () => highlightParent(false));
             }
+
+            // Milestone pin and card highlights
+            const pins = item.querySelectorAll('.milestone-pin');
+            pins.forEach(pin => {
+                const itemIdx = pin.getAttribute('data-item-idx');
+                const evtIdx = pin.getAttribute('data-evt-idx');
+                if (itemIdx !== null && evtIdx !== null) {
+                    const mCard = item.querySelector(`.milestone-card-${itemIdx}-${evtIdx}`);
+                    const mLines = item.querySelectorAll(`.line-milestone-${itemIdx}-${evtIdx}`);
+
+                    const highlightMilestone = (val: boolean) => {
+                        mLines.forEach(l => {
+                            if (val) l.classList.add('highlighted');
+                            else l.classList.remove('highlighted');
+                        });
+                    };
+
+                    pin.addEventListener('mouseenter', () => highlightMilestone(true));
+                    pin.addEventListener('mouseleave', () => highlightMilestone(false));
+                    if (mCard) {
+                        mCard.addEventListener('mouseenter', () => highlightMilestone(true));
+                        mCard.addEventListener('mouseleave', () => highlightMilestone(false));
+                    }
+                }
+            });
+        });
+
+        // 5. Card Drag Handle Event Listeners (Mouse & Touch)
+        const dragHandles = document.querySelectorAll('.drag-handle');
+        dragHandles.forEach(handle => {
+            let startX = 0;
+            let startY = 0;
+            let initialDragX = 0;
+            let initialDragY = 0;
+            let card: HTMLElement | null = null;
+            let line: SVGElement | null = null;
+            let lineX2Baseline = 0;
+            let lineY2Baseline = 0;
+            let isDragging = false;
+
+            const onMouseMove = (e: MouseEvent) => {
+                if (!isDragging || !card) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const newDragX = initialDragX + dx;
+                const newDragY = initialDragY + dy;
+                
+                card.style.setProperty('--drag-x', `${newDragX}px`);
+                card.style.setProperty('--drag-y', `${newDragY}px`);
+                card.setAttribute('data-drag-x', newDragX.toString());
+                card.setAttribute('data-drag-y', newDragY.toString());
+
+                if (line) {
+                    line.setAttribute('x2', (lineX2Baseline + dx).toString());
+                    line.setAttribute('y2', (lineY2Baseline + dy).toString());
+                }
+                updateTitleMask();
+            };
+
+            const onMouseUp = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                if (card) {
+                    card.style.transition = '';
+                    card.classList.remove('dragging');
+                }
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            handle.addEventListener('mousedown', (e) => {
+                const mouseEvent = e as MouseEvent;
+                if (mouseEvent.button !== 0) return; // Left click only
+                
+                card = handle.closest('.timeline-parent-card, .timeline-milestone-card') as HTMLElement;
+                if (!card) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                startX = mouseEvent.clientX;
+                startY = mouseEvent.clientY;
+                initialDragX = parseFloat(card.getAttribute('data-drag-x') || '0');
+                initialDragY = parseFloat(card.getAttribute('data-drag-y') || '0');
+                
+                card.style.transition = 'none'; // Disable animations during active drag
+                card.classList.add('dragging');
+                isDragging = true;
+
+                const item = card.closest('.timeline-item') as HTMLElement;
+                if (item) {
+                    maxTimelineZIndex++;
+                    item.style.zIndex = maxTimelineZIndex.toString();
+
+                    // Find corresponding line
+                    if (card.classList.contains('timeline-parent-card')) {
+                        line = item.querySelector('.line-parent') as SVGElement;
+                    } else {
+                        const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                        const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                        if (itemIdx && evtIdx) {
+                            line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`) as SVGElement;
+                        }
+                    }
+                    if (line) {
+                        lineX2Baseline = parseFloat(line.getAttribute('x2') || '0');
+                        lineY2Baseline = parseFloat(line.getAttribute('y2') || '0');
+                    }
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
+            // Touch Drag Support
+            const onTouchMove = (e: TouchEvent) => {
+                if (!isDragging || !card) return;
+                const touch = e.touches[0];
+                const dx = touch.clientX - startX;
+                const dy = touch.clientY - startY;
+                const newDragX = initialDragX + dx;
+                const newDragY = initialDragY + dy;
+                
+                card.style.setProperty('--drag-x', `${newDragX}px`);
+                card.style.setProperty('--drag-y', `${newDragY}px`);
+                card.setAttribute('data-drag-x', newDragX.toString());
+                card.setAttribute('data-drag-y', newDragY.toString());
+
+                if (line) {
+                    line.setAttribute('x2', (lineX2Baseline + dx).toString());
+                    line.setAttribute('y2', (lineY2Baseline + dy).toString());
+                }
+                updateTitleMask();
+            };
+
+            const onTouchEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                if (card) {
+                    card.style.transition = '';
+                    card.classList.remove('dragging');
+                }
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', onTouchEnd);
+            };
+
+            handle.addEventListener('touchstart', (e) => {
+                card = handle.closest('.timeline-parent-card, .timeline-milestone-card') as HTMLElement;
+                if (!card) return;
+                
+                e.stopPropagation();
+                
+                const touch = (e as TouchEvent).touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+                initialDragX = parseFloat(card.getAttribute('data-drag-x') || '0');
+                initialDragY = parseFloat(card.getAttribute('data-drag-y') || '0');
+                
+                card.style.transition = 'none';
+                card.classList.add('dragging');
+                isDragging = true;
+
+                const item = card.closest('.timeline-item') as HTMLElement;
+                if (item) {
+                    maxTimelineZIndex++;
+                    item.style.zIndex = maxTimelineZIndex.toString();
+
+                    // Find corresponding line
+                    if (card.classList.contains('timeline-parent-card')) {
+                        line = item.querySelector('.line-parent') as SVGElement;
+                    } else {
+                        const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                        const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                        if (itemIdx && evtIdx) {
+                            line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`) as SVGElement;
+                        }
+                    }
+                    if (line) {
+                        lineX2Baseline = parseFloat(line.getAttribute('x2') || '0');
+                        lineY2Baseline = parseFloat(line.getAttribute('y2') || '0');
+                    }
+                }
+
+                document.addEventListener('touchmove', onTouchMove, { passive: true });
+                document.addEventListener('touchend', onTouchEnd);
+            });
         });
     }
 
@@ -970,16 +1899,83 @@ const colors: Record<string, ColorClasses> = {
     box-shadow: 0 20px 50px -10px rgba(var(--color-primary-rgb, 255, 125, 26), 0.2);
   }
 
-  /* Force hide main timeline tooltip when a milestone pin is hovered */
-  .timeline-item:has(.milestone-pin:hover) .hover-info-card {
-      opacity: 0 !important;
-      transform: scale(0.95) !important;
-      pointer-events: none !important;
+  .timeline-item line.line-parent,
+  .timeline-item line[class*="line-milestone-"] {
+      stroke-width: 2px;
+      stroke-dasharray: 4 4;
+      transition: stroke-dasharray 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+  }
+  .timeline-item line.line-parent.visible,
+  .timeline-item line[class*="line-milestone-"].visible {
+      opacity: 0.4;
+  }
+  .timeline-item line.line-parent.visible.highlighted,
+  .timeline-item line[class*="line-milestone-"].visible.highlighted {
+      stroke-dasharray: none;
+      opacity: 1;
+  }
+
+  /* Timeline Info Cards Styling */
+  .timeline-parent-card,
+  .timeline-milestone-card {
+      opacity: 0;
+      pointer-events: none;
+      --card-scale: 0;
+      --drag-x: 0px;
+      --drag-y: 0px;
+      transform: translate(calc(-50% + var(--drag-x)), var(--drag-y)) scale(var(--card-scale));
+      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.7s ease;
+  }
+  .timeline-parent-card.active,
+  .timeline-milestone-card.active {
+      opacity: 1;
+      pointer-events: auto;
+      --card-scale: 1;
+  }
+  
+  /* Thin custom scrollbar for cards */
+  .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+  }
+  :global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+  }
+  .timeline-parent-card.dragging,
+  .timeline-milestone-card.dragging {
+      transition: none !important;
+  }
+  
+  .timeline-item.has-active-card {
+      z-index: 40;
+  }
+  .timeline-item.has-active-card:hover {
+      z-index: 50;
+  }
+  .timeline-wireframe-line {
+      stroke: #6b7280;
+      stroke-width: 2px;
+      stroke-dasharray: 4 4;
+  }
+  :global(.dark) .timeline-wireframe-line {
+      stroke: #94a3b8;
   }
 
   #timeline-revealed-past {
       -webkit-mask-image: linear-gradient(to right, black 0px, black calc(var(--reveal-pos, 0px) + 50vw - 20px), transparent calc(var(--reveal-pos, 0px) + 50vw + 20px));
       mask-image: linear-gradient(to right, black 0px, black calc(var(--reveal-pos, 0px) + 50vw - 20px), transparent calc(var(--reveal-pos, 0px) + 50vw + 20px));
+  }
+  #timeline-revealed-past.fully-revealed {
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
   }
 
   #timeline-revealed-future {

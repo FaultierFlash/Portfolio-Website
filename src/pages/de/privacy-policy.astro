@@ -1,0 +1,40 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TextFadeIn from "../../components/TextFadeIn.astro";
+import { getLegalPage } from "../../lib/sanity";
+import { marked } from "marked";
+
+const locale = "de";
+const type = "privacy";
+
+const pageData = await getLegalPage(type, locale);
+const parsedBody = pageData?.content ? marked.parse(pageData.content, { async: false }) as string : "";
+const pageTitle = pageData?.title || "Datenschutzerklärung";
+---
+
+<BaseLayout title={pageTitle}>
+  <section class="legal-section py-20 px-4">
+    <div class="container max-w-4xl mx-auto">
+      <TextFadeIn targetSelectors="h1, h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
+        <h1 class="text-4xl md:text-5xl font-extrabold mb-10 text-primary">{pageTitle}</h1>
+        
+        {pageData ? (
+          <div class="prose prose-slate dark:prose-invert prose-lg max-w-none space-y-6" set:html={parsedBody} />
+        ) : (
+          <div class="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-6 text-center">
+            <p class="text-orange-500 font-bold mb-4">Diese Seite ist in Sanity CMS noch nicht konfiguriert.</p>
+            <p class="text-sm opacity-80">Bitte öffne dein Sanity Studio und erstelle ein neues Dokument vom Typ <strong>Legal Page</strong> mit dem Seitentyp <strong>Privacy Policy</strong> und der Sprache <strong>German (de)</strong>, um diesen Inhalt zu bearbeiten.</p>
+          </div>
+        )}
+      </TextFadeIn>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .legal-section {
+    font-family: "Raleway", sans-serif;
+    line-height: 1.7;
+    color: var(--color-text);
+  }
+</style>

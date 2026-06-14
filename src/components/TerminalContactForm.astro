@@ -1,6 +1,5 @@
 ---
 // src/components/TerminalContactForm.astro
-import type { FunctionalComponent } from "astro/runtime"; // Optional for typing
 import fs from "fs"; // Import Node.js file system module
 import path from "path"; // Import Node.js path module
 import { fileURLToPath } from "url"; // Helper to get current file path
@@ -36,9 +35,11 @@ interface TerminalTranslations {
 
 interface Props {
   translations: TerminalTranslations;
+  projects?: any[];
+  currentLocale?: string;
 }
 
-const { translations } = Astro.props;
+const { translations, projects = [], currentLocale = "en" } = Astro.props;
 
 // --- Read and Process ASCII Art File ---
 let apertureAsciiProcessed: string[] = ["Error: ASCII Art file not found."]; // Default error message
@@ -59,6 +60,7 @@ try {
 // Prepare data for the client-side script
 const translationsJson = JSON.stringify(translations);
 const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
+const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p.slug?.current || p.slug })));
 ---
 
 {/* --- Added 'dark' class to force dark mode --- */}
@@ -78,6 +80,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     </div>
     {/* --- Container for output content vs power button --- */}
     <div id="output-container" class="terminal-output-container">
+      <canvas id="terminal-matrix-canvas" class="matrix-canvas hidden"></canvas>
       <div id="output" class="terminal-output"></div>
       {/* Power button will be added here by JS */}
     </div>
@@ -87,13 +90,15 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         {/* Prompt text and color set by JS */}
         <span id="prompt" class="prompt prompt-hostname"></span>
         {/* Added prompt-hostname class */}
-        <input
-          type="text"
-          id="commandInput"
-          class="terminal-input"
-          autocomplete="off"
-        />
-        <span class="cursor"></span>
+        <div class="input-wrapper">
+          <div id="input-display" class="input-display"></div>
+          <input
+            type="text"
+            id="commandInput"
+            class="terminal-input"
+            autocomplete="off"
+          />
+        </div>
       </div>
       {/* Text Area for Message */}
       <div
@@ -118,7 +123,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   </div>
 </div>
 
-<style>
+<style is:global>
   /* Apply Fira Code font specifically to the terminal wrapper */
   .component-terminal-wrapper {
     font-family: "Fira Code", monospace;
@@ -128,9 +133,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   .terminal-window {
     /* Use fixed positioning by default, but allow override (e.g. for homepage anchoring) */
     position: var(--terminal-position, fixed);
-    background-color: var(--color-border); /* Use CSS variables */
-    border: 1px solid var(--color-accent);
-    color: var(--color-text);
+    background-color: var(--term-bg, var(--color-border));
+    border: 1px solid var(--term-border, var(--color-accent));
+    color: var(--term-text, var(--color-text));
     border-radius: 0.5rem; /* rounded-lg */
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     overflow: hidden; /* Important for containing elements */
@@ -156,22 +161,73 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 
   /* --- Force Dark Mode Styles --- */
   .dark .terminal-window {
-    background-color: var(--color-border);
-    border-color: var(--color-accent);
-    color: var(--color-text);
+    background-color: var(--term-bg, var(--color-border));
+    border-color: var(--term-border, var(--color-accent));
+    color: var(--term-text, var(--color-text));
+  }
+
+  /* --- Terminal Theme Definitions --- */
+  .terminal-window.theme-classic {
+    --term-bg: #030a05;
+    --term-text: #39ff14;
+    --term-accent: #00ff66;
+    --term-border: #004411;
+  }
+  .terminal-window.theme-amber {
+    --term-bg: #0c0600;
+    --term-text: #ffb000;
+    --term-accent: #ffd700;
+    --term-border: #663300;
+  }
+  .terminal-window.theme-cyberpunk {
+    --term-bg: #0b0214;
+    --term-text: #00f0ff;
+    --term-accent: #ff007f;
+    --term-border: #4a0e4e;
+  }
+  .terminal-window.theme-solar {
+    --term-bg: #0f0200;
+    --term-text: #ff6600;
+    --term-accent: #ffb700;
+    --term-border: #6b0000;
+  }
+
+  /* --- Scanlines CRT Effect --- */
+  .terminal-window.scanlines::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.15) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 99;
+    pointer-events: none;
+    opacity: 0.4;
+  }
+  .terminal-window.scanlines {
+    animation: terminal-flicker 0.15s infinite;
+  }
+  @keyframes terminal-flicker {
+    0% { opacity: 0.995; }
+    50% { opacity: 1; }
+    100% { opacity: 0.995; }
   }
   .dark .terminal-header {
-    background-color: rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--color-text);
+    background-color: rgba(0, 0, 0, 0.25);
+    border-bottom: 1px solid var(--term-border, rgba(255, 255, 255, 0.1));
+    color: var(--term-text, var(--color-text));
     cursor: grab; /* Cursor for dragging */
   }
   .dark .input-area-container {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--term-border, rgba(255, 255, 255, 0.1));
   }
   .dark .editor-info-bar {
-    background-color: rgba(0, 0, 0, 0.2);
-    color: var(--color-secondary);
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--term-accent, var(--color-secondary));
+    border-bottom: 1px solid var(--term-border, rgba(255, 255, 255, 0.05));
   }
   .dark .terminal-output::-webkit-scrollbar-thumb {
     background-color: var(--color-secondary);
@@ -183,16 +239,15 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   .dark .message-textarea::-webkit-scrollbar-thumb {
     background-color: var(--color-secondary);
   }
-  .dark .terminal-input-line .cursor {
-    background-color: var(--color-text);
-  }
-  .dark @keyframes blink {
+  @keyframes blink {
     from,
     to {
       background-color: transparent;
+      color: inherit;
     }
     50% {
-      background-color: var(--color-text);
+      background-color: var(--term-accent, var(--color-text));
+      color: var(--term-bg, var(--color-border));
     }
   }
 
@@ -219,6 +274,18 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+  .matrix-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 80;
+    background-color: #000000;
+  }
+  .matrix-canvas.hidden {
+    display: none !important;
   }
 
   /* Terminal Output Area */
@@ -256,49 +323,75 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
-    background-color: var(--color-border);
+    background-color: var(--term-bg, var(--color-border));
     transition: background-color 0.3s ease;
   }
+  .input-wrapper {
+    position: relative;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+  }
+  .input-display {
+    pointer-events: none;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--term-text, inherit);
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    line-height: inherit;
+  }
+  .input-display .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.25em;
+    background-color: var(--term-accent, var(--color-text));
+    color: var(--term-bg, var(--color-border));
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+  }
+  .input-display .cursor-inactive {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.25em;
+    outline: 1px solid var(--term-accent, var(--color-text));
+    color: inherit;
+    vertical-align: text-bottom;
+  }
+  .input-display .text-selected {
+    background-color: var(--term-accent, var(--color-text));
+    color: var(--term-bg, var(--color-border));
+  }
   .terminal-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background-color: transparent;
     border: none;
     outline: none;
-    color: inherit;
-    width: 100%;
-    caret-color: var(--color-text);
+    color: transparent !important;
+    caret-color: transparent !important;
     padding: 0;
     margin: 0;
     font-family: inherit;
     font-size: inherit;
-    flex-grow: 1;
+    line-height: inherit;
   }
-  .prompt {
+  .terminal-window .prompt {
     font-weight: bold;
     white-space: pre;
     margin-right: 0.5em;
     /* Color set by JS */
   }
 
-  /* Blinking Cursor */
-  .terminal-input-line .cursor {
-    display: inline-block;
-    width: 8px;
-    height: 1.2em;
-    animation: blink 1s step-end infinite;
-    margin-left: 2px;
-    vertical-align: bottom;
-    transition: background-color 0.3s ease;
-  }
-  .terminal-input-line:not(.focused) .cursor {
-    display: none;
-  }
-  .terminal-input:focus {
-    caret-color: transparent;
-  }
-
   /* Message Editor Styles */
   .message-editor-container {
-    background-color: var(--color-border);
+    background-color: var(--term-bg, var(--color-border));
     display: flex;
     flex-direction: column;
     min-height: 200px;
@@ -308,13 +401,13 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     position: relative;
     padding-bottom: 2.5rem;
   }
-  .editor-info-bar {
+  .terminal-window .editor-info-bar {
     font-size: 0.7rem;
     padding: 0.25rem 1rem;
     text-align: center;
     flex-shrink: 0;
   }
-  .message-textarea {
+  .terminal-window .message-textarea {
     flex-grow: 1;
     background-color: transparent;
     border: none;
@@ -330,18 +423,18 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     caret-color: var(--color-text);
     min-height: 150px;
   }
-  .message-textarea::-webkit-scrollbar {
+  .terminal-window .message-textarea::-webkit-scrollbar {
     width: 6px;
   }
-  .message-textarea::-webkit-scrollbar-track {
+  .terminal-window .message-textarea::-webkit-scrollbar-track {
     background: transparent;
   }
-  .message-textarea::-webkit-scrollbar-thumb {
+  .terminal-window .message-textarea::-webkit-scrollbar-thumb {
     border-radius: 3px;
   }
 
   /* Send Button Style */
-  .send-button {
+  .terminal-window .send-button {
     position: absolute;
     bottom: 0.5rem;
     right: 1rem;
@@ -358,25 +451,25 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       opacity 0.2s ease;
     z-index: 3;
   }
-  .send-button:hover,
-  .send-button:focus {
+  .terminal-window .send-button:hover,
+  .terminal-window .send-button:focus {
     opacity: 0.9;
   }
-  .send-button:disabled {
+  .terminal-window .send-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
   /* Output line styles */
-  .output-line {
+  .terminal-window .output-line {
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--color-text); /* Default text color */
+    color: var(--term-text, var(--color-text)); /* Default text color */
     margin-bottom: 0.25rem;
     display: flex;
   }
-  .output-line .line-prefix {
-    color: var(--color-primary); /* Prefix color */
+  .terminal-window .output-line .line-prefix {
+    color: var(--term-accent, var(--color-primary)); /* Prefix color */
     font-weight: bold;
     white-space: pre;
     flex-shrink: 0;
@@ -387,10 +480,10 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     /* Text color is inherited from .output-line -> .terminal-window */
   }
   .error-text {
-    color: #f44747;
+    color: var(--term-error, #f44747);
   }
   .success-text {
-    color: var(--color-accent);
+    color: var(--term-accent, var(--color-accent));
   }
   .user-input-text {
     /* Default color (inherited) */
@@ -408,7 +501,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
   }
   .ascii-art .line-text {
     white-space: pre !important;
-    color: var(--color-primary);
+    color: var(--term-accent, var(--color-primary));
   }
 
   /* Scrollbar styling */
@@ -571,11 +664,15 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
 {
   /* --- Frontmatter (Astro props, imports, translationsJson, apertureAsciiJson) remains the same as in your initial project overview --- */
 }
-<script define:vars={{ translationsJson, apertureAsciiJson }}>
+<script is:inline define:vars={{ translationsJson, apertureAsciiJson, projectsJson, currentLocale }}>
   // At the VERY TOP of the <script define:vars={{...}}> block:
   console.log(
     "TerminalContactForm Script: Parsed and waiting for DOM/Astro events.",
   );
+  // @ts-ignore
+  const projects = JSON.parse(projectsJson);
+  // @ts-ignore
+  const currentLang = currentLocale;
 
   let currentTerminalCleanup = null;
   let currentWindowResizeHandler = null;
@@ -634,6 +731,19 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       `[Attempt ${currentAttemptId}] Proceeding with new terminal initialization logic.`,
     );
     terminalElement.dataset.terminalInstanceId = currentAttemptId;
+
+    // Restore saved terminal theme
+    const savedTheme = localStorage.getItem("terminal_theme") || "classic";
+    terminalElement.classList.remove("theme-classic", "theme-amber", "theme-cyberpunk", "theme-solar");
+    terminalElement.classList.add(`theme-${savedTheme}`);
+
+    // Restore saved scanlines
+    const savedScanlines = localStorage.getItem("terminal_scanlines") !== "false";
+    if (savedScanlines) {
+      terminalElement.classList.add("scanlines");
+    } else {
+      terminalElement.classList.remove("scanlines");
+    }
 
     let localTranslations;
     try {
@@ -712,6 +822,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     const inputLine = document.getElementById("input-line");
     const promptElement = document.getElementById("prompt");
     const commandInput = document.getElementById("commandInput");
+    const inputDisplay = document.getElementById("input-display");
     const messageEditorContainer = document.getElementById("message-editor");
     const messageInput = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
@@ -726,6 +837,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       inputLine,
       promptElement,
       commandInput,
+      inputDisplay,
       messageEditorContainer,
       messageInput,
       sendButton,
@@ -752,6 +864,45 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     let isSending = false;
     let isExited = false;
     
+    function updateInputDisplay() {
+      if (!commandInput || !inputDisplay) return;
+      const text = commandInput.value;
+      const selStart = commandInput.selectionStart ?? text.length;
+      const selEnd = commandInput.selectionEnd ?? text.length;
+      const isFocused = document.activeElement === commandInput;
+
+      const escape = (str) =>
+        str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      if (selStart === selEnd) {
+        const before = text.substring(0, selStart);
+        const under = text.substring(selStart, selStart + 1) || " ";
+        const after = text.substring(selStart + 1);
+
+        const beforeEscaped = escape(before);
+        const underEscaped = under === " " ? "&nbsp;" : escape(under);
+        const afterEscaped = escape(after);
+
+        const cursorClass = isFocused ? "cursor" : "cursor-inactive";
+        inputDisplay.innerHTML = `${beforeEscaped}<span class="${cursorClass}">${underEscaped}</span>${afterEscaped}`;
+      } else {
+        const before = text.substring(0, selStart);
+        const selected = text.substring(selStart, selEnd);
+        const after = text.substring(selEnd);
+
+        const beforeEscaped = escape(before);
+        const selectedEscaped = escape(selected);
+        const afterEscaped = escape(after);
+
+        inputDisplay.innerHTML = `${beforeEscaped}<span class="text-selected">${selectedEscaped}</span>${afterEscaped}`;
+      }
+    }
+    
     // Check if we are on a mobile device to prevent aggressive autofocusing
     let isMobile = false;
     try {
@@ -762,6 +913,19 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
     let dragStartX, dragStartY, initialLeft, initialTop;
     let isResizing = false;
     let resizeStartX, resizeStartY, initialWidth, initialHeight;
+
+    function getTerminalPosition() {
+      const rect = terminalWindow.getBoundingClientRect();
+      const parent = terminalWindow.offsetParent;
+      if (!parent || parent === document.body || parent === document.documentElement) {
+        return { left: rect.left, top: rect.top };
+      }
+      const parentRect = parent.getBoundingClientRect();
+      return {
+        left: rect.left - parentRect.left,
+        top: rect.top - parentRect.top
+      };
+    }
 
     function setInitialPositionAndSize() {
       // If the terminal has been manually moved or resized, skip automatic centering/sizing
@@ -919,7 +1083,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         return;
       }
       isTyping = true;
-      if (commandInput) commandInput.disabled = true;
+      if (commandInput) commandInput.readOnly = true;
 
       let i = 0;
       const speed = 30;
@@ -959,7 +1123,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
                 currentStep === 4 ||
                 currentStep === 5)
             ) {
-              if (commandInput) commandInput.disabled = false;
+              if (commandInput) commandInput.readOnly = false;
             }
             if (callback && !isExited) callback();
           }
@@ -969,7 +1133,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             error,
           );
           isTyping = false;
-          if (commandInput) commandInput.disabled = false;
+          if (commandInput) commandInput.readOnly = false;
           if (callback && !isExited) callback();
         }
       }
@@ -991,11 +1155,11 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         currentStep === 4 ? CONFIRM_PROMPT_SYMBOL : PROMPT_SYMBOL;
       promptElement.textContent =
         (isSmallScreen ? "" : HOSTNAME_PREFIX) + currentPromptSymbol;
-      promptElement.style.color = "var(--color-primary)";
+      promptElement.style.color = "var(--term-accent, var(--color-primary))";
       if (!isSmallScreen) promptElement.classList.add("prompt-hostname-prefix");
       else promptElement.classList.remove("prompt-hostname-prefix");
 
-      if (document.activeElement === commandInput && !commandInput.disabled) {
+      if (document.activeElement === commandInput && !commandInput.disabled && !commandInput.readOnly) {
         inputLine.classList.add("focused");
       } else {
         inputLine.classList.remove("focused");
@@ -1031,6 +1195,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         messageEditorContainer.style.display = "none";
         inputLine.style.display = "flex";
         commandInput.disabled = false;
+        commandInput.readOnly = false;
         messageInput.disabled = true;
         if (shouldFocus && !isMobile) {
           try {
@@ -1092,12 +1257,14 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         isTyping ||
         currentStep === 3 ||
         !commandInput ||
-        commandInput.disabled
+        commandInput.disabled ||
+        commandInput.readOnly
       )
         return;
       event.preventDefault();
       const command = commandInput.value.trim();
       commandInput.value = "";
+      updateInputDisplay();
       if (command) {
         addOutputLine(command, "user");
         processInput(command);
@@ -1129,7 +1296,8 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
         commandInput &&
         !isExited &&
         currentStep !== 3 &&
-        !commandInput.disabled
+        !commandInput.disabled &&
+        !commandInput.readOnly
       ) {
         try {
           if (document.activeElement !== commandInput) {
@@ -1195,6 +1363,220 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       return current;
     }
 
+    // --- Typewriter Sound FX Engine ---
+    function playTypewriterSound(isEnter = false) {
+      if (localStorage.getItem("terminal_sound_fx") === "false") return;
+      try {
+        const AudioContextClass = window.AudioContext || window["webkitAudioContext"];
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        filter.type = "highpass";
+        filter.frequency.value = isEnter ? 600 : 1200;
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (isEnter) {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(220, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } else {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(1000 + Math.random() * 500, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.03);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.03);
+        }
+      } catch (e) {}
+    }
+
+    // --- Matrix Digital Rain Code Overlay ---
+    let matrixInterval = null;
+    let isMatrixMode = false;
+
+    function startMatrixRain() {
+      const canvas = document.getElementById("terminal-matrix-canvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      canvas.classList.remove("hidden");
+      isMatrixMode = true;
+
+      // Set canvas size
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+
+      const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ";
+      const alphabet = letters.split("");
+
+      const fontSize = 14;
+      const columns = Math.floor(canvas.width / fontSize) + 1;
+
+      const rainDrops = [];
+      for (let x = 0; x < columns; x++) {
+        rainDrops[x] = Math.random() * -100;
+      }
+
+      function draw() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Access the current active theme color
+        let activeColor = "#39ff14"; // classic green
+        const term = document.getElementById("terminal");
+        if (term) {
+          if (term.classList.contains("theme-amber")) activeColor = "#ffb000";
+          else if (term.classList.contains("theme-cyberpunk")) activeColor = "#ff007f";
+          else if (term.classList.contains("theme-solar")) activeColor = "#ff6600";
+        }
+
+        ctx.fillStyle = activeColor;
+        ctx.font = fontSize + "px monospace";
+
+        for (let i = 0; i < rainDrops.length; i++) {
+          const text = alphabet[Math.floor(Math.random() * alphabet.length)];
+          const x = i * fontSize;
+          const y = rainDrops[i] * fontSize;
+
+          ctx.fillText(text, x, y);
+
+          if (y > canvas.height && Math.random() > 0.975) {
+            rainDrops[i] = 0;
+          }
+          rainDrops[i]++;
+        }
+      }
+
+      matrixInterval = setInterval(draw, 33);
+    }
+
+    function stopMatrixRain() {
+      isMatrixMode = false;
+      const canvas = document.getElementById("terminal-matrix-canvas");
+      if (canvas) {
+        canvas.classList.add("hidden");
+      }
+      if (matrixInterval) {
+        clearInterval(matrixInterval);
+        matrixInterval = null;
+      }
+    }
+
+    function resolvePath(basePath, relativePathParts, isAbsolute) {
+      let resolved = isAbsolute ? [] : [...basePath];
+      for (const part of relativePathParts) {
+        if (part === "" || part === ".") {
+          continue;
+        } else if (part === "..") {
+          resolved.pop();
+        } else {
+          resolved.push(part);
+        }
+      }
+      return resolved;
+    }
+
+    function handleTabComplete(event) {
+      if (event.key !== "Tab" || isTyping || isExited || !commandInput) return;
+      event.preventDefault(); // Stop focus change
+
+      const val = commandInput.value;
+      const cursorPosition = commandInput.selectionStart ?? val.length;
+      const textBefore = val.substring(0, cursorPosition);
+      const textAfter = val.substring(cursorPosition);
+
+      const words = textBefore.trimStart().split(/\s+/);
+      const isCommandWord = words.length <= 1 && !textBefore.endsWith(" ");
+
+      if (currentStep === 3) {
+        return; // No autocomplete in step 3 (message text area active)
+      }
+
+      let matches = [];
+      let completionPrefix = "";
+
+      if (currentStep === 4) {
+        // Confirmation step
+        const typed = words[0] || "";
+        const options = ["yes", "no", "edit"];
+        matches = options.filter(o => o.startsWith(typed.toLowerCase()));
+        completionPrefix = typed;
+      } else {
+        // Command mode (Step 0, 1, 2, 5)
+        if (isCommandWord) {
+          const typed = words[0] || "";
+          const commands = [
+            "ls", "cd", "cat", "ed", "edit", "help", "clear",
+            "whoami", "neofetch", "projects", "theme", "scanlines", "matrix",
+            "reset", "exit"
+          ];
+          matches = commands.filter(c => c.startsWith(typed.toLowerCase()));
+          completionPrefix = typed;
+        } else {
+          const trimmed = textBefore.trimStart();
+          const leadingSpacesLength = textBefore.length - trimmed.length;
+          const firstWordLength = words[0] ? words[0].length : 0;
+          const cmd = words[0] ? words[0].toLowerCase() : "";
+          const arg = textBefore.substring(leadingSpacesLength + firstWordLength).trimStart();
+
+          if (cmd === "theme") {
+            const options = ["classic", "amber", "cyberpunk", "solar"];
+            matches = options.filter(o => o.startsWith(arg.toLowerCase()));
+            completionPrefix = arg;
+          } else if (["cd", "cat", "ed", "edit"].includes(cmd)) {
+            const isAbsolute = arg.startsWith("/");
+            const pathParts = arg.split("/");
+            const segmentPrefix = pathParts.pop() || "";
+            const dirPathRelative = pathParts;
+
+            const targetDirArray = resolvePath(currentVfsPath, dirPathRelative, isAbsolute);
+            const targetDir = getVfsItem(targetDirArray);
+
+            if (targetDir && targetDir.type === "dir") {
+              const children = targetDir.children || [];
+              const matchedChildren = children.filter(c => c.name.toLowerCase().startsWith(segmentPrefix.toLowerCase()));
+              
+              matches = matchedChildren.map(c => {
+                const suffix = c.type === "dir" ? "/" : "";
+                return c.name + suffix;
+              });
+              completionPrefix = segmentPrefix;
+            }
+          }
+        }
+      }
+
+      if (matches.length === 1) {
+        // Single match
+        const match = matches[0];
+        const toAdd = match.substring(completionPrefix.length);
+        
+        const newVal = textBefore + toAdd + (match.endsWith("/") ? "" : " ");
+        commandInput.value = newVal + textAfter;
+        const newCursorPos = newVal.length;
+        commandInput.setSelectionRange(newCursorPos, newCursorPos);
+        updateInputDisplay();
+      } else if (matches.length > 1) {
+        // Multiple matches: show them in the terminal output
+        addOutputLine(" ", "info-no-prefix", false);
+        const matchStr = matches.join("    ");
+        addOutputLine(matchStr, "info-no-prefix", false);
+        addOutputLine(" ", "info-no-prefix", false);
+      }
+    }
+
     async function handleShellCommand(fullInput) {
       const parts = fullInput.trim().split(/\s+/);
       const cmd = parts[0].toLowerCase();
@@ -1203,7 +1585,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       switch (cmd) {
         case "help":
           addOutputLine(
-            "Available commands: ls, cd, cat, ed, help, clear, neofetch, whoami, reset, exit",
+            "Available commands: ls, cd, cat, ed, help, clear, neofetch, whoami, reset, exit, projects, theme, scanlines, matrix",
             "info",
           );
           break;
@@ -1292,6 +1674,48 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           addOutputLine(info, "html", false);
           break;
 
+        case "projects":
+          if (!projects || projects.length === 0) {
+            addOutputLine("No projects found in database.", "info");
+          } else {
+            addOutputLine("Accessing database... Projects list:", "success");
+            projects.forEach(p => {
+              const projectLink = `<a href="/${currentLang}/projects/${p.slug}" style="color:var(--term-accent, var(--color-accent)); text-decoration: underline;" target="_blank">${p.title}</a>`;
+              addOutputLine(`- ${projectLink}`, "html", false);
+            });
+          }
+          break;
+
+        case "theme":
+          if (!args[0]) {
+            addOutputLine("Usage: theme &lt;theme-name&gt;", "info");
+            addOutputLine("Available themes: classic, amber, cyberpunk, solar", "info");
+          } else {
+            const targetTheme = args[0].toLowerCase();
+            if (["classic", "amber", "cyberpunk", "solar"].includes(targetTheme)) {
+              terminalWindow.classList.remove("theme-classic", "theme-amber", "theme-cyberpunk", "theme-solar");
+              terminalWindow.classList.add(`theme-${targetTheme}`);
+              localStorage.setItem("terminal_theme", targetTheme);
+              addOutputLine(`Theme updated to: ${targetTheme}`, "success");
+            } else {
+              addOutputLine(`Unknown theme: ${targetTheme}. Available: classic, amber, cyberpunk, solar`, "error");
+            }
+          }
+          break;
+
+        case "scanlines":
+          const hasScanlines = terminalWindow.classList.toggle("scanlines");
+          localStorage.setItem("terminal_scanlines", hasScanlines ? "true" : "false");
+          addOutputLine(hasScanlines ? "CRT scanlines enabled." : "CRT scanlines disabled.", "success");
+          break;
+
+        case "matrix":
+          addOutputLine("Entering matrix code interface... Press any key to exit.", "success");
+          setTimeout(() => {
+            startMatrixRain();
+          }, 500);
+          break;
+
         default:
           return false; // Not a shell command we handle here
       }
@@ -1367,7 +1791,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             addOutputLine(translations.sending, "info");
             isSending = true;
             if (sendButton) sendButton.disabled = true;
-            if (commandInput) commandInput.disabled = true;
+            if (commandInput) commandInput.readOnly = true;
             try {
               const response = await fetch("/api/contact/initiate", {
                 method: "POST",
@@ -1397,7 +1821,7 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
                 translations.errorSending || "Failed to send: {message}"
               ).replace("{message}", error.message || "Unknown error");
               addOutputLine(errorMsg, "error");
-              if (commandInput) commandInput.disabled = false;
+              if (commandInput) commandInput.readOnly = false;
               displayConfirmation();
             } finally {
               isSending = false;
@@ -1546,6 +1970,8 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       currentStep = 0;
       isSending = false;
       isTyping = false;
+        commandInput.value = "";
+        updateInputDisplay();
 
       setInitialPositionAndSize();
       setInputMode("command");
@@ -1605,6 +2031,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       output.classList.remove("hidden");
       inputAreaContainer.classList.remove("hidden");
       output.innerHTML = "";
+
+        commandInput.value = "";
+        updateInputDisplay();
 
       commandInput.disabled = true;
       messageInput.disabled = true;
@@ -1668,12 +2097,14 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
             if (prompts[currentStep]) {
               typeWriter(prompts[currentStep], () => {
                 commandInput.disabled = false;
+                commandInput.readOnly = false;
                 isTyping = false;
                 focusCommandInput();
               });
             } else {
               addOutputLine("Error: Missing prompt.", "error");
               commandInput.disabled = false;
+              commandInput.readOnly = false;
               isTyping = false;
               focusCommandInput();
             }
@@ -1700,8 +2131,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       terminalWindow.dataset.terminalInteracted = "true";
       terminalWindow.classList.add("dragging");
       document.body.style.userSelect = "none";
-      initialLeft = terminalWindow.offsetLeft;
-      initialTop = terminalWindow.offsetTop;
+      const pos = getTerminalPosition();
+      initialLeft = pos.left;
+      initialTop = pos.top;
       if (e.type === "touchstart") {
         dragStartX = e.touches[0].clientX;
         dragStartY = e.touches[0].clientY;
@@ -1755,8 +2187,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       document.body.style.userSelect = "none";
       initialWidth = terminalWindow.offsetWidth;
       initialHeight = terminalWindow.offsetHeight;
-      initialLeft = terminalWindow.offsetLeft;
-      initialTop = terminalWindow.offsetTop;
+      const pos = getTerminalPosition();
+      initialLeft = pos.left;
+      initialTop = pos.top;
       if (e.type === "touchstart") {
         resizeStartX = e.touches[0].clientX;
         resizeStartY = e.touches[0].clientY;
@@ -1788,8 +2221,8 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       let newHeight = initialHeight + deltaY;
       newWidth = Math.max(MIN_TERMINAL_WIDTH, newWidth);
       newHeight = Math.max(MIN_TERMINAL_HEIGHT, newHeight);
-      const maxW = window.innerWidth - terminalWindow.offsetLeft;
-      const maxH = window.innerHeight - terminalWindow.offsetTop;
+      const maxW = window.innerWidth - initialLeft;
+      const maxH = window.innerHeight - initialTop;
       newWidth = Math.min(newWidth, maxW - 5);
       newHeight = Math.min(newHeight, maxH - 5);
       terminalWindow.style.width = `${newWidth}px`;
@@ -1850,7 +2283,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
           e.target === outputContainer ||
           e.target === output ||
           e.target === inputAreaContainer ||
-          e.target === messageEditorContainer;
+          e.target === messageEditorContainer ||
+          e.target === inputLine ||
+          e.target.closest(".terminal-input-line");
         if (targetIsBackground) {
           if (
             currentStep === 3 &&
@@ -1861,18 +2296,47 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
                 messageInput.focus({ preventScroll: true });
               } catch (err) {}
           } else if (currentStep < 5) {
-            if (commandInput && !commandInput.disabled) focusCommandInput(true);
+            if (commandInput && !commandInput.disabled && !commandInput.readOnly) focusCommandInput(true);
           }
         }
       }
     };
 
+    const playKeystroke = (e) => {
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key)) return;
+      playTypewriterSound(e.key === "Enter");
+    };
+
+    const globalMatrixKeydownHandler = (e) => {
+      if (isMatrixMode) {
+        e.preventDefault();
+        e.stopPropagation();
+        stopMatrixRain();
+        focusCommandInput();
+      }
+    };
+
+    const updateInputDisplayDelayed = () => setTimeout(updateInputDisplay, 0);
+
+    commandInput.addEventListener("input", updateInputDisplay);
+    commandInput.addEventListener("keydown", updateInputDisplayDelayed);
+    commandInput.addEventListener("keyup", updateInputDisplay);
+    commandInput.addEventListener("click", updateInputDisplay);
+    commandInput.addEventListener("focus", updateInputDisplay);
+    commandInput.addEventListener("blur", updateInputDisplay);
+    commandInput.addEventListener("select", updateInputDisplay);
+    updateInputDisplay();
+
+    commandInput.addEventListener("keydown", handleTabComplete);
     commandInput.addEventListener("keydown", handleCommand);
+    commandInput.addEventListener("keydown", playKeystroke);
     commandInput.addEventListener("focus", commandInputFocusHandler);
     commandInput.addEventListener("blur", commandInputBlurHandler);
     messageInput.addEventListener("keydown", handleTextareaKeys);
+    messageInput.addEventListener("keydown", playKeystroke);
     messageInput.addEventListener("focus", messageInputFocusHandler);
     messageInput.addEventListener("blur", messageInputBlurHandler);
+    window.addEventListener("keydown", globalMatrixKeydownHandler, true);
     sendButton.addEventListener("click", triggerSendConfirmation);
     terminalHeader.addEventListener("mousedown", dragStart);
     terminalHeader.addEventListener("touchstart", dragStart, {
@@ -1889,8 +2353,9 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       clearTimeout(windowResizeTimeout);
       windowResizeTimeout = setTimeout(() => {
         if (!isExited && terminalWindow) {
-          const currentLeft = terminalWindow.offsetLeft;
-          const currentTop = terminalWindow.offsetTop;
+          const pos = getTerminalPosition();
+          const currentLeft = pos.left;
+          const currentTop = pos.top;
           const currentWidth = terminalWindow.offsetWidth;
           const currentHeight = terminalWindow.offsetHeight;
           const viewportWidth = window.innerWidth;
@@ -1923,12 +2388,24 @@ const apertureAsciiJson = JSON.stringify(apertureAsciiProcessed);
       console.log(
         `[Attempt ${initId}] TerminalContactForm Script: Running cleanup for terminal instance.`,
       );
+      commandInput.removeEventListener("input", updateInputDisplay);
+      commandInput.removeEventListener("keydown", updateInputDisplayDelayed);
+      commandInput.removeEventListener("keyup", updateInputDisplay);
+      commandInput.removeEventListener("click", updateInputDisplay);
+      commandInput.removeEventListener("focus", updateInputDisplay);
+      commandInput.removeEventListener("blur", updateInputDisplay);
+      commandInput.removeEventListener("select", updateInputDisplay);
+
+      commandInput.removeEventListener("keydown", handleTabComplete);
       commandInput.removeEventListener("keydown", handleCommand);
+      commandInput.removeEventListener("keydown", playKeystroke);
       commandInput.removeEventListener("focus", commandInputFocusHandler);
       commandInput.removeEventListener("blur", commandInputBlurHandler);
       messageInput.removeEventListener("keydown", handleTextareaKeys);
+      messageInput.removeEventListener("keydown", playKeystroke);
       messageInput.removeEventListener("focus", messageInputFocusHandler);
       messageInput.removeEventListener("blur", messageInputBlurHandler);
+      window.removeEventListener("keydown", globalMatrixKeydownHandler, true);
       sendButton.removeEventListener("click", triggerSendConfirmation);
       terminalHeader.removeEventListener("mousedown", dragStart);
       terminalHeader.removeEventListener("touchstart", dragStart);

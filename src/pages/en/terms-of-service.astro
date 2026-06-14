@@ -1,0 +1,40 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TextFadeIn from "../../components/TextFadeIn.astro";
+import { getLegalPage } from "../../lib/sanity";
+import { marked } from "marked";
+
+const locale = "en";
+const type = "terms";
+
+const pageData = await getLegalPage(type, locale);
+const parsedBody = pageData?.content ? marked.parse(pageData.content, { async: false }) as string : "";
+const pageTitle = pageData?.title || "Terms of Service";
+---
+
+<BaseLayout title={pageTitle}>
+  <section class="legal-section py-20 px-4">
+    <div class="container max-w-4xl mx-auto">
+      <TextFadeIn targetSelectors="h1, h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
+        <h1 class="text-4xl md:text-5xl font-extrabold mb-10 text-primary">{pageTitle}</h1>
+        
+        {pageData ? (
+          <div class="prose prose-slate dark:prose-invert prose-lg max-w-none space-y-6" set:html={parsedBody} />
+        ) : (
+          <div class="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-6 text-center">
+            <p class="text-orange-500 font-bold mb-4">This page is not yet configured in Sanity CMS.</p>
+            <p class="text-sm opacity-80">Please open your Sanity Studio, create a new <strong>Legal Page</strong> document with type <strong>Terms of Service</strong> and locale <strong>English (en)</strong> to edit this content.</p>
+          </div>
+        )}
+      </TextFadeIn>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .legal-section {
+    font-family: "Raleway", sans-serif;
+    line-height: 1.7;
+    color: var(--color-text);
+  }
+</style>

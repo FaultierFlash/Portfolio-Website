@@ -186,6 +186,20 @@ export const homePage = defineType({
                         { name: 'endDate', title: 'End Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' } },
                         { name: 'isOngoing', title: 'Is Ongoing?', type: 'boolean', description: 'Check this if the item continues to the present day.', initialValue: false },
                         {
+                            name: 'isVisible',
+                            title: 'Is Visible?',
+                            type: 'boolean',
+                            initialValue: true,
+                            description: 'If unchecked, this event will be hidden from the website.'
+                        },
+                        {
+                            name: 'openByDefault',
+                            title: 'Open Info Card by Default?',
+                            type: 'boolean',
+                            initialValue: false,
+                            description: 'If checked, this event\'s info card will be open by default on page load.'
+                        },
+                        {
                             name: 'color',
                             title: 'Accent Color',
                             type: 'string',
@@ -224,6 +238,25 @@ export const homePage = defineType({
                             description: 'If you link a project here, clicking this timeline event will navigate to the project page, and the event will inherit the project\'s accent color automatically.',
                         },
                         {
+                            name: 'widgetImage',
+                            title: 'Widget Image (Optional)',
+                            type: 'image',
+                            options: { hotspot: true },
+                            description: 'Optional image to display in the custom timeline widget.'
+                        },
+                        {
+                            name: 'widgetButtonLabel',
+                            title: 'Widget Button Label (Optional)',
+                            type: 'string',
+                            description: 'Label for the widget button (e.g. "View Demo").'
+                        },
+                        {
+                            name: 'widgetButtonLink',
+                            title: 'Widget Button Link (Optional)',
+                            type: 'url',
+                            description: 'URL link for the widget button.'
+                        },
+                        {
                             name: 'milestoneEvents',
                             title: 'Project Milestone Events',
                             type: 'array',
@@ -235,6 +268,20 @@ export const homePage = defineType({
                                     fields: [
                                         { name: 'title', title: 'Event Title', type: 'string', validation: Rule => Rule.required() },
                                         { name: 'date', title: 'Event Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() },
+                                        {
+                                            name: 'isVisible',
+                                            title: 'Is Visible?',
+                                            type: 'boolean',
+                                            initialValue: true,
+                                            description: 'If unchecked, this sub-event will be hidden from the website.'
+                                        },
+                                        {
+                                            name: 'openByDefault',
+                                            title: 'Open Info Card by Default?',
+                                            type: 'boolean',
+                                            initialValue: false,
+                                            description: 'If checked, this milestone\'s info card will be open by default on page load.'
+                                        },
                                         { name: 'description', title: 'Details', type: 'text', rows: 2 },
                                         {
                                             name: 'color',
@@ -258,6 +305,25 @@ export const homePage = defineType({
                                             type: 'reference',
                                             to: [{ type: 'project' }],
                                             description: 'Optional link to a specific project mentioned in this event.'
+                                        },
+                                        {
+                                            name: 'widgetImage',
+                                            title: 'Widget Image (Optional)',
+                                            type: 'image',
+                                            options: { hotspot: true },
+                                            description: 'Optional image to display in the subentry widget.'
+                                        },
+                                        {
+                                            name: 'widgetButtonLabel',
+                                            title: 'Widget Button Label (Optional)',
+                                            type: 'string',
+                                            description: 'Label for the subentry widget button.'
+                                        },
+                                        {
+                                            name: 'widgetButtonLink',
+                                            title: 'Widget Button Link (Optional)',
+                                            type: 'url',
+                                            description: 'URL link for the subentry widget button.'
                                         }
                                     ]
                                 }
