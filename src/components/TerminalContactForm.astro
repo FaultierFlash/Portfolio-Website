@@ -1789,7 +1789,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
               const response = await fetch("/api/contact/initiate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({ ...formData, locale: currentLocale }),
               });
 
               if (!response.ok) {
