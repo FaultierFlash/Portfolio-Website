@@ -5,7 +5,7 @@ import { sendVerificationEmail } from "../../../lib/email";
 export const POST: APIRoute = async ({ request, site }) => {
     try {
         const data = await request.json();
-        const { name, email, message } = data;
+        const { name, email, message, locale } = data;
 
         if (!name || !email || !message) {
             return new Response(
@@ -29,7 +29,16 @@ export const POST: APIRoute = async ({ request, site }) => {
         const token = jwt.sign(payload, secret);
 
         // Site URL for the verification link
-        const siteUrl = site?.toString() || request.url.split('/api')[0]; // Fallback if site not configured
+        let siteUrl = site?.toString() || request.url.split('/api')[0]; // Fallback if site not configured
+
+        // Remove trailing slash if present
+        if (siteUrl.endsWith('/')) {
+            siteUrl = siteUrl.slice(0, -1);
+        }
+
+        // Append the target locale prefix under prefixDefaultLocale i18n routing
+        const targetLocale = locale || 'en';
+        siteUrl = `${siteUrl}/${targetLocale}`;
 
         // Send verification email
         await sendVerificationEmail(email, token, siteUrl);
