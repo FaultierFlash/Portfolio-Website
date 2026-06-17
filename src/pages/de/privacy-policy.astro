@@ -8,7 +8,7 @@ const locale = "de";
 const type = "privacy";
 
 const pageData = await getLegalPage(type, locale);
-const parsedBody = pageData?.content ? marked.parse(pageData.content, { async: false }) as string : "";
+const parsedBody = pageData?.content ? marked.parse(pageData.content, { async: false, breaks: true }) as string : "";
 const pageTitle = pageData?.title || "Datenschutzerklärung";
 ---
 

@@ -12,6 +12,7 @@ const t = useTranslations(lang, overrides);
 const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
 const timelineItems = homeData?.timeline || [];
+const showSpinWheel = homeData?.showSpinWheel !== false;
 const allProjects = await getProjects(lang);
 const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
 const nonFeaturedProjects = allProjects.filter((p: any) => !featuredSlugs.has(p.slug.current));
@@ -944,7 +945,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
             </button>
             <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
-                 {isLastSection ? 'Alle Projekte' : 'Nächstes Projekt'}
+                 {isLastSection ? (showSpinWheel ? 'Alle Projekte' : 'Kontakt') : 'Nächstes Projekt'}
               </span>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
             </button>
@@ -956,7 +957,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
     })}
 
     {/* Section: Rad drehen (nicht Featured Projekte) */}
-    {nonFeaturedProjects.length > 0 && (
+    {showSpinWheel && nonFeaturedProjects.length > 0 && (
       <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
         <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
         <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
