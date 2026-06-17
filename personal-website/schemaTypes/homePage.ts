@@ -1,34 +1,32 @@
 import { defineField, defineType } from 'sanity'
 
+const localeString = (title: string, name: string) => defineField({
+    name,
+    title,
+    type: 'object',
+    fields: [
+        defineField({ name: 'en', title: 'English', type: 'string' }),
+        defineField({ name: 'de', title: 'German', type: 'string' }),
+    ]
+})
+
+const localeText = (title: string, name: string, rows?: number) => defineField({
+    name,
+    title,
+    type: 'object',
+    fields: [
+        defineField({ name: 'en', title: 'English', type: 'text', rows }),
+        defineField({ name: 'de', title: 'German', type: 'text', rows }),
+    ]
+})
+
 export const homePage = defineType({
     name: 'homePage',
     title: 'Home Page',
     type: 'document',
     fields: [
-        defineField({
-            name: 'locale',
-            title: 'Locale',
-            type: 'string',
-            options: {
-                list: [
-                    { title: 'English', value: 'en' },
-                    { title: 'German', value: 'de' },
-                ],
-            },
-            validation: (rule) => rule.required(),
-            initialValue: 'en',
-        }),
-        defineField({
-            name: 'heroTitle',
-            title: 'Hero Title',
-            type: 'string',
-        }),
-        defineField({
-            name: 'heroSubtitle',
-            title: 'Hero Subtitle',
-            type: 'text',
-            rows: 2,
-        }),
+        localeString('Hero Title', 'heroTitle'),
+        localeText('Hero Subtitle', 'heroSubtitle', 2),
         defineField({
             name: 'profileImage',
             title: 'Profile Image',
@@ -37,12 +35,7 @@ export const homePage = defineType({
                 hotspot: true,
             },
         }),
-        defineField({
-            name: 'aboutText',
-            title: 'About Text',
-            type: 'text',
-            rows: 5,
-        }),
+        localeText('About Text', 'aboutText', 5),
         defineField({
             name: 'backgroundEffect',
             title: 'Background Effect',
@@ -180,26 +173,33 @@ export const homePage = defineType({
                 {
                     type: 'object',
                     fields: [
-                        { name: 'title', title: 'Milestone Title', type: 'string', validation: Rule => Rule.required() },
-                        { name: 'description', title: 'Detailed Info (shown on hover)', type: 'text', rows: 3 },
-                        { name: 'startDate', title: 'Start Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() },
-                        { name: 'endDate', title: 'End Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' } },
-                        { name: 'isOngoing', title: 'Is Ongoing?', type: 'boolean', description: 'Check this if the item continues to the present day.', initialValue: false },
-                        {
-                            name: 'isVisible',
-                            title: 'Is Visible?',
+                        localeString('Milestone Title', 'title'),
+                        localeText('Detailed Info (shown on hover)', 'description', 3),
+                        defineField({ name: 'startDate', title: 'Start Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() }),
+                        defineField({ name: 'endDate', title: 'End Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' } }),
+                        defineField({ name: 'isOngoing', title: 'Is Ongoing?', type: 'boolean', description: 'Check this if the item continues to the present day.', initialValue: false }),
+                        defineField({
+                            name: 'isVisibleEn',
+                            title: 'Is Visible (English)?',
                             type: 'boolean',
                             initialValue: true,
-                            description: 'If unchecked, this event will be hidden from the website.'
-                        },
-                        {
+                            description: 'If unchecked, this event will be hidden from the English version of the website.'
+                        }),
+                        defineField({
+                            name: 'isVisibleDe',
+                            title: 'Is Visible (German)?',
+                            type: 'boolean',
+                            initialValue: true,
+                            description: 'If unchecked, this event will be hidden from the German version of the website.'
+                        }),
+                        defineField({
                             name: 'openByDefault',
                             title: 'Open Info Card by Default?',
                             type: 'boolean',
                             initialValue: false,
                             description: 'If checked, this event\'s info card will be open by default on page load.'
-                        },
-                        {
+                        }),
+                        defineField({
                             name: 'color',
                             title: 'Accent Color',
                             type: 'string',
@@ -214,8 +214,8 @@ export const homePage = defineType({
                                 ]
                             },
                             initialValue: 'primary'
-                        },
-                        {
+                        }),
+                        defineField({
                             name: 'verticalPosition',
                             title: 'Vertical Placement (Track)',
                             type: 'string',
@@ -229,34 +229,29 @@ export const homePage = defineType({
                                 ]
                             },
                             initialValue: 'above'
-                        },
-                        {
+                        }),
+                        defineField({
                             name: 'relatedProject',
                             title: 'Related Project (Optional Link)',
                             type: 'reference',
                             to: [{ type: 'project' }],
                             description: 'If you link a project here, clicking this timeline event will navigate to the project page, and the event will inherit the project\'s accent color automatically.',
-                        },
-                        {
+                        }),
+                        defineField({
                             name: 'widgetImage',
                             title: 'Widget Image (Optional)',
                             type: 'image',
                             options: { hotspot: true },
                             description: 'Optional image to display in the custom timeline widget.'
-                        },
-                        {
-                            name: 'widgetButtonLabel',
-                            title: 'Widget Button Label (Optional)',
-                            type: 'string',
-                            description: 'Label for the widget button (e.g. "View Demo").'
-                        },
-                        {
+                        }),
+                        localeString('Widget Button Label (Optional)', 'widgetButtonLabel'),
+                        defineField({
                             name: 'widgetButtonLink',
                             title: 'Widget Button Link (Optional)',
                             type: 'url',
                             description: 'URL link for the widget button.'
-                        },
-                        {
+                        }),
+                        defineField({
                             name: 'milestoneEvents',
                             title: 'Project Milestone Events',
                             type: 'array',
@@ -266,24 +261,31 @@ export const homePage = defineType({
                                 {
                                     type: 'object',
                                     fields: [
-                                        { name: 'title', title: 'Event Title', type: 'string', validation: Rule => Rule.required() },
-                                        { name: 'date', title: 'Event Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() },
-                                        {
-                                            name: 'isVisible',
-                                            title: 'Is Visible?',
+                                        localeString('Event Title', 'title'),
+                                        defineField({ name: 'date', title: 'Event Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() }),
+                                        defineField({
+                                            name: 'isVisibleEn',
+                                            title: 'Is Visible (English)?',
                                             type: 'boolean',
                                             initialValue: true,
-                                            description: 'If unchecked, this sub-event will be hidden from the website.'
-                                        },
-                                        {
+                                            description: 'If unchecked, this sub-event will be hidden from the English version.'
+                                        }),
+                                        defineField({
+                                            name: 'isVisibleDe',
+                                            title: 'Is Visible (German)?',
+                                            type: 'boolean',
+                                            initialValue: true,
+                                            description: 'If unchecked, this sub-event will be hidden from the German version.'
+                                        }),
+                                        defineField({
                                             name: 'openByDefault',
                                             title: 'Open Info Card by Default?',
                                             type: 'boolean',
                                             initialValue: false,
                                             description: 'If checked, this milestone\'s info card will be open by default on page load.'
-                                        },
-                                        { name: 'description', title: 'Details', type: 'text', rows: 2 },
-                                        {
+                                        }),
+                                        localeText('Details', 'description', 2),
+                                        defineField({
                                             name: 'color',
                                             title: 'Accent Color',
                                             type: 'string',
@@ -298,37 +300,32 @@ export const homePage = defineType({
                                                 ]
                                             },
                                             initialValue: 'primary'
-                                        },
-                                        {
+                                        }),
+                                        defineField({
                                             name: 'relatedProject',
                                             title: 'Related Project',
                                             type: 'reference',
                                             to: [{ type: 'project' }],
                                             description: 'Optional link to a specific project mentioned in this event.'
-                                        },
-                                        {
+                                        }),
+                                        defineField({
                                             name: 'widgetImage',
                                             title: 'Widget Image (Optional)',
                                             type: 'image',
                                             options: { hotspot: true },
                                             description: 'Optional image to display in the subentry widget.'
-                                        },
-                                        {
-                                            name: 'widgetButtonLabel',
-                                            title: 'Widget Button Label (Optional)',
-                                            type: 'string',
-                                            description: 'Label for the subentry widget button.'
-                                        },
-                                        {
+                                        }),
+                                        localeString('Widget Button Label (Optional)', 'widgetButtonLabel'),
+                                        defineField({
                                             name: 'widgetButtonLink',
                                             title: 'Widget Button Link (Optional)',
                                             type: 'url',
                                             description: 'URL link for the subentry widget button.'
-                                        }
+                                        })
                                     ]
                                 }
                             ]
-                        }
+                        })
                     ]
                 }
             ]
@@ -336,13 +333,13 @@ export const homePage = defineType({
     ],
     preview: {
         select: {
-            title: 'heroTitle',
-            locale: 'locale',
+            titleEn: 'heroTitle.en',
+            titleDe: 'heroTitle.de',
         },
         prepare(selection) {
             return {
-                title: `Home Page (${selection.locale})`,
-                subtitle: selection.title,
+                title: 'Home Page (Unified)',
+                subtitle: selection.titleEn || selection.titleDe || 'Untitled',
             }
         },
     },

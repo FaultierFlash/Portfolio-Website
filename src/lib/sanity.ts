@@ -32,10 +32,10 @@ export async function getTranslationOverrides(locale: string) {
 }
 
 export async function getHomePageData(locale: string) {
-  const query = `*[_type == "homePage" && locale == $locale][0] {
-    heroTitle,
-    heroSubtitle,
-    aboutText,
+  const query = `*[_type == "homePage"][0] {
+    "heroTitle": heroTitle[$locale],
+    "heroSubtitle": heroSubtitle[$locale],
+    "aboutText": aboutText[$locale],
     profileImage,
     backgroundEffect,
     topographyConfig,
@@ -54,25 +54,25 @@ export async function getHomePageData(locale: string) {
     timelineStartDate,
     timelineEndDate,
     timelineScale,
-    timeline[isVisible != false]{
-      title,
-      description,
+    "timeline": timeline[($locale == "de" && isVisibleDe != false) || ($locale == "en" && isVisibleEn != false)]{
+      "title": title[$locale],
+      "description": description[$locale],
       startDate,
       endDate,
       isOngoing,
       color,
       verticalPosition,
       widgetImage,
-      widgetButtonLabel,
+      "widgetButtonLabel": widgetButtonLabel[$locale],
       widgetButtonLink,
       openByDefault,
-      milestoneEvents[isVisible != false]{
-        title,
+      "milestoneEvents": milestoneEvents[($locale == "de" && isVisibleDe != false) || ($locale == "en" && isVisibleEn != false)]{
+        "title": title[$locale],
         date,
-        description,
+        "description": description[$locale],
         color,
         widgetImage,
-        widgetButtonLabel,
+        "widgetButtonLabel": widgetButtonLabel[$locale],
         widgetButtonLink,
         openByDefault,
         relatedProject->{

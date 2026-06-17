@@ -11,7 +11,38 @@ export default defineConfig({
   projectId: 'k4t36b6u',
   dataset: 'production',
 
-  plugins: [structureTool(), visionTool(), markdownSchema()],
+  plugins: [
+    structureTool({
+      structure: (S) =>
+        S.list()
+          .title('Content')
+          .items([
+            S.listItem()
+              .title('Home Page')
+              .id('homePage')
+              .child(
+                S.document()
+                  .schemaType('homePage')
+                  .documentId('homePage')
+              ),
+            S.listItem()
+              .title('Library Settings')
+              .id('librarySettings')
+              .child(
+                S.document()
+                  .schemaType('librarySettings')
+                  .documentId('librarySettings')
+              ),
+            S.divider(),
+            ...S.documentTypeListItems().filter(
+              (listItem) =>
+                !['homePage', 'librarySettings'].includes(listItem.getId() || '')
+            ),
+          ]),
+    }),
+    visionTool(),
+    markdownSchema(),
+  ],
 
   schema: {
     types: schemaTypes,
