@@ -16,7 +16,7 @@ if (!token) {
 } else {
     try {
         const secret =
-            import.meta.env.JWT_SECRET || "dev-secret-do-not-use-in-prod";
+            import.meta.env.JWT_SECRET || (typeof process !== 'undefined' ? process.env.JWT_SECRET : undefined) || "dev-secret-do-not-use-in-prod";
         const decoded = jwt.verify(token, secret) as any;
 
         if (decoded) {
