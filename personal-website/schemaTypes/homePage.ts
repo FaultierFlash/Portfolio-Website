@@ -322,11 +322,41 @@ export const homePage = defineType({
                                             type: 'url',
                                             description: 'URL link for the subentry widget button.'
                                         })
-                                    ]
+                                    ],
+                                    preview: {
+                                        select: {
+                                            title: 'title.en',
+                                            date: 'date',
+                                        },
+                                        prepare(selection) {
+                                            return {
+                                                title: selection.title || 'Untitled',
+                                                subtitle: selection.date || '',
+                                            }
+                                        }
+                                    }
                                 }
                             ]
                         })
-                    ]
+                    ],
+                    preview: {
+                        select: {
+                            title: 'title.en',
+                            startDate: 'startDate',
+                            endDate: 'endDate',
+                            isOngoing: 'isOngoing',
+                        },
+                        prepare(selection) {
+                            const { title, startDate, endDate, isOngoing } = selection;
+                            const dateStr = startDate 
+                                ? `${startDate} to ${isOngoing ? 'Present' : (endDate || '...')}`
+                                : '';
+                            return {
+                                title: title || 'Untitled',
+                                subtitle: dateStr,
+                            }
+                        }
+                    }
                 }
             ]
         }),
