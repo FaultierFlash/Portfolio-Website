@@ -1,7 +1,7 @@
 ---
 import Layout from "../../layouts/BaseLayout.astro";
 import jwt from "jsonwebtoken";
-import { sendContactEmail } from "../../lib/email";
+import { sendContactEmail, sendConfirmationEmail } from "../../lib/email";
 
 export const prerender = false; // SSR required
 
@@ -22,6 +22,12 @@ if (!token) {
         if (decoded) {
             // Token is valid, send the actual contact email
             await sendContactEmail(
+                decoded.name,
+                decoded.email,
+                decoded.message,
+            );
+            // Send confirmation receipt to the user
+            await sendConfirmationEmail(
                 decoded.name,
                 decoded.email,
                 decoded.message,
