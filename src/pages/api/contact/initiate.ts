@@ -41,7 +41,7 @@ export const POST: APIRoute = async ({ request, site }) => {
         siteUrl = `${siteUrl}/${targetLocale}`;
 
         // Send verification email
-        await sendVerificationEmail(email, token, siteUrl);
+        await sendVerificationEmail(name, email, token, siteUrl);
 
         return new Response(
             JSON.stringify({
