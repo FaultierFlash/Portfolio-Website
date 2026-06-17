@@ -143,6 +143,13 @@ export const homePage = defineType({
             validation: Rule => Rule.max(5)
         }),
         defineField({
+            name: 'showSpinWheel',
+            title: 'Show Project Spin Wheel?',
+            type: 'boolean',
+            initialValue: true,
+            description: 'If checked, the project spin wheel section will be visible on the homepage.',
+        }),
+        defineField({
             name: 'timelineStartDate',
             title: 'Global Timeline Start Date',
             type: 'date',

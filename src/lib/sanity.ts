@@ -51,6 +51,7 @@ export async function getHomePageData(locale: string) {
       solarConfig,
       accentColor
     },
+    showSpinWheel,
     timelineStartDate,
     timelineEndDate,
     timelineScale,
