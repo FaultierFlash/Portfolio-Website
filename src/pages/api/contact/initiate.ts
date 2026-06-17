@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, site }) => {
 
         // Create a verification token
         // Secret should be in env, using a fallback for dev if needed (but dangerous for prod)
-        const secret = import.meta.env.JWT_SECRET || "dev-secret-do-not-use-in-prod";
+        const secret = import.meta.env.JWT_SECRET || (typeof process !== 'undefined' ? process.env.JWT_SECRET : undefined) || "dev-secret-do-not-use-in-prod";
 
         // Token payload
         const payload = {

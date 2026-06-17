@@ -2,14 +2,22 @@ import { Resend } from 'resend';
 
 const isDev = import.meta.env.DEV;
 
+// Safe runtime environment variable access for serverless/SSR environments
+const getEnv = (key: string) => {
+  return import.meta.env[key] || (typeof process !== 'undefined' ? process.env[key] : undefined);
+};
+
+const resendApiKey = getEnv("RESEND_API_KEY");
+
 // Initialize Resend with API key from environment variables
 // Note: RESEND_API_KEY must be set in .env
-const resend = isDev
+const resend = (isDev || !resendApiKey)
   ? null
-  : new Resend(import.meta.env.RESEND_API_KEY);
+  : new Resend(resendApiKey);
 
-const SENDER_EMAIL = import.meta.env.SENDER_EMAIL || 'onboarding@resend.dev';
-const CONTACT_EMAIL = import.meta.env.CONTACT_EMAIL;
+// Fallback to legacy environment variable names if the new ones are not set
+const SENDER_EMAIL = getEnv("SENDER_EMAIL") || getEnv("RESEND_SENDING_EMAIL") || 'onboarding@resend.dev';
+const CONTACT_EMAIL = getEnv("CONTACT_EMAIL") || getEnv("EMAIL_TO");
 
 export async function sendVerificationEmail(email: string, token: string, siteUrl: string) {
   if (!email || !token) throw new Error("Missing email or token");
@@ -27,7 +35,7 @@ export async function sendVerificationEmail(email: string, token: string, siteUr
   }
 
   try {
-    if (!resend) throw new Error("Resend client not initialized (missing API key?)");
+    if (!resend) throw new Error("Resend client not initialized (missing RESEND_API_KEY?)");
     const data = await resend.emails.send({
       from: SENDER_EMAIL,
       to: email,
@@ -70,7 +78,7 @@ export async function sendContactEmail(name: string, userEmail: string, message:
   }
 
   try {
-    if (!resend) throw new Error("Resend client not initialized (missing API key?)");
+    if (!resend) throw new Error("Resend client not initialized (missing RESEND_API_KEY?)");
     const data = await resend.emails.send({
       from: SENDER_EMAIL,
       to: CONTACT_EMAIL,
