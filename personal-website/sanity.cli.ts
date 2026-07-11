@@ -5,6 +5,12 @@ export default defineCliConfig({
     projectId: 'k4t36b6u',
     dataset: 'production'
   },
+  project: {
+    basePath: '/studio'
+  },
+  vite: {
+    base: '/studio/'
+  },
   deployment: {
     /**
      * Enable auto-updates for studios.
