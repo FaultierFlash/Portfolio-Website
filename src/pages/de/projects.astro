@@ -13,25 +13,25 @@ import projectImage3 from "../../assets/project1.jpg";
 const defaultProjects = [
   {
     title: "Analytics Dashboard",
-    description: "Real-time data visualization platform",
+    description: "Echtzeit-Datenvisualisierungsplattform",
     image: projectImage1,
     url: "/projects/analytics-dashboard",
   },
   {
     title: "Blog Platform",
-    description: "Modern content management system",
+    description: "Modernes Content-Management-System",
     image: projectImage2,
     url: "/projects/blog-platform",
   },
   {
     title: "Community Forum",
-    description: "Engagement-focused discussion board",
+    description: "Interaktives Diskussionsforum",
     image: projectImage3,
     url: "/projects/community-forum",
   },
 ];
 
-const lang = Astro.currentLocale || "en";
+const lang = Astro.currentLocale || "de";
 const sanityProjectsData = await getProjects(lang);
 
 const sanityProjects = sanityProjectsData.map((p: any) => ({
@@ -44,15 +44,15 @@ const sanityProjects = sanityProjectsData.map((p: any) => ({
 const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
 ---
 
-<Layout title="Projects">
+<Layout title="Projekte">
   <div class="projects-page-container">
-    <h1>My Projects</h1>
-    <p class="subtitle text-center">Scroll down to explore projects</p>
+    <h1>Meine Projekte</h1>
+    <p class="subtitle text-center">Nach unten scrollen, um Projekte zu erkunden</p>
 
     <div class="content pt-8">
       <section class="intro text-center">
-        <h2>Welcome to my project showcase</h2>
-        <p>Explore my interactive project wheel below.</p>
+        <h2>Willkommen bei meinem Projekt-Showcase</h2>
+        <p>Entdecke mein interaktives Projekt-Rad unten.</p>
       </section>
     </div>
 
