@@ -95,7 +95,7 @@ const count = projects.length;
 </div>
 )}
 
-<script define:vars={{ projects, lang }}>
+<script is:inline define:vars={{ projects, lang }}>
 (function() {
   const COLOR_MAP = {
     primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.1)', border: 'rgba(255,125,26,0.3)' },
@@ -111,7 +111,7 @@ const count = projects.length;
 
   let currentRotation = 0; // Total accumulated rotation
   let isSpinning = false;
-  let targetProjectIndex = 0;
+
 
   function getProject(index) {
     return projects[((index % N) + N) % N];
@@ -238,7 +238,7 @@ const count = projects.length;
     function finishSpin(index) {
       isSpinning = false;
       spinBtn.disabled = false;
-      targetProjectIndex = index;
+
 
       const p = getProject(index);
       const colors = COLOR_MAP[p.accentColor] || COLOR_MAP.primary;

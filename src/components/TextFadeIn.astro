@@ -27,23 +27,23 @@ const {
 
 <script>
   // Debounce function to limit how often a function can run.
-  function debounce(func, wait, immediate) {
-    var timeout;
-    return function () {
-      var context = this,
-        args = arguments;
-      var later = function () {
+  function debounce<T extends (...args: any[]) => void>(func: T, wait: number, immediate?: boolean) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return function (this: any, ...args: Parameters<T>) {
+      const context = this;
+      const later = function () {
         timeout = null;
         if (!immediate) func.apply(context, args);
       };
-      var callNow = immediate && !timeout;
-      clearTimeout(timeout);
+      const callNow = immediate && !timeout;
+      if (timeout) clearTimeout(timeout);
       timeout = setTimeout(later, wait);
       if (callNow) func.apply(context, args);
     };
   }
 
-  function processTextFadeInContainer(container) {
+  function processTextFadeInContainer(container: Element) {
+    if (!(container instanceof HTMLElement)) return;
     // Exit if already processed and not currently part of an outgoing Astro transition
     if (
       container.dataset.textFadeInProcessed === "true" &&
@@ -89,6 +89,8 @@ const {
     // console.log('TextFadeIn: Elements to animate:', elementsToAnimate.length, elementsToAnimate);
 
     elementsToAnimate.forEach((element, elementIndex) => {
+      if (!(element instanceof HTMLElement)) return;
+
       // Skip if this specific element was already processed (e.g. if script runs multiple times accidentally)
       // and it's not being force-reprocessed due to Astro transitions.
       if (
@@ -118,38 +120,39 @@ const {
         `${elementActualBlockAnimationDelay}ms`
       );
 
-      const newChildNodes = [];
+      const newChildNodes: Node[] = [];
       let wordIndexWithinCurrentBlock = 0;
 
-      function processNodeForWordWrapping(node) {
+      function processNodeForWordWrapping(node: Node): Node {
         if (node.nodeType === Node.TEXT_NODE) {
-          const words = node.textContent
-            .split(/\s+/)
-            .filter((word) => word.length > 0);
+          const parts = (node.textContent || "").split(/(\s+)/);
           const fragment = document.createDocumentFragment();
-          words.forEach((word, idx) => {
-            const span = document.createElement("span");
-            span.className = "fade-in-word";
-            span.textContent = word;
-            const currentWordEffectiveDelay =
-              elementActualBlockAnimationDelay + // Stagger for the block itself
-              baseWordDelayForBlock + // Base delay for the first word in this block
-              wordIndexWithinCurrentBlock * wordIncrementDelay; // Incremental delay for subsequent words
-            span.style.setProperty(
-              "--word-animation-delay",
-              `${currentWordEffectiveDelay}ms`
-            );
-            fragment.appendChild(span);
-            if (idx < words.length - 1) {
-              fragment.appendChild(document.createTextNode(" "));
+          parts.forEach((part: string) => {
+            if (part.length === 0) return;
+            if (/^\s+$/.test(part)) {
+              fragment.appendChild(document.createTextNode(part));
+            } else {
+              const span = document.createElement("span");
+              span.className = "fade-in-word";
+              span.textContent = part;
+              const currentWordEffectiveDelay =
+                elementActualBlockAnimationDelay + // Stagger for the block itself
+                baseWordDelayForBlock + // Base delay for the first word in this block
+                wordIndexWithinCurrentBlock * wordIncrementDelay; // Incremental delay for subsequent words
+              span.style.setProperty(
+                "--word-animation-delay",
+                `${currentWordEffectiveDelay}ms`
+              );
+              fragment.appendChild(span);
+              wordIndexWithinCurrentBlock++;
             }
-            wordIndexWithinCurrentBlock++;
           });
           return fragment;
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           // Treat specified inline elements as single "words" for animation timing.
           // Preserve their original structure within the word span.
           if (
+            node instanceof Element &&
             node.matches(
               "strong, em, a, b, i, u, span, code, sub, sup, mark, del, ins"
             )
@@ -169,7 +172,7 @@ const {
             return wrapperSpan;
           } else {
             // For other block-level or unrecognized elements, clone them and recursively process their children.
-            const clonedElement = node.cloneNode(false); // Shallow clone (tag and attributes only)
+            const clonedElement = node.cloneNode(false) as Element; // Shallow clone (tag and attributes only)
             Array.from(node.childNodes).forEach((childNode) => {
               clonedElement.appendChild(processNodeForWordWrapping(childNode));
             });
@@ -213,7 +216,7 @@ const {
             }
           });
         },
-        { threshold: 0.1 } // Trigger when 10% of the container is visible
+        { threshold: 0 } // Trigger when 0% of the container is visible (as soon as top enters)
       );
       observer.observe(container);
       container.dataset.observerAttached = "true";

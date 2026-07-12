@@ -1,0 +1,1428 @@
+---
+// src/components/LabNotebook.astro
+// Physical, multi-page engineering notebook simulation with client-side content pagination,
+// absolute page numbering, Table of Contents pages, left-side ribbon bookmark navigation,
+// and rapid page-riffle animations.
+import { urlFor } from "../lib/sanity";
+import { marked } from "marked";
+
+interface Props {
+  entries: any[];
+  locale: "en" | "de";
+}
+
+const { entries, locale } = Astro.props;
+
+// Pre-render markdown and image URLs on the server
+const processedEntries = entries.map((entry: any, idx: number) => ({
+  ...entry,
+  renderedBody: entry.body ? marked.parse(entry.body) : "",
+  processedImages: (entry.images || []).map((img: any) => ({
+    url: img.asset ? urlFor(img).width(600).url() : null,
+    alt: img.alt || "",
+    caption: img.caption || "",
+  })),
+  entryNumber: idx + 1,
+}));
+
+const t = {
+  en: {
+    emptyTitle: "Notebook Empty",
+    emptyMessage: "No entries have been recorded yet. Check back soon.",
+    entryLabel: "Entry",
+    tocTitle: "Index",
+    prevLabel: "Previous page",
+    nextLabel: "Next page",
+    ofLabel: "of",
+    relatedProject: "Related Project",
+    tocDate: "Date",
+    tocDesc: "Description",
+    tocPage: "Page",
+  },
+  de: {
+    emptyTitle: "Notizbuch leer",
+    emptyMessage: "Es wurden noch keine Einträge erfasst. Schau bald wieder vorbei.",
+    entryLabel: "Eintrag",
+    tocTitle: "Verzeichnis",
+    prevLabel: "Vorherige Seite",
+    nextLabel: "Nächste Seite",
+    ofLabel: "von",
+    relatedProject: "Zugehöriges Projekt",
+    tocDate: "Datum",
+    tocDesc: "Beschreibung",
+    tocPage: "Seite",
+  },
+};
+const labels = t[locale] || t.en;
+
+// Category config for ink stamps
+const categoryConfig: Record<string, { icon: string; label: string; color: string }> = {
+  experiment: { icon: "🧪", label: "EXP", color: "#2563eb" },
+  simulation: { icon: "📊", label: "SIM", color: "#7c3aed" },
+  build: { icon: "🔧", label: "BLD", color: "#059669" },
+  observation: { icon: "👁", label: "OBS", color: "#d97706" },
+  literature: { icon: "📄", label: "LIT", color: "#dc2626" },
+  idea: { icon: "💡", label: "IDÉ", color: "#0891b2" },
+};
+---
+
+<div class="notebook-outer" id="lab-notebook">
+  {entries.length === 0 ? (
+    <div class="notebook-empty">
+      <h2>{labels.emptyTitle}</h2>
+      <p>{labels.emptyMessage}</p>
+    </div>
+  ) : (
+    <Fragment>
+      {/* Physical Bookmark Ribbon Tab */}
+      <div class="bookmark-ribbon" id="bookmark-ribbon" title={labels.tocTitle}></div>
+
+      {/* The Notebook */}
+      <div class="notebook" id="notebook-main">
+        {/* Left cover edge */}
+        <div class="cover-edge left-cover"></div>
+
+        {/* Left Page */}
+        <div class="page left-page" id="left-page">
+          <div class="page-texture"></div>
+          <div class="ruled-lines"></div>
+          <div class="page-content left-content" id="left-content">
+            {/* Populated dynamically */}
+          </div>
+          <div class="page-number-label left-page-num" id="left-page-num"></div>
+        </div>
+
+        {/* Spine */}
+        <div class="spine"></div>
+
+        {/* Right Page */}
+        <div class="page right-page" id="right-page">
+          <div class="page-texture"></div>
+          <div class="ruled-lines"></div>
+          <div class="page-content right-content" id="right-content">
+            {/* Populated dynamically */}
+          </div>
+          <div class="page-number-label right-page-num" id="right-page-num"></div>
+        </div>
+
+        {/* Turning page overlay for 3D animation */}
+        <div class="turning-page" id="turning-page">
+          <div class="turning-front">
+            <div class="page-texture"></div>
+            <div class="ruled-lines"></div>
+            <div class="page-content right-content" id="turning-front-content"></div>
+            <div class="page-number-label right-page-num" id="turning-front-num"></div>
+          </div>
+          <div class="turning-back">
+            <div class="page-texture"></div>
+            <div class="ruled-lines"></div>
+            <div class="page-content left-content" id="turning-back-content"></div>
+            <div class="page-number-label left-page-num" id="turning-back-num"></div>
+          </div>
+        </div>
+
+        {/* Right cover edge */}
+        <div class="cover-edge right-cover"></div>
+      </div>
+
+      {/* Navigation */}
+      <div class="notebook-nav">
+        <button class="nav-btn prev-btn" id="prev-btn" aria-label={labels.prevLabel} title={labels.prevLabel}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <span class="page-indicator" id="page-indicator"></span>
+        <button class="nav-btn next-btn" id="next-btn" aria-label={labels.nextLabel} title={labels.nextLabel}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </Fragment>
+  )}
+</div>
+
+{/* Pass data to client JS */}
+<script is:inline define:vars={{
+  entriesJSON: JSON.stringify(processedEntries),
+  categoryConfigJSON: JSON.stringify(categoryConfig),
+  labelsJSON: JSON.stringify(labels),
+  localeVal: locale,
+}}>
+  window.__labNotebookData = {
+    entries: JSON.parse(entriesJSON),
+    categoryConfig: JSON.parse(categoryConfigJSON),
+    labels: JSON.parse(labelsJSON),
+    locale: localeVal,
+  };
+</script>
+
+<script>
+  function initLabNotebook() {
+    const data = (window as any).__labNotebookData;
+    if (!data || !data.entries.length) return;
+
+    const notebook = document.getElementById("lab-notebook")!;
+    if (notebook.dataset.notebookInit === "true") return;
+    notebook.dataset.notebookInit = "true";
+
+    const { entries, categoryConfig, labels } = data;
+
+    // Fisher-Yates shuffle
+    const shuffled = [...entries];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // DOM references
+    const leftContent = document.getElementById("left-content")!;
+    const rightContent = document.getElementById("right-content")!;
+    const pageIndicator = document.getElementById("page-indicator")!;
+    const prevBtn = document.getElementById("prev-btn")!;
+    const nextBtn = document.getElementById("next-btn")!;
+    
+    const leftNumLabel = document.getElementById("left-page-num")!;
+    const rightNumLabel = document.getElementById("right-page-num")!;
+
+    const turningPage = document.getElementById("turning-page")!;
+    const turningFrontContent = document.getElementById("turning-front-content")!;
+    const turningBackContent = document.getElementById("turning-back-content")!;
+    const turningFrontNum = document.getElementById("turning-front-num")!;
+    const turningBackNum = document.getElementById("turning-back-num")!;
+
+    const ribbonTab = document.getElementById("bookmark-ribbon")!;
+
+    // Global book layout state
+    let bookPages: any[] = [];
+    let currentIndex = 0; // Flat index of the current left page (always even)
+    let lastReadPageIndex = 0; // Store last read page index for ribbon back-navigation
+    let isAnimating = false;
+
+    function formatDate(dateStr: string): string {
+      if (!dateStr) return "";
+      const d = new Date(dateStr + "T00:00:00");
+      return d.toLocaleDateString(data.locale === "de" ? "de-DE" : "en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    function formatTOCDate(dateStr: string): string {
+      if (!dateStr) return "";
+      const d = new Date(dateStr + "T00:00:00");
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = String(d.getFullYear()).substring(2);
+      return data.locale === "de" ? `${day}.${month}.${year}` : `${month}/${day}/${year}`;
+    }
+
+    // Dynamic pagination algorithm
+    function buildBook() {
+      // Create off-screen measure div
+      const measureDiv = document.createElement("div");
+      measureDiv.className = "entry-body";
+      measureDiv.style.position = "absolute";
+      measureDiv.style.top = "-9999px";
+      measureDiv.style.left = "-9999px";
+      measureDiv.style.width = "350px"; // Content width
+      measureDiv.style.lineHeight = "28px";
+      measureDiv.style.fontSize = "0.9rem";
+      measureDiv.style.fontFamily = '"Georgia", serif';
+      document.body.appendChild(measureDiv);
+
+      const paginatedEntries = shuffled.map((entry) => {
+        // Collect images
+        const imagesHTML = entry.processedImages && entry.processedImages.length > 0
+          ? entry.processedImages
+            .filter((img: any) => img.url)
+            .map(
+              (img: any) => `
+              <figure class="entry-figure">
+                <img src="${img.url}" alt="${img.alt}" loading="lazy" />
+                ${img.caption ? `<figcaption>${img.caption}</figcaption>` : ""}
+              </figure>
+            `
+            )
+            .join("")
+          : "";
+
+        const temp = document.createElement("div");
+        temp.innerHTML = entry.renderedBody + imagesHTML;
+        const children = Array.from(temp.children);
+
+        const pages: string[] = [];
+        let currentHeight = 0;
+        
+        // Page 1 budget is smaller due to the Title
+        const page1Max = 380;
+        const normalMax = 480;
+
+        let currentLimit = page1Max;
+        let currentElements: Element[] = [];
+
+        for (let el of children) {
+          const clone = el.cloneNode(true) as HTMLElement;
+          measureDiv.appendChild(clone);
+          const elHeight = clone.offsetHeight;
+
+          if (currentHeight + elHeight > currentLimit) {
+            if (currentElements.length > 0) {
+              pages.push(currentElements.map((e) => e.outerHTML).join(""));
+              currentElements = [];
+              currentHeight = 0;
+              currentLimit = normalMax;
+            }
+
+            // Split paragraph by sentences if it exceeds the space
+            if (elHeight > currentLimit) {
+              if (el.tagName === "P") {
+                const sentences = el.innerHTML.split(/(?<=\. )/);
+                let tempP = document.createElement("p");
+                measureDiv.innerHTML = "";
+                measureDiv.appendChild(tempP);
+
+                for (let sentence of sentences) {
+                  tempP.innerHTML += sentence;
+                  measureDiv.appendChild(tempP);
+                  if (tempP.offsetHeight > currentLimit - currentHeight) {
+                    tempP.innerHTML = tempP.innerHTML.substring(0, tempP.innerHTML.length - sentence.length);
+                    if (tempP.innerHTML.trim()) {
+                      currentElements.push(tempP.cloneNode(true) as Element);
+                    }
+                    pages.push(currentElements.map((e) => e.outerHTML).join(""));
+                    currentElements = [];
+                    currentHeight = 0;
+                    currentLimit = normalMax;
+
+                    tempP = document.createElement("p");
+                    tempP.innerHTML = sentence;
+                    measureDiv.innerHTML = "";
+                    measureDiv.appendChild(tempP);
+                  }
+                }
+                if (tempP.innerHTML.trim()) {
+                  currentElements.push(tempP.cloneNode(true) as Element);
+                  currentHeight = tempP.offsetHeight;
+                }
+              } else {
+                currentElements.push(el.cloneNode(true) as Element);
+                currentHeight = elHeight;
+              }
+            } else {
+              currentElements.push(el.cloneNode(true) as Element);
+              currentHeight = elHeight;
+            }
+          } else {
+            currentElements.push(el.cloneNode(true) as Element);
+            currentHeight += elHeight;
+          }
+          measureDiv.innerHTML = "";
+        }
+
+        if (currentElements.length > 0) {
+          pages.push(currentElements.map((e) => e.outerHTML).join(""));
+        }
+
+        if (pages.length === 0) {
+          pages.push("");
+        }
+
+        return { entry, pages };
+      });
+
+      document.body.removeChild(measureDiv);
+
+      // TOC calculation (12 entries fit perfectly on page with header)
+      const entriesPerPage = 12;
+      const numTOCPages = Math.ceil(shuffled.length / entriesPerPage);
+      const tocPageCount = numTOCPages + (numTOCPages % 2 === 0 ? 0 : 1);
+
+      let currentAbsolutePageNum = tocPageCount + 1;
+      const entryStartPages: number[] = [];
+
+      const entryPagesList = paginatedEntries.map((pe) => {
+        entryStartPages.push(currentAbsolutePageNum);
+        const pages: any[] = [];
+
+        // Metadata Page
+        pages.push({
+          type: "metadata",
+          entry: pe.entry,
+          absolutePageNumber: currentAbsolutePageNum++
+        });
+
+        // Content Page 1
+        pages.push({
+          type: "content",
+          entryTitle: pe.entry.title,
+          contentHTML: pe.pages[0],
+          entry: pe.entry,
+          absolutePageNumber: currentAbsolutePageNum++
+        });
+
+        // Next Content Pages
+        for (let j = 1; j < pe.pages.length; j++) {
+          pages.push({
+            type: "content",
+            contentHTML: pe.pages[j],
+            entry: pe.entry,
+            absolutePageNumber: currentAbsolutePageNum++
+          });
+        }
+
+        // Pad to ensure even spread alignment
+        if (pages.length % 2 !== 0) {
+          pages.push({
+            type: "blank",
+            absolutePageNumber: currentAbsolutePageNum++
+          });
+        }
+
+        return pages;
+      });
+
+      // Build TOC entries map
+      const tocItems = shuffled.map((entry, idx) => ({
+        title: entry.title,
+        date: formatTOCDate(entry.date),
+        absolutePageNumber: entryStartPages[idx]
+      }));
+
+      bookPages = [];
+
+      // TOC pages placement
+      for (let p = 0; p < tocPageCount; p++) {
+        if (p < numTOCPages) {
+          const sliceStart = p * entriesPerPage;
+          const sliceEnd = sliceStart + entriesPerPage;
+          bookPages.push({
+            type: "toc",
+            tocEntries: tocItems.slice(sliceStart, sliceEnd),
+            absolutePageNumber: p + 1
+          });
+        } else {
+          bookPages.push({
+            type: "blank",
+            absolutePageNumber: p + 1
+          });
+        }
+      }
+
+      // Add entries pages
+      entryPagesList.forEach((pages) => {
+        bookPages = bookPages.concat(pages);
+      });
+    }
+
+    function getPageHTML(page: any): string {
+      if (!page || page.type === "blank") return "";
+
+      if (page.type === "toc") {
+        const tocItemsHTML = page.tocEntries
+          .map(
+            (item: any) => `
+            <li>
+              <button class="toc-item-btn" data-page="${item.absolutePageNumber}">
+                <span class="toc-col-date">${item.date}</span>
+                <span class="toc-col-desc">${item.title}</span>
+                <span class="toc-col-page">${item.absolutePageNumber}</span>
+              </button>
+            </li>
+          `
+          )
+          .join("");
+
+        // Added the physical page-ribbon here so it flips naturally with the page
+        return `
+          <div class="toc-page">
+            <div class="page-ribbon"></div>
+            <h2 class="toc-header">${labels.tocTitle}</h2>
+            <div class="toc-table">
+              <div class="toc-table-header">
+                <span class="toc-col-date">${labels.tocDate}</span>
+                <span class="toc-col-desc">${labels.tocDesc}</span>
+                <span class="toc-col-page">${labels.tocPage}</span>
+              </div>
+              <ul class="toc-items-list">
+                ${tocItemsHTML}
+              </ul>
+            </div>
+          </div>
+        `;
+      }
+
+      if (page.type === "metadata") {
+        const entry = page.entry;
+        const cat = categoryConfig[entry.category] || categoryConfig.observation;
+        const tagsHTML = entry.tags && entry.tags.length > 0
+          ? entry.tags.map((tag: string) => `<span class="tag">#${tag}</span>`).join("")
+          : "";
+        const projectHTML = entry.relatedProject
+          ? `
+            <a href="/${data.locale}/projects/${entry.relatedProject.slug?.current || ""}" class="project-link">
+              <span class="project-link-label">${labels.relatedProject}</span>
+              <span class="project-link-title">${entry.relatedProject.title}</span>
+            </a>
+          `
+          : "";
+
+        return `
+          <div class="entry-number">${labels.entryLabel} #${entry.entryNumber}</div>
+          <div class="entry-date">${formatDate(entry.date)}</div>
+          <div class="category-stamp">
+            <div class="stamp" style="--stamp-color: ${cat.color}">
+              <span class="stamp-icon">${cat.icon}</span>
+              <span class="stamp-label">${cat.label}</span>
+            </div>
+          </div>
+          <div class="entry-tags">${tagsHTML}</div>
+          <div class="related-project">${projectHTML}</div>
+        `;
+      }
+
+      if (page.type === "content") {
+        const titleHTML = page.entryTitle ? `<h2 class="entry-title">${page.entryTitle}</h2>` : "";
+        return `
+          ${titleHTML}
+          <div class="entry-body">${page.contentHTML}</div>
+        `;
+      }
+
+      return "";
+    }
+
+    function renderSpread(index: number) {
+      const leftPage = bookPages[index];
+      const rightPage = bookPages[index + 1];
+
+      leftContent.innerHTML = getPageHTML(leftPage);
+      rightContent.innerHTML = getPageHTML(rightPage);
+
+      leftNumLabel.textContent = leftPage ? String(leftPage.absolutePageNumber) : "";
+      rightNumLabel.textContent = rightPage ? String(rightPage.absolutePageNumber) : "";
+
+      bindTOCLinks();
+
+      const currentSpreadLabel = Math.floor(index / 2) + 1;
+      const totalSpreads = Math.ceil(bookPages.length / 2);
+      pageIndicator.textContent = `${currentSpreadLabel} ${labels.ofLabel} ${totalSpreads}`;
+
+      prevBtn.classList.toggle("disabled", index === 0);
+      nextBtn.classList.toggle("disabled", index >= bookPages.length - 2);
+
+      // Bookmark ribbon toggle state based on index
+      notebook.classList.toggle("at-toc", index === 0);
+    }
+
+    function bindTOCLinks() {
+      const btns = notebook.querySelectorAll(".toc-item-btn");
+      btns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetPage = parseInt((btn as HTMLElement).dataset.page || "1");
+          const targetIndex = targetPage - 1;
+          flipToPageIndex(targetIndex);
+        });
+      });
+
+      // Bind the page ribbon back button on the TOC page
+      const ribbon = notebook.querySelector(".page-ribbon");
+      if (ribbon) {
+        ribbon.addEventListener("click", () => {
+          flipToPageIndex(lastReadPageIndex);
+        });
+      }
+    }
+
+    async function flipToPageIndex(targetIndex: number) {
+      if (targetIndex < 0 || targetIndex >= bookPages.length || isAnimating) return;
+
+      const currentSpread = Math.floor(currentIndex / 2);
+      const targetSpread = Math.floor(targetIndex / 2);
+
+      if (currentSpread === targetSpread) return;
+
+      isAnimating = true;
+      const direction = targetSpread > currentSpread ? "next" : "prev";
+      const steps = Math.abs(targetSpread - currentSpread);
+
+      if (steps > 1) {
+        turningPage.classList.add("fast-riffle");
+      } else {
+        turningPage.classList.remove("fast-riffle");
+      }
+
+      for (let i = 0; i < steps; i++) {
+        const nextIdx = direction === "next" ? currentIndex + 2 : currentIndex - 2;
+        const currentLeft = bookPages[currentIndex];
+        const currentRight = bookPages[currentIndex + 1];
+        const nextLeft = bookPages[nextIdx];
+        const nextRight = bookPages[nextIdx + 1];
+
+        await new Promise<void>((resolve) => {
+          if (direction === "next") {
+            turningFrontContent.innerHTML = getPageHTML(currentRight);
+            turningFrontNum.textContent = currentRight ? String(currentRight.absolutePageNumber) : "";
+
+            turningBackContent.innerHTML = getPageHTML(nextLeft);
+            turningBackNum.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
+
+            rightContent.innerHTML = getPageHTML(nextRight);
+            rightNumLabel.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
+          } else {
+            turningFrontContent.innerHTML = getPageHTML(nextRight);
+            turningFrontNum.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
+
+            turningBackContent.innerHTML = getPageHTML(currentLeft);
+            turningBackNum.textContent = currentLeft ? String(currentLeft.absolutePageNumber) : "";
+
+            leftContent.innerHTML = getPageHTML(nextLeft);
+            leftNumLabel.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
+          }
+
+          turningPage.style.display = "block";
+          turningPage.offsetHeight;
+          turningPage.classList.add("turning", `turn-${direction}`);
+
+          turningPage.addEventListener(
+            "animationend",
+            () => {
+              if (direction === "next") {
+                leftContent.innerHTML = getPageHTML(nextLeft);
+                leftNumLabel.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
+              } else {
+                rightContent.innerHTML = getPageHTML(nextRight);
+                rightNumLabel.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
+              }
+
+              turningPage.classList.remove("turning", `turn-${direction}`);
+              turningPage.style.display = "none";
+              currentIndex = nextIdx;
+
+              const currentSpreadLabel = Math.floor(currentIndex / 2) + 1;
+              const totalSpreads = Math.ceil(bookPages.length / 2);
+              pageIndicator.textContent = `${currentSpreadLabel} ${labels.ofLabel} ${totalSpreads}`;
+
+              prevBtn.classList.toggle("disabled", currentIndex === 0);
+              nextBtn.classList.toggle("disabled", currentIndex >= bookPages.length - 2);
+
+              notebook.classList.toggle("at-toc", currentIndex === 0);
+
+              resolve();
+            },
+            { once: true }
+          );
+        });
+      }
+
+      bindTOCLinks();
+      isAnimating = false;
+    }
+
+    // Floating Ribbon tab click interaction (when not on TOC page)
+    ribbonTab.addEventListener("click", () => {
+      if (currentIndex !== 0) {
+        lastReadPageIndex = currentIndex;
+        flipToPageIndex(0);
+      }
+    });
+
+    // Control buttons interaction
+    nextBtn.addEventListener("click", () => {
+      if (currentIndex < bookPages.length - 2) {
+        flipToPageIndex(currentIndex + 2);
+      }
+    });
+
+    prevBtn.addEventListener("click", () => {
+      if (currentIndex > 0) {
+        flipToPageIndex(currentIndex - 2);
+      }
+    });
+
+    // Keyboard controls
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" && currentIndex < bookPages.length - 2) {
+        flipToPageIndex(currentIndex + 2);
+      } else if (e.key === "ArrowLeft" && currentIndex > 0) {
+        flipToPageIndex(currentIndex - 2);
+      }
+    });
+
+    // Initialize physical book
+    buildBook();
+    renderSpread(0);
+  }
+
+  document.addEventListener("astro:page-load", initLabNotebook);
+</script>
+
+<style>
+  /* ========================================
+     NOTEBOOK OUTER CONTAINER
+     ======================================== */
+  .notebook-outer {
+    --paper-color: #faf6f0;
+    --paper-line: rgba(165, 145, 120, 0.15);
+    --ink-color: #2c2416;
+    --ink-secondary: #6b5e4f;
+    --cover-color: #5c3d2e;
+    --cover-dark: #3a2518;
+    --spine-color: #4a2f1f;
+    --line-height: 28px;
+    --baseline-offset: 21px;
+
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    font-family: "Georgia", "Palatino Linotype", "Times New Roman", serif;
+  }
+
+  /* ========================================
+     EMPTY STATE
+     ======================================== */
+  .notebook-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--color-text-secondary, #64748b);
+  }
+  .notebook-empty h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--color-text, #334155);
+  }
+
+  /* ========================================
+     THE NOTEBOOK
+     ======================================== */
+  .notebook {
+    display: flex;
+    position: relative;
+    perspective: 1800px;
+    height: 600px;
+  }
+
+  /* Cover edges */
+  .cover-edge {
+    width: 12px;
+    flex-shrink: 0;
+    border-radius: 4px;
+  }
+  .left-cover {
+    background: linear-gradient(90deg, var(--cover-dark), var(--cover-color));
+    border-radius: 6px 0 0 6px;
+    box-shadow: -2px 0 6px rgba(0,0,0,0.2);
+  }
+  .right-cover {
+    background: linear-gradient(90deg, var(--cover-color), var(--cover-dark));
+    border-radius: 0 6px 6px 0;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.2);
+  }
+
+  /* Spine */
+  .spine {
+    width: 16px;
+    flex-shrink: 0;
+    background-color: var(--paper-color);
+    background-image: linear-gradient(90deg,
+      rgba(0,0,0,0.4),
+      rgba(0,0,0,0.1) 20%,
+      rgba(0,0,0,0.05) 50%,
+      rgba(0,0,0,0.1) 80%,
+      rgba(0,0,0,0.4)
+    );
+    position: relative;
+    z-index: 2;
+  }
+  .spine::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: rgba(0,0,0,0.08);
+  }
+
+  /* ========================================
+     PAGES
+     ======================================== */
+  .page {
+    flex: 1;
+    position: relative;
+    background-color: var(--paper-color);
+    overflow: hidden;
+    height: 100%;
+  }
+
+  /* Paper texture overlay */
+  .page-texture {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(200, 180, 150, 0.04), transparent 50%),
+      radial-gradient(ellipse at 80% 30%, rgba(180, 160, 130, 0.03), transparent 40%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ruled-lines {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent calc(var(--line-height) - 1px),
+      var(--paper-line) calc(var(--line-height) - 1px),
+      var(--paper-line) var(--line-height)
+    );
+    background-position: 0 var(--baseline-offset);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.7;
+  }
+
+  .left-page {
+    border-right: none;
+    box-shadow: inset -4px 0 8px rgba(0,0,0,0.04);
+  }
+  .right-page {
+    border-left: none;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,0.04);
+  }
+
+  /* ========================================
+     PAGE CONTENT
+     ======================================== */
+  .page-content {
+    position: relative;
+    z-index: 1;
+    padding: calc(var(--line-height) * 1) 2rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  /* Left page metadata */
+  .left-content {
+    display: block;
+    text-align: center;
+    padding-top: calc(var(--line-height) * 4);
+  }
+
+  .entry-number {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-secondary);
+    font-family: "Courier New", monospace;
+    line-height: var(--line-height);
+    margin-bottom: var(--line-height);
+  }
+
+  .entry-date {
+    font-size: 1rem;
+    color: var(--ink-color);
+    font-style: italic;
+    line-height: var(--line-height);
+    margin-bottom: var(--line-height);
+  }
+
+  /* Ink stamp */
+  .stamp {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 16px;
+    border: 3px solid var(--stamp-color, #2563eb);
+    border-radius: 50%;
+    width: 84px;
+    height: 84px;
+    margin: 0 auto var(--line-height);
+    justify-content: center;
+    transform: rotate(-8deg);
+    opacity: 0.75;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .stamp::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 1px dashed var(--stamp-color, #2563eb);
+    opacity: 0.4;
+  }
+  .stamp-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+  .stamp-label {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: var(--stamp-color, #2563eb);
+    font-family: "Courier New", monospace;
+  }
+
+  /* Tags */
+  .entry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    line-height: var(--line-height);
+    margin-bottom: var(--line-height);
+  }
+  .tag {
+    font-size: 0.7rem;
+    font-family: "Courier New", monospace;
+    color: var(--ink-secondary);
+    background: rgba(0,0,0,0.03);
+    padding: 0 8px;
+    border-radius: 3px;
+    height: 20px;
+    line-height: 20px;
+    margin-top: 4px;
+  }
+
+  /* Related project link */
+  .project-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    padding: 8px 12px;
+    border: 1px dashed var(--ink-secondary);
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    width: fit-content;
+    margin: 0 auto;
+    height: calc(var(--line-height) * 2);
+    box-sizing: border-box;
+    justify-content: center;
+  }
+  .project-link:hover {
+    background-color: rgba(0,0,0,0.03);
+  }
+  .project-link-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-secondary);
+  }
+  .project-link-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-color);
+  }
+
+  /* Right page content */
+  .right-content {
+    gap: 1rem;
+    overflow-y: hidden;
+  }
+
+  .entry-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--ink-color);
+    margin: 0 0 var(--line-height);
+    line-height: calc(var(--line-height) * 2);
+    padding: 0;
+  }
+
+  /* Markdown body styling */
+  .entry-body {
+    font-size: 0.9rem;
+    line-height: var(--line-height);
+    color: var(--ink-color);
+  }
+  .entry-body :global(p) {
+    margin: 0 0 var(--line-height);
+  }
+  .entry-body :global(h1),
+  .entry-body :global(h2),
+  .entry-body :global(h3) {
+    margin: var(--line-height) 0 0;
+    font-weight: 700;
+    color: var(--ink-color);
+    line-height: var(--line-height);
+  }
+  .entry-body :global(h1) { font-size: 1.1rem; }
+  .entry-body :global(h2) { font-size: 1rem; }
+  .entry-body :global(h3) { font-size: 0.92rem; }
+  .entry-body :global(code) {
+    font-family: "Courier New", monospace;
+    font-size: 0.82rem;
+    background: rgba(0,0,0,0.04);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+  .entry-body :global(pre) {
+    background: rgba(0,0,0,0.04);
+    padding: 0 0.75rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    margin: 0 0 var(--line-height);
+    line-height: var(--line-height);
+  }
+  .entry-body :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+  .entry-body :global(ul),
+  .entry-body :global(ol) {
+    margin: 0 0 var(--line-height) 1.25rem;
+  }
+  .entry-body :global(li) {
+    margin-bottom: 0;
+  }
+  .entry-body :global(blockquote) {
+    border-left: 3px solid var(--paper-line);
+    padding-left: 0.75rem;
+    margin: 0 0 var(--line-height);
+    color: var(--ink-secondary);
+    font-style: italic;
+  }
+  .entry-body :global(a) {
+    color: #6b3a1f;
+    text-decoration: underline;
+    text-decoration-color: rgba(107, 58, 31, 0.3);
+    text-underline-offset: 2px;
+  }
+  .entry-body :global(a:hover) {
+    text-decoration-color: rgba(107, 58, 31, 0.8);
+  }
+
+  /* Images */
+  .entry-images {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .entry-figure {
+    margin: 0;
+  }
+  .entry-figure :global(img) {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid var(--paper-line);
+  }
+  .entry-figure :global(figcaption) {
+    font-size: 0.72rem;
+    color: var(--ink-secondary);
+    text-align: center;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* ========================================
+     PAGE NUMBERS
+     ======================================== */
+  .page-number-label {
+    position: absolute;
+    bottom: 12px;
+    font-size: 0.72rem;
+    font-family: "Courier New", monospace;
+    color: var(--ink-secondary);
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .left-page-num {
+    left: 20px;
+  }
+  .right-page-num {
+    right: 20px;
+  }
+
+  /* ========================================
+     DYNAMIC GLOBAL STYLES (for innerHTML TOC)
+     ======================================== */
+  :global(.toc-page) {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: 0 0.5rem 0 36px;
+    position: relative;
+    /* Offset left-content padding to start higher on page */
+    margin-top: calc(-1 * var(--line-height) * 3);
+  }
+  
+  :global(.page-ribbon) {
+    position: absolute;
+    top: -28px;
+    left: 8px;
+    width: 20px;
+    height: calc(100% + 28px);
+    background: #c0392b;
+    box-shadow: 2px 4px 8px rgba(0,0,0,0.18);
+    z-index: 10;
+    cursor: pointer;
+  }
+  :global(.page-ribbon)::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-left: 10px solid #c0392b;
+    border-right: 10px solid #c0392b;
+    border-bottom: 8px solid transparent;
+  }
+  :global(.page-ribbon:hover) {
+    background: #e74c3c;
+  }
+
+  :global(.toc-header) {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--ink-color);
+    margin: 0;
+    text-align: center;
+    line-height: calc(var(--line-height) * 2);
+    font-family: inherit;
+    border-bottom: 2px solid var(--paper-line);
+  }
+  
+  :global(.toc-table) {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: var(--line-height);
+  }
+  
+  :global(.toc-table-header) {
+    display: flex;
+    width: 100%;
+    height: var(--line-height);
+    line-height: var(--line-height);
+    border-bottom: 2px solid var(--paper-line);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-secondary);
+    font-family: "Courier New", monospace;
+  }
+  
+  :global(.toc-col-date) {
+    width: 70px;
+    flex-shrink: 0;
+  }
+  :global(.toc-col-desc) {
+    flex-grow: 1;
+    white-space: normal;
+    word-break: break-word;
+    padding-right: 12px;
+  }
+  :global(.toc-col-page) {
+    width: 40px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  
+  :global(.toc-items-list) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  :global(.toc-items-list li) {
+    min-height: var(--line-height);
+    height: auto;
+    margin-bottom: 0;
+  }
+  :global(.toc-item-btn) {
+    display: flex;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--ink-color);
+    align-items: baseline;
+    text-align: left;
+    min-height: var(--line-height);
+    line-height: var(--line-height);
+  }
+  :global(.toc-item-btn:hover .toc-col-desc) {
+    text-decoration: underline;
+  }
+  :global(.toc-item-btn .toc-col-date) {
+    font-family: "Courier New", monospace;
+    font-size: 0.78rem;
+    color: var(--ink-secondary);
+  }
+  :global(.toc-item-btn .toc-col-desc) {
+    color: var(--ink-color);
+    font-weight: 500;
+  }
+  :global(.toc-item-btn .toc-col-page) {
+    font-family: "Courier New", monospace;
+    font-size: 0.85rem;
+    color: var(--ink-secondary);
+  }
+
+  /* ========================================
+     3D PAGE TURN ANIMATION
+     ======================================== */
+  .turning-page {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: calc(50% - 12px);
+    height: 100%;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    z-index: 10;
+    pointer-events: none;
+    display: none;
+  }
+
+  .turning-front,
+  .turning-back {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 0 2px 2px 0;
+    overflow: hidden;
+  }
+  .turning-front {
+    right: 0;
+    width: calc(100% - 8px);
+    background-color: var(--paper-color);
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  }
+  .turning-back {
+    left: 0;
+    width: calc(100% - 8px);
+    background-color: var(--paper-color);
+    transform: rotateY(180deg);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  }
+
+  .turning-page.turning {
+    display: block;
+  }
+  .turning-page.turn-next {
+    animation: turnNext 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .turning-page.turn-prev {
+    animation: turnPrev 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* Rapid riffle animations */
+  .turning-page.fast-riffle.turn-next {
+    animation: turnNext 0.12s linear forwards;
+  }
+  .turning-page.fast-riffle.turn-prev {
+    animation: turnPrev 0.12s linear forwards;
+  }
+
+  @keyframes turnNext {
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(-180deg); }
+  }
+  @keyframes turnPrev {
+    0% { transform: rotateY(-180deg); }
+    100% { transform: rotateY(0deg); }
+  }
+
+  /* ========================================
+     PHYSICAL BOOKMARK RIBBON (EXTERNAL TAB)
+     ======================================== */
+  .bookmark-ribbon {
+    position: absolute;
+    top: 0;
+    left: 52px; /* Positioned to match the page ribbon layout (44px padding + 8px page ribbon) */
+    width: 20px;
+    height: 24px;
+    background: #c0392b;
+    z-index: 20;
+    transform: translateY(-24px); /* Sticking out of the top cover */
+    cursor: pointer;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.3);
+    border-radius: 2px 2px 0 0;
+    transition: transform 0.2s, background-color 0.2s;
+  }
+  .bookmark-ribbon:hover {
+    background: #e74c3c;
+    transform: translateY(-26px);
+  }
+
+  /* Hide the external tab when the book is open to the TOC, let the internal ribbon be shown */
+  :global(.notebook.at-toc) .bookmark-ribbon {
+    display: none;
+  }
+
+  /* ========================================
+     NAVIGATION CONTROL ARROWS
+     ======================================== */
+  .notebook-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--cover-color);
+    background: var(--paper-color);
+    color: var(--cover-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover:not(.disabled) {
+    background: var(--cover-color);
+    color: var(--paper-color);
+    transform: scale(1.05);
+  }
+  .nav-btn.disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  .page-indicator {
+    font-size: 0.8rem;
+    font-family: "Courier New", monospace;
+    color: var(--ink-secondary);
+    min-width: 80px;
+    text-align: center;
+  }
+
+  /* ========================================
+     DARK MODE — Dark leather notebook
+     ======================================== */
+  :global(.dark) .notebook-outer {
+    --paper-color: #1e1b17;
+    --paper-line: rgba(100, 90, 75, 0.2);
+    --ink-color: #d4c8b8;
+    --ink-secondary: #8c7e6e;
+    --cover-color: #3d2b1e;
+    --cover-dark: #231510;
+    --spine-color: #2e1e13;
+  }
+  :global(.dark) .tag {
+    background: rgba(255,255,255,0.05);
+  }
+  :global(.dark) .entry-body :global(code) {
+    background: rgba(255,255,255,0.06);
+  }
+  :global(.dark) .entry-body :global(pre) {
+    background: rgba(255,255,255,0.05);
+  }
+  :global(.dark) .entry-body :global(a) {
+    color: #c9a87c;
+    text-decoration-color: rgba(201,168,124,0.3);
+  }
+  :global(.dark) .entry-body :global(a:hover) {
+    text-decoration-color: rgba(201,168,124,0.8);
+  }
+  :global(.dark) .nav-btn {
+    border-color: #5c4a3a;
+    background: #1e1b17;
+    color: #c9a87c;
+  }
+  :global(.dark) .nav-btn:hover:not(.disabled) {
+    background: #5c4a3a;
+    color: #1e1b17;
+  }
+  :global(.dark) .project-link {
+    border-color: var(--ink-secondary);
+  }
+  :global(.dark) .project-link:hover {
+    background-color: rgba(255,255,255,0.03);
+  }
+  :global(.dark) .stamp {
+    opacity: 0.65;
+  }
+
+  /* ========================================
+     MOBILE — Single page column layout
+     ======================================== */
+  @media (max-width: 768px) {
+    .notebook {
+      flex-direction: column;
+      height: auto;
+    }
+    .cover-edge {
+      display: none;
+    }
+    .spine {
+      width: 100%;
+      height: 8px;
+      background: linear-gradient(180deg,
+        rgba(0,0,0,0.12),
+        rgba(0,0,0,0.03) 30%,
+        rgba(0,0,0,0.03) 70%,
+        rgba(0,0,0,0.12)
+      );
+    }
+    .spine::after {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      transform: none;
+    }
+    .page {
+      height: auto;
+    }
+    .left-page {
+      box-shadow: none;
+      border-bottom: none;
+    }
+    .left-content {
+      padding: 1.25rem;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      text-align: left;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .stamp {
+      width: 52px;
+      height: 52px;
+      padding: 6px;
+    }
+    .stamp-icon { font-size: 1rem; }
+    .stamp-label { font-size: 0.55rem; }
+    .right-page {
+      box-shadow: none;
+    }
+    .right-content {
+      padding: 1.25rem;
+    }
+    .turning-page {
+      display: none !important; /* Disable 3D flip on mobile */
+    }
+    .bookmark-ribbon {
+      display: none; /* Hide bookmark on mobile */
+    }
+    .page-number-label {
+      bottom: 6px;
+    }
+  }
+</style>

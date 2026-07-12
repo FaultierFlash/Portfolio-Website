@@ -1,0 +1,599 @@
+---
+// src/components/CommandPalette.astro
+import { useTranslations, type Locale } from "../i18n/utils";
+
+interface Props {
+  currentLocale: Locale;
+  projectPages: { href: string; text: string }[];
+  navLinks: { href: string; text: string }[];
+}
+
+const { currentLocale, projectPages, navLinks } = Astro.props;
+const t = useTranslations(currentLocale);
+
+// Compile all static search items
+const items = [
+  // Page Links
+  {
+    type: "page",
+    title: t("nav.home") || "Home",
+    subtitle: "Navigate to homepage",
+    href: `/${currentLocale}/`,
+    keywords: "home start index main startseite",
+  },
+  ...navLinks.map((link) => ({
+    type: "page",
+    title: link.text,
+    subtitle: `Go to ${link.text}`,
+    href: link.href,
+    keywords: link.text.toLowerCase() + " page seite link navigation",
+  })),
+  // Project Pages
+  ...projectPages.map((proj) => ({
+    type: "project",
+    title: proj.text,
+    subtitle: "View project details",
+    href: proj.href,
+    keywords: proj.text.toLowerCase() + " project work portfolio referenz",
+  })),
+  // Legal Pages
+  {
+    type: "legal",
+    title: currentLocale === "de" ? "Impressum" : "Legal Notice (Impressum)",
+    subtitle: "Legal details & provider identification",
+    href: `/${currentLocale}/impressum`,
+    keywords: "impressum legal notice provider contact info",
+  },
+  {
+    type: "legal",
+    title: currentLocale === "de" ? "Datenschutzerklärung" : "Privacy Policy",
+    subtitle: "Privacy statements & regulations",
+    href: `/${currentLocale}/privacy-policy`,
+    keywords: "privacy datenschutz policy statement tracking cookies GDPR",
+  },
+  {
+    type: "legal",
+    title: currentLocale === "de" ? "Nutzungsbedingungen" : "Terms of Service",
+    subtitle: "Terms and conditions of website use",
+    href: `/${currentLocale}/terms-of-service`,
+    keywords: "terms of service nutzungsbedingungen conditions contract rules",
+  },
+  // Actions
+  {
+    type: "action",
+    title: t("theme.toggle") || "Toggle Light/Dark Theme",
+    subtitle: "Change website appearance",
+    actionId: "toggle-theme",
+    keywords: "theme style dark light appearance background mode",
+  },
+  {
+    type: "action",
+    title: currentLocale === "de" ? "Tastentöne umschalten" : "Toggle Keyboard Sounds",
+    subtitle: "Enable/disable terminal sound effects",
+    actionId: "toggle-sounds",
+    keywords: "sound audio music clicks keyboard typewriter sfx toggling",
+  },
+  {
+    type: "action",
+    title: currentLocale === "de" ? "Sprache wechseln (DE ⇄ EN)" : "Switch Language (EN ⇄ DE)",
+    subtitle: `Change language to ${currentLocale === "de" ? "English" : "German"}`,
+    actionId: "switch-language",
+    keywords: "language switch translate translation englisch deutsch english german",
+  },
+];
+---
+
+<div id="command-palette-modal" class="palette-modal hidden" aria-modal="true" role="dialog" data-locale={currentLocale}>
+  <div class="palette-backdrop" id="palette-backdrop"></div>
+  <div class="palette-container">
+    <div class="palette-search-wrapper">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input 
+        type="text" 
+        id="palette-search-input" 
+        placeholder={currentLocale === 'de' ? 'Suchen oder Befehl eingeben...' : 'Search or type a command...'} 
+        autocomplete="off" 
+      />
+      <span class="palette-esc-badge">ESC</span>
+    </div>
+    
+    <div class="palette-results-wrapper" id="palette-results" data-items={JSON.stringify(items)}>
+      <!-- Rendered dynamically on client side -->
+    </div>
+
+    <div class="palette-footer">
+      <div class="footer-shortcuts">
+        <span><kbd>↑↓</kbd> {currentLocale === 'de' ? 'navigieren' : 'navigate'}</span>
+        <span><kbd>Enter</kbd> {currentLocale === 'de' ? 'auswählen' : 'select'}</span>
+      </div>
+      <span>{currentLocale === 'de' ? 'Schließen mit ESC' : 'ESC to close'}</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  let isOpen = false;
+  let activeIndex = 0;
+  let filteredItems: any[] = [];
+
+  const groupSortOrder: Record<string, number> = {
+    page: 1,
+    project: 2,
+    action: 3,
+    legal: 4
+  };
+
+  function initCommandPalette() {
+    const modal = document.getElementById("command-palette-modal");
+    const backdrop = document.getElementById("palette-backdrop");
+    const input = document.getElementById("palette-search-input") as HTMLInputElement | null;
+    const resultsContainer = document.getElementById("palette-results");
+    const triggerBtn = document.getElementById("search-palette-trigger");
+
+    if (!modal || !resultsContainer || !input) return;
+
+    const currentLang = modal.getAttribute("data-locale") || "en";
+
+    // Load static items array from data attribute
+    const allItems = JSON.parse(resultsContainer.dataset.items || "[]");
+    
+    // Initial sort
+    allItems.sort((a: any, b: any) => {
+      return (groupSortOrder[a.type] || 99) - (groupSortOrder[b.type] || 99);
+    });
+    filteredItems = [...allItems];
+
+    function openPalette() {
+      isOpen = true;
+      modal?.classList.remove("hidden");
+      document.body.classList.add("no-scroll-mobile");
+      setTimeout(() => {
+        input?.focus();
+      }, 50);
+      renderResults();
+    }
+
+    function closePalette() {
+      isOpen = false;
+      modal?.classList.add("hidden");
+      document.body.classList.remove("no-scroll-mobile");
+      if (input) input.value = "";
+    }
+
+    function togglePalette() {
+      if (isOpen) {
+        closePalette();
+      } else {
+        openPalette();
+      }
+    }
+
+    // Toggle Palette triggers
+    triggerBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openPalette();
+    });
+
+    backdrop?.addEventListener("click", closePalette);
+
+    // Filter and sort results on input change
+    input.addEventListener("input", () => {
+      const query = input.value.toLowerCase().trim();
+      let matched = [];
+      if (!query) {
+        matched = [...allItems];
+      } else {
+        matched = allItems.filter((item: any) => {
+          return (
+            item.title.toLowerCase().includes(query) ||
+            item.subtitle.toLowerCase().includes(query) ||
+            item.keywords.toLowerCase().includes(query)
+          );
+        });
+      }
+
+      // Sort matched items by group order
+      matched.sort((a: any, b: any) => {
+        return (groupSortOrder[a.type] || 99) - (groupSortOrder[b.type] || 99);
+      });
+
+      filteredItems = matched;
+      activeIndex = 0;
+      renderResults();
+    });
+
+    // Keyboard handlers
+    window.addEventListener("keydown", (e) => {
+      // Toggle palette: Cmd+K or Ctrl+K or / (when not typing in inputs)
+      const isSearchShortcut = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
+      const isSlashShortcut = e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA";
+
+      if (isSearchShortcut || isSlashShortcut) {
+        e.preventDefault();
+        togglePalette();
+        return;
+      }
+
+      if (!isOpen) return;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closePalette();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % Math.max(1, filteredItems.length);
+        renderResults();
+        scrollActiveIntoView();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + filteredItems.length) % Math.max(1, filteredItems.length);
+        renderResults();
+        scrollActiveIntoView();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (filteredItems[activeIndex]) {
+          triggerItem(filteredItems[activeIndex]);
+        }
+      }
+    });
+
+    function scrollActiveIntoView() {
+      const activeEl = resultsContainer?.querySelector(".palette-item.active");
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function triggerItem(item: any) {
+      closePalette();
+      if (item.href) {
+        // Redirection
+        window.location.href = item.href;
+      } else if (item.actionId) {
+        // System Actions
+        if (item.actionId === "toggle-theme") {
+          const themeToggle = document.getElementById("theme-toggle");
+          if (themeToggle) {
+            themeToggle.click();
+          }
+        } else if (item.actionId === "toggle-sounds") {
+          const soundEnabled = localStorage.getItem("terminal_sound_fx") !== "false";
+          localStorage.setItem("terminal_sound_fx", soundEnabled ? "false" : "true");
+          // Dispatch a custom event to notify components (like TerminalContactForm)
+          window.dispatchEvent(new CustomEvent("sound-fx-toggled", { detail: !soundEnabled }));
+          
+          // Show temporary feedback toast/alert
+          alert(soundEnabled ? "Keyboard Sound FX disabled" : "Keyboard Sound FX enabled");
+        } else if (item.actionId === "switch-language") {
+          const currentPath = window.location.pathname;
+          // Determine language swap
+          let newPath = "";
+          if (currentPath.startsWith("/de/")) {
+            newPath = "/en/" + currentPath.substring(4);
+          } else if (currentPath.startsWith("/en/")) {
+            newPath = "/de/" + currentPath.substring(4);
+          } else if (currentPath === "/de" || currentPath === "/de/") {
+            newPath = "/en/";
+          } else {
+            newPath = "/de/";
+          }
+          window.location.href = newPath;
+        }
+      }
+    }
+
+    function renderResults() {
+      if (!resultsContainer) return;
+      if (filteredItems.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="palette-empty-state">
+            <span>No results found</span>
+          </div>
+        `;
+        return;
+      }
+
+      const groupLabels: Record<string, string> = {
+        page: currentLang === 'de' ? "Navigation" : "Navigation",
+        project: currentLang === 'de' ? "Projekte" : "Projects",
+        action: currentLang === 'de' ? "Aktionen" : "Actions",
+        legal: currentLang === 'de' ? "Rechtliches" : "Legal"
+      };
+
+      let html = "";
+      let lastType = "";
+
+      filteredItems.forEach((item, idx) => {
+        const activeClass = idx === activeIndex ? "active" : "";
+        const itemType = item.type || "page";
+
+        // Render group header if group changes
+        if (itemType !== lastType) {
+          const label = groupLabels[itemType] || "General";
+          html += `<div class="palette-group-header">${label}</div>`;
+          lastType = itemType;
+        }
+
+        const iconSvg = item.type === "project" 
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon><line x1="12" y1="22" x2="12" y2="15.5"></line><polyline points="22 8.5 12 15.5 2 8.5"></polyline><polyline points="2 15.5 12 8.5 22 15.5"></polyline><line x1="12" y1="2" x2="12" y2="8.5"></line></svg>`
+          : item.type === "action"
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+          : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+
+        html += `
+          <div class="palette-item ${activeClass}" data-index="${idx}">
+            <div class="item-visual">
+              ${iconSvg}
+            </div>
+            <div class="item-content">
+              <span class="item-title">${item.title}</span>
+              <span class="item-subtitle">${item.subtitle}</span>
+            </div>
+          </div>
+        `;
+      });
+
+      resultsContainer.innerHTML = html;
+
+      // Add click listeners to items
+      resultsContainer.querySelectorAll(".palette-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          const idx = parseInt(el.getAttribute("data-index") || "0", 10);
+          triggerItem(filteredItems[idx]);
+        });
+      });
+    }
+  }
+
+  // Set up on initial load
+  initCommandPalette();
+
+  // Re-run setup on View Transitions page load
+  document.addEventListener("astro:page-load", initCommandPalette);
+</script>
+
+<style is:global>
+  /* Wrap all selectors with modal ID to make global styling completely isolated and clash-free */
+  #command-palette-modal.palette-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 3rem 1rem 1rem;
+  }
+
+  #command-palette-modal.palette-modal.hidden {
+    display: none !important;
+  }
+
+  #command-palette-modal .palette-backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  #command-palette-modal .palette-container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 580px;
+    background-color: var(--color-bg-elevated, rgba(255, 255, 255, 0.85));
+    border: 1px solid var(--color-project-accent-border, rgba(255, 125, 26, 0.2));
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUpFade 0.25s ease-out;
+  }
+
+  /* Support Dark Theme specifically */
+  .dark #command-palette-modal .palette-container {
+    background-color: rgba(15, 23, 42, 0.85);
+  }
+
+  @keyframes slideUpFade {
+    from {
+      opacity: 0;
+      transform: translateY(-12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  #command-palette-modal .palette-search-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+    gap: 0.75rem;
+  }
+
+  .dark #command-palette-modal .palette-search-wrapper {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  #command-palette-modal .search-icon {
+    color: var(--color-text-secondary, #64748b);
+    flex-shrink: 0;
+  }
+
+  #command-palette-modal #palette-search-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: var(--color-text, #0f172a);
+    font-family: inherit;
+  }
+
+  .dark #command-palette-modal #palette-search-input {
+    color: #f8fafc;
+  }
+
+  #command-palette-modal #palette-search-input::placeholder {
+    color: var(--color-text-muted, #94a3b8);
+  }
+
+  #command-palette-modal .palette-esc-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--color-text-secondary, #64748b);
+    border: 1px solid var(--color-border, #cbd5e1);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+  }
+
+  .dark #command-palette-modal .palette-esc-badge {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  #command-palette-modal .palette-results-wrapper {
+    max-h: 350px;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  /* Custom scrollbar for results */
+  #command-palette-modal .palette-results-wrapper::-webkit-scrollbar {
+    width: 6px;
+  }
+  #command-palette-modal .palette-results-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  #command-palette-modal .palette-results-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--color-project-accent-border, rgba(0, 0, 0, 0.1));
+    border-radius: 3px;
+  }
+  .dark #command-palette-modal .palette-results-wrapper::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  #command-palette-modal .palette-empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-secondary, #64748b);
+    font-size: 0.9rem;
+  }
+
+  #command-palette-modal .palette-group-header {
+    font-size: 0.65rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    color: var(--color-project-accent, #FF7D1A);
+    letter-spacing: 0.08em;
+    padding: 0.75rem 1rem 0.25rem;
+    user-select: none;
+    opacity: 0.85;
+  }
+
+  #command-palette-modal .palette-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    gap: 0.75rem;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+
+  #command-palette-modal .palette-item:hover,
+  #command-palette-modal .palette-item.active {
+    background-color: var(--color-project-accent-bg, rgba(255, 125, 26, 0.08));
+  }
+
+  #command-palette-modal .palette-item.active {
+    outline: 1.5px solid var(--color-project-accent, #FF7D1A);
+  }
+
+  #command-palette-modal .item-visual {
+    width: 30px;
+    height: 30px;
+    border-radius: 0.375rem;
+    background-color: var(--color-border, rgba(0, 0, 0, 0.04));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-project-accent, #FF7D1A);
+    flex-shrink: 0;
+  }
+
+  .dark #command-palette-modal .item-visual {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  #command-palette-modal .item-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  #command-palette-modal .item-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dark #command-palette-modal .item-title {
+    color: #f1f5f9;
+  }
+
+  #command-palette-modal .item-subtitle {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #64748b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #command-palette-modal .palette-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+    background-color: rgba(0, 0, 0, 0.02);
+    font-size: 0.65rem;
+    color: var(--color-text-secondary, #64748b);
+    font-weight: 500;
+  }
+
+  .dark #command-palette-modal .palette-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+
+  #command-palette-modal .footer-shortcuts {
+    display: flex;
+    gap: 1rem;
+  }
+
+  #command-palette-modal .footer-shortcuts kbd {
+    background-color: var(--color-bg, #fff);
+    border: 1px solid var(--color-border, #cbd5e1);
+    border-radius: 0.15rem;
+    padding: 0.05rem 0.2rem;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+    margin-right: 0.15rem;
+    font-family: inherit;
+  }
+
+  .dark #command-palette-modal .footer-shortcuts kbd {
+    background-color: #1e293b;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+  }
+</style>

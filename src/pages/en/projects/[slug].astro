@@ -90,7 +90,7 @@ const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
     </div>
   </section>
 
-  <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl !font-bold">
+  <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl">
     <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
       {/* If we had a Portable Text renderer we'd use it here. Currently falling back to standard description. */}
       {projectData.body ? (

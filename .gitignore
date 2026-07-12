@@ -1,5 +1,6 @@
 # build output
 dist/
+public/studio/
 
 # generated types
 .astro/
@@ -22,8 +23,5 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
-package-lock.json
-package.json
-
 # Local Netlify folder
 .netlify

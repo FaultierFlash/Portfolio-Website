@@ -74,7 +74,7 @@ export const POST: APIRoute = async ({ request }) => {
       const { data: responseData, error } = await resend.emails.send({
         from: `Contact Form <${RESEND_SENDING_EMAIL}>`, // Must be from your verified domain
         to: [EMAIL_TO],
-        reply_to: email,
+        replyTo: email,
         subject: `New Contact Submission from ${name}`,
         html: `
           <p><strong>Name:</strong> ${name}</p>

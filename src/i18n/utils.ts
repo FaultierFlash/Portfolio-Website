@@ -3,6 +3,7 @@ import en from './en.json';
 import de from './de.json';
 
 export type Locale = 'en' | 'de';
+export type LocalizedString = string;
 
 // Remove the restrictive TranslationKey type based only on top-level keys
 // const translations object will hold the imported JSON structures

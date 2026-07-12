@@ -89,7 +89,7 @@ const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
     </div>
   </section>
 
-  <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl prose-headings:!text-slate-900 dark:prose-headings:!text-white prose-p:!text-slate-800 dark:prose-p:!text-slate-200 prose-li:!text-slate-800 dark:prose-li:!text-slate-200 !font-bold">
+  <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl prose-headings:!text-slate-900 dark:prose-headings:!text-white prose-p:!text-slate-800 dark:prose-p:!text-slate-200 prose-li:!text-slate-800 dark:prose-li:!text-slate-200">
     <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
       {projectData.body ? (
           <div class="markdown-content space-y-6" set:html={parsedBody} />

@@ -24,7 +24,6 @@ const { currentLocale, t, homePath, navLinks, projectPages, accentColor = "prima
 // --- Generate Path Segments for Logo with Full Translation ---
 const pathSegments: PathSegment[] = [];
 const rawPathname = Astro.url.pathname;
-console.log("[Header Breadcrumb] Raw Pathname:", rawPathname);
 
 // 1. Add the "~" (home) segment
 pathSegments.push({
@@ -46,16 +45,13 @@ if (pathWithoutLocale && !pathWithoutLocale.startsWith("/")) {
 if (pathWithoutLocale.length > 1 && pathWithoutLocale.endsWith("/")) {
   pathWithoutLocale = pathWithoutLocale.slice(0, -1);
 }
-console.log("[Header Breadcrumb] Path without locale:", pathWithoutLocale);
 
 const slugs = pathWithoutLocale.split("/").filter(Boolean);
-console.log("[Header Breadcrumb] Slugs:", JSON.stringify(slugs));
 
 let cumulativePathForLinks = "";
 let basePathKeyForTranslations = "paths"; // Start with the base "paths" key
 
 slugs.forEach((slug, index) => {
-  console.log(`\n[Header Breadcrumb] Processing slug #${index}: '${slug}'`);
   cumulativePathForLinks += `/${slug}`;
   const isLastSegment = index === slugs.length - 1;
   let segmentText = "";
@@ -64,29 +60,16 @@ slugs.forEach((slug, index) => {
   const titleKey = `${basePathKeyForTranslations}.${slug}._title_`;
   let translatedTitle = t(titleKey);
 
-  console.log(
-    `[Header Breadcrumb] Attempting titleKey: '${titleKey}', result: '${translatedTitle}'`
-  );
-
   if (translatedTitle && translatedTitle !== titleKey) {
     // Check if translation was found and is not the key itself
     segmentText = translatedTitle;
-    console.log(
-      `[Header Breadcrumb] Used _title_ translation: '${segmentText}'`
-    );
   } else {
     // If _title_ not found, try direct slug translation (for leaf nodes like project names)
     const directSlugKey = `${basePathKeyForTranslations}.${slug}`;
     let translatedSlug = t(directSlugKey);
-    console.log(
-      `[Header Breadcrumb] Attempting directSlugKey: '${directSlugKey}', result: '${translatedSlug}'`
-    );
 
     if (translatedSlug && translatedSlug !== directSlugKey) {
       segmentText = translatedSlug;
-      console.log(
-        `[Header Breadcrumb] Used direct slug translation: '${segmentText}'`
-      );
     } else {
       // Fallback: capitalize the slug
       segmentText = slug
@@ -94,9 +77,6 @@ slugs.forEach((slug, index) => {
         .split(" ")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
-      console.log(
-        `[Header Breadcrumb] No specific translation found, defaulted to capitalized: '${segmentText}'`
-      );
     }
   }
 
@@ -112,9 +92,6 @@ slugs.forEach((slug, index) => {
       text: segmentText,
     });
   }
-  console.log(
-    `[Header Breadcrumb] Added segment: { text: '${segmentText}', isLink: ${!isLastSegment} }`
-  );
 
   // Update the base path for the next level of translation lookup
   basePathKeyForTranslations = `${basePathKeyForTranslations}.${slug}`;

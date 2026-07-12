@@ -12,4 +12,4 @@ export default defineCliConfig({
      */
     autoUpdates: true,
   }
-})
+} as any)

@@ -1,0 +1,27 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { useTranslations, type Locale } from "../../i18n/utils";
+import { getLabEntries } from "../../lib/sanity";
+import LabNotebook from "../../components/LabNotebook.astro";
+
+const lang = Astro.currentLocale as Locale;
+const t = useTranslations(lang);
+
+const entries = await getLabEntries();
+---
+
+<BaseLayout title={t("nav.notes")}>
+  <div class="notes-page-container">
+    <LabNotebook entries={entries} locale={lang} />
+  </div>
+</BaseLayout>
+
+<style>
+  .notes-page-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+</style>

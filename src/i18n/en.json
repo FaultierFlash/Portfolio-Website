@@ -46,6 +46,7 @@
     "projects": "Projects",
     "contact": "Contact",
     "library": "Library",
+    "notes": "Notes",
     "toggleMenu": "Toggle menu",
     "mainNavigation": "Main navigation",
     "logo": {
@@ -72,11 +73,20 @@
     "library": {
       "_title_": "Library"
     },
+    "notes": {
+      "_title_": "Notes"
+    },
     "contact": {
       "_title_": "Contact-Page"
     },
     "about": {
       "_title_": "About-Page"
     }
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "impressum": "Impressum (Legal Notice)"
   }
 }
+

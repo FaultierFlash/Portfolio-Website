@@ -39,6 +39,7 @@
     "breadcrumbAriaLabel": "Aktuelle Seite",
     "contact": "Kontakt",
     "library": "Bibliothek",
+    "notes": "Notizen",
     "goToLabel": "Gehe zu {page}",
     "home": {
       "label": "Startseite",
@@ -81,9 +82,16 @@
     "library": {
       "_title_": "Bibliothek"
     },
+    "notes": {
+      "_title_": "Notizen"
+    },
     "about": {
       "_title_": "Über-Uns"
     }
+  },
+  "footer": {
+    "privacy": "Datenschutzerklärung",
+    "terms": "Nutzungsbedingungen",
+    "impressum": "Impressum"
   }
-
 }

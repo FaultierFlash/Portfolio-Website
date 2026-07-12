@@ -1,0 +1,946 @@
+---
+// src/components/AudioPlayer.astro
+// Glassmorphic Audio Player with Web Audio API Space Ambience Synth
+---
+
+<div id="audio-player-widget" class="audio-widget-wrapper docked expand-up align-right" transition:persist>
+  <!-- Mini Circular Button -->
+  <button id="widget-toggle-btn" class="widget-toggle-btn" aria-label="Music Player" title="Play Music">
+    <!-- Visualizer Icon (Static or Animated) -->
+    <div class="mini-visualizer" id="mini-visualizer">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+    <!-- Headphones Icon fallback when not playing -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="headphones-icon"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+  </button>
+
+  <!-- Expanded Panel -->
+  <div class="widget-panel" id="widget-panel">
+    <div class="panel-header">
+      <span class="now-playing-label">Ambient Soundscape</span>
+      <span class="track-title" id="track-title">Space Synth Ambience</span>
+    </div>
+
+    <!-- Active Wave Visualizer -->
+    <div class="wave-visualizer" id="wave-visualizer">
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="controls-row">
+      <button id="audio-play-pause-btn" class="play-btn" aria-label="Play/Pause">
+        <!-- Play SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="play-icon"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <!-- Pause SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="pause-icon hidden"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+      </button>
+
+      <div class="select-volume-container">
+        <select id="track-select" class="track-select">
+          <option value="synth">🌌 Space Ambience (Synth)</option>
+          <option value="lofi">☕ Lofi Chill (Stream)</option>
+        </select>
+
+        <div class="volume-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="volume-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4" class="volume-slider" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HTML5 Audio Element for streamed track -->
+  <audio id="html5-audio-element" loop src="https://upload.wikimedia.org/wikipedia/commons/6/69/Lo-fi_by_PetroVenus.mp3"></audio>
+</div>
+
+<script>
+  let isPlaying = false;
+  let currentTrack = "synth"; // 'synth' or 'lofi'
+  let userVolume = 0.4;
+
+  // --- Web Audio Synth Engine ---
+  let synthContext: AudioContext | null = null;
+  let synthGain: GainNode | null = null;
+  let filterNode: BiquadFilterNode | null = null;
+  let oscillators: OscillatorNode[] = [];
+  let oscillatorGains: GainNode[] = [];
+  let chordInterval: any = null;
+
+  // Space Chords: Cmaj9, Am9, Fmaj9, G9
+  const chords = [
+    [130.81, 164.81, 196.00, 246.94, 293.66], // Cmaj9 (C3, E3, G3, B3, D4)
+    [110.00, 130.81, 164.81, 196.00, 246.94], // Am9 (A2, C3, E3, G3, B3)
+    [87.31, 110.00, 130.81, 164.81, 196.00],   // Fmaj9 (F2, A2, C3, E3, G3)
+    [98.00, 123.47, 146.83, 174.61, 220.00]    // G9 (G2, B2, D3, F3, A3)
+  ];
+  let currentChordIndex = 0;
+
+  function initSynth() {
+    if (synthContext) return;
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    synthContext = new AudioContextClass();
+
+    filterNode = synthContext.createBiquadFilter();
+    filterNode.type = "lowpass";
+    filterNode.frequency.value = 350;
+    filterNode.Q.value = 1.2;
+
+    synthGain = synthContext.createGain();
+    synthGain.gain.setValueAtTime(0, synthContext.currentTime);
+
+    filterNode.connect(synthGain);
+    synthGain.connect(synthContext.destination);
+
+    // LFO to modulate filter frequency
+    const lfo = synthContext.createOscillator();
+    const lfoGain = synthContext.createGain();
+    lfo.frequency.value = 0.08; // 12 seconds per wave sweep
+    lfoGain.gain.value = 200; // Sweep range: 350 +/- 200 Hz
+    lfo.connect(lfoGain);
+    lfoGain.connect(filterNode.frequency);
+    lfo.start();
+
+    // Create 5 permanent oscillators with dedicated gains
+    const now = synthContext.currentTime;
+    oscillators = [];
+    oscillatorGains = [];
+    for (let i = 0; i < 5; i++) {
+      const osc = synthContext.createOscillator();
+      // Alternate waveform for warm detuned feel
+      osc.type = i % 2 === 0 ? "triangle" : "sine";
+      osc.frequency.setValueAtTime(chords[0][i], now);
+      
+      const noteGain = synthContext.createGain();
+      noteGain.gain.setValueAtTime(0.06, now); // soft volume per note
+      
+      osc.connect(noteGain);
+      noteGain.connect(filterNode);
+      osc.start(now);
+      
+      oscillators.push(osc);
+      oscillatorGains.push(noteGain);
+    }
+  }
+
+  function startSynth() {
+    initSynth();
+    if (!synthContext || !synthGain) return;
+    if (synthContext.state === "suspended") {
+      synthContext.resume();
+    }
+
+    // Fade in master gain
+    synthGain.gain.setValueAtTime(synthGain.gain.value, synthContext.currentTime);
+    synthGain.gain.linearRampToValueAtTime(userVolume, synthContext.currentTime + 1.5);
+
+    // Ensure note frequencies and gains are initialized/reset correctly
+    const now = synthContext.currentTime;
+    oscillators.forEach((osc, idx) => {
+      osc.frequency.setValueAtTime(chords[currentChordIndex][idx], now);
+    });
+    oscillatorGains.forEach((g) => {
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime(0.06, now + 0.5);
+    });
+
+    // Start chord progression scheduler
+    if (chordInterval) clearInterval(chordInterval);
+    chordInterval = setInterval(scheduleNextChord, 8000);
+  }
+
+  function stopSynth() {
+    if (!synthContext || !synthGain) return;
+    synthGain.gain.setValueAtTime(synthGain.gain.value, synthContext.currentTime);
+    synthGain.gain.linearRampToValueAtTime(0, synthContext.currentTime + 0.5);
+    if (chordInterval) {
+      clearInterval(chordInterval);
+      chordInterval = null;
+    }
+    // Suspend audio context dynamically after fade out to save CPU
+    setTimeout(() => {
+      if (synthContext && !isPlaying && synthContext.state === "running") {
+        synthContext.suspend();
+      }
+    }, 600);
+  }
+
+  function scheduleNextChord() {
+    if (!synthContext || oscillators.length < 5 || oscillatorGains.length < 5) return;
+    currentChordIndex = (currentChordIndex + 1) % chords.length;
+    const targetFreqs = chords[currentChordIndex];
+    const now = synthContext.currentTime;
+
+    // Fade out note gains over 2 seconds
+    oscillatorGains.forEach((g) => {
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime(0, now + 2.0);
+    });
+
+    // Update frequencies at 2.1 seconds while silent
+    oscillators.forEach((osc, idx) => {
+      osc.frequency.setValueAtTime(targetFreqs[idx], now + 2.1);
+    });
+
+    // Fade back in over 3 seconds (from 2.1 to 5.1 seconds)
+    oscillatorGains.forEach((g) => {
+      g.gain.setValueAtTime(0, now + 2.1);
+      g.gain.linearRampToValueAtTime(0.06, now + 5.1);
+    });
+  }
+
+  function updateSynthVolume(vol: number) {
+    if (synthGain && synthContext) {
+      synthGain.gain.setValueAtTime(synthGain.gain.value, synthContext.currentTime);
+      synthGain.gain.linearRampToValueAtTime(vol, synthContext.currentTime + 0.1);
+    }
+  }
+
+  function updateWidgetPositionClasses(left: number, top: number) {
+    const wrapper = document.getElementById("audio-player-widget");
+    if (!wrapper) return;
+
+    if (top > window.innerHeight / 2) {
+      wrapper.classList.add("expand-up");
+      wrapper.classList.remove("expand-down");
+    } else {
+      wrapper.classList.add("expand-down");
+      wrapper.classList.remove("expand-up");
+    }
+
+    if (left > window.innerWidth / 2) {
+      wrapper.classList.add("align-right");
+      wrapper.classList.remove("align-left");
+    } else {
+      wrapper.classList.add("align-left");
+      wrapper.classList.remove("align-right");
+    }
+  }
+
+  function dockWidget() {
+    const widget = document.getElementById("audio-player-widget");
+    const placeholder = document.getElementById("audio-widget-placeholder");
+    if (!widget || !placeholder) return;
+
+    if (widget.parentElement !== placeholder) {
+      placeholder.appendChild(widget);
+    }
+
+    widget.classList.add("docked");
+    widget.classList.remove("floating");
+    widget.style.left = "auto";
+    widget.style.top = "auto";
+    widget.style.right = "auto";
+    widget.style.bottom = "auto";
+
+    widget.classList.add("expand-up");
+    widget.classList.remove("expand-down");
+    widget.classList.add("align-right");
+    widget.classList.remove("align-left");
+
+    localStorage.removeItem("audio-widget-left");
+    localStorage.removeItem("audio-widget-top");
+    localStorage.setItem("audio-widget-docked", "true");
+  }
+
+  function floatWidget(left: number, top: number) {
+    const widget = document.getElementById("audio-player-widget");
+    if (!widget) return;
+
+    if (widget.parentElement !== document.body) {
+      document.body.appendChild(widget);
+    }
+
+    widget.classList.remove("docked");
+    widget.classList.add("floating");
+    widget.style.left = `${left}px`;
+    widget.style.top = `${top}px`;
+    widget.style.right = "auto";
+    widget.style.bottom = "auto";
+
+    updateWidgetPositionClasses(left, top);
+
+    localStorage.setItem("audio-widget-left", `${left}px`);
+    localStorage.setItem("audio-widget-top", `${top}px`);
+    localStorage.setItem("audio-widget-docked", "false");
+  }
+
+  // --- UI Interactivity ---
+  function setupAudioPlayer() {
+    const widget = document.getElementById("audio-player-widget");
+    const toggleBtn = document.getElementById("widget-toggle-btn");
+    const panel = document.getElementById("widget-panel");
+    const playPauseBtn = document.getElementById("audio-play-pause-btn");
+    const trackSelect = document.getElementById("track-select") as HTMLSelectElement | null;
+    const volumeSlider = document.getElementById("volume-slider") as HTMLInputElement | null;
+    const audioEl = document.getElementById("html5-audio-element") as HTMLAudioElement | null;
+    const trackTitle = document.getElementById("track-title");
+
+    if (!widget || !toggleBtn || !panel || !playPauseBtn || !trackSelect || !volumeSlider || !audioEl) return;
+
+    // Prevent duplicate listener bindings on Astro View Transitions
+    if (widget.dataset.audioInitialized === "true") return;
+    widget.dataset.audioInitialized = "true";
+
+    // Use non-nullable constant to satisfy TypeScript inside closures
+    const activeWidget = widget;
+
+    // Set initial volume value
+    audioEl.volume = userVolume;
+    volumeSlider.value = userVolume.toString();
+
+    // Draggable Movability State
+    let hasMovedWidget = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    function dragStart(e: any) {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+
+      isDragging = true;
+      hasMovedWidget = false;
+
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      startX = clientX;
+      startY = clientY;
+
+      const rect = activeWidget.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      if (e.type === 'mousedown') {
+        document.addEventListener('mousemove', dragMove, { passive: false });
+        document.addEventListener('mouseup', dragEnd);
+      } else {
+        document.addEventListener('touchmove', dragMove, { passive: false });
+        document.addEventListener('touchend', dragEnd);
+      }
+    }
+
+    function dragMove(e: any) {
+      if (!isDragging) return;
+
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+
+      if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        hasMovedWidget = true;
+      }
+
+      if (hasMovedWidget) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        // Float the widget on the first drag movement if it was docked
+        if (activeWidget.classList.contains("docked")) {
+          activeWidget.classList.remove("docked");
+          activeWidget.classList.add("floating");
+          document.body.appendChild(activeWidget);
+        }
+
+        let newLeft = initialLeft + deltaX;
+        let newTop = initialTop + deltaY;
+
+        // Viewport constraints (48px width/height of the button wrapper)
+        const buttonWidth = 48;
+        const buttonHeight = 48;
+        const minX = 10;
+        const minY = 10;
+        const maxX = window.innerWidth - buttonWidth - 10;
+        const maxY = window.innerHeight - buttonHeight - 10;
+
+        newLeft = Math.max(minX, Math.min(maxX, newLeft));
+        newTop = Math.max(minY, Math.min(maxY, newTop));
+
+        // Check snapping distance to footer placeholder
+        const placeholder = document.getElementById("audio-widget-placeholder");
+        const placeholderRing = placeholder?.querySelector(".placeholder-ring");
+        
+        if (placeholder) {
+          const pRect = placeholder.getBoundingClientRect();
+          const distance = Math.hypot(newLeft - pRect.left, newTop - pRect.top);
+          if (distance < 40) {
+            placeholderRing?.classList.add("snap-hover");
+            // Visually snap
+            newLeft = pRect.left;
+            newTop = pRect.top;
+            
+            // Visual expansion orientation
+            activeWidget.classList.add("expand-up");
+            activeWidget.classList.remove("expand-down");
+            activeWidget.classList.add("align-right");
+            activeWidget.classList.remove("align-left");
+          } else {
+            placeholderRing?.classList.remove("snap-hover");
+            updateWidgetPositionClasses(newLeft, newTop);
+          }
+        } else {
+          updateWidgetPositionClasses(newLeft, newTop);
+        }
+
+        activeWidget.style.left = `${newLeft}px`;
+        activeWidget.style.top = `${newTop}px`;
+        activeWidget.style.right = 'auto';
+        activeWidget.style.bottom = 'auto';
+      }
+    }
+
+    function dragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+
+      document.removeEventListener('mousemove', dragMove);
+      document.removeEventListener('mouseup', dragEnd);
+      document.removeEventListener('touchmove', dragMove);
+      document.removeEventListener('touchend', dragEnd);
+
+      const placeholder = document.getElementById("audio-widget-placeholder");
+      const placeholderRing = placeholder?.querySelector(".placeholder-ring");
+      placeholderRing?.classList.remove("snap-hover");
+
+      if (hasMovedWidget) {
+        let snapped = false;
+        if (placeholder) {
+          const pRect = placeholder.getBoundingClientRect();
+          const widgetRect = activeWidget.getBoundingClientRect();
+          const distance = Math.hypot(widgetRect.left - pRect.left, widgetRect.top - pRect.top);
+          if (distance < 10) {
+            snapped = true;
+          }
+        }
+
+        if (snapped) {
+          dockWidget();
+        } else {
+          floatWidget(parseFloat(activeWidget.style.left), parseFloat(activeWidget.style.top));
+        }
+      }
+    }
+
+    // Attach dragging listeners to toggle button
+    toggleBtn.addEventListener('mousedown', dragStart);
+    toggleBtn.addEventListener('touchstart', dragStart, { passive: true });
+
+    // Toggle expanded panel (prevented if dragged)
+    toggleBtn.addEventListener("click", (e) => {
+      if (hasMovedWidget) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      panel.classList.toggle("expanded");
+    });
+
+    // Close panel when clicking outside the widget
+    document.addEventListener("click", (e: any) => {
+      if (!activeWidget.contains(e.target)) {
+        panel.classList.remove("expanded");
+      }
+    });
+
+    // Play/Pause Action
+    playPauseBtn.addEventListener("click", () => {
+      if (isPlaying) {
+        pauseAudio();
+      } else {
+        playAudio();
+      }
+    });
+
+    // Track Selection
+    trackSelect.addEventListener("change", () => {
+      const selected = trackSelect.value;
+      if (selected === currentTrack) return;
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        pauseAudio();
+      }
+
+      currentTrack = selected;
+      if (trackTitle) {
+        trackTitle.textContent = currentTrack === "synth" ? "Space Synth Ambience" : "Lofi Chill Beats";
+      }
+
+      if (wasPlaying) {
+        setTimeout(playAudio, 200);
+      }
+    });
+
+    // Volume Adjustment
+    volumeSlider.addEventListener("input", () => {
+      userVolume = parseFloat(volumeSlider.value);
+      audioEl.volume = userVolume;
+      updateSynthVolume(userVolume);
+    });
+
+    function playAudio() {
+      isPlaying = true;
+      activeWidget.classList.add("playing");
+      playPauseBtn?.querySelector(".play-icon")?.classList.add("hidden");
+      playPauseBtn?.querySelector(".pause-icon")?.classList.remove("hidden");
+
+      if (currentTrack === "synth") {
+        startSynth();
+      } else {
+        audioEl?.play().catch(e => {
+          console.warn("Audio play blocked by browser. User interaction needed:", e);
+          pauseAudio();
+        });
+      }
+    }
+
+    function pauseAudio() {
+      isPlaying = false;
+      activeWidget.classList.remove("playing");
+      playPauseBtn?.querySelector(".play-icon")?.classList.remove("hidden");
+      playPauseBtn?.querySelector(".pause-icon")?.classList.add("hidden");
+
+      if (currentTrack === "synth") {
+        stopSynth();
+      } else {
+        audioEl?.pause();
+      }
+    }
+  }
+
+  // Constrain position during window resize
+  window.addEventListener("resize", () => {
+    const widget = document.getElementById("audio-player-widget");
+    if (!widget || !widget.classList.contains("floating") || !widget.style.left || widget.style.left === "auto") return;
+
+    const left = parseFloat(widget.style.left);
+    const top = parseFloat(widget.style.top);
+    
+    const buttonWidth = 48;
+    const buttonHeight = 48;
+    const minX = 10;
+    const minY = 10;
+    const maxX = window.innerWidth - buttonWidth - 10;
+    const maxY = window.innerHeight - buttonHeight - 10;
+    
+    const newLeft = Math.max(minX, Math.min(maxX, left));
+    const newTop = Math.max(minY, Math.min(maxY, top));
+    
+    widget.style.left = `${newLeft}px`;
+    widget.style.top = `${newTop}px`;
+    
+    updateWidgetPositionClasses(newLeft, newTop);
+  });
+
+  // Re-initialize UI event hooks after page navigation under View Transitions
+  document.addEventListener("astro:page-load", () => {
+    setupAudioPlayer();
+    
+    // Sync UI to current playing state (since widget persists, state variables stay active)
+    const widget = document.getElementById("audio-player-widget");
+    const playPauseBtn = document.getElementById("audio-play-pause-btn");
+    const trackSelect = document.getElementById("track-select") as HTMLSelectElement | null;
+    const volumeSlider = document.getElementById("volume-slider") as HTMLInputElement | null;
+    const trackTitle = document.getElementById("track-title");
+
+    if (widget && playPauseBtn && trackSelect && volumeSlider) {
+      trackSelect.value = currentTrack;
+      volumeSlider.value = userVolume.toString();
+      if (trackTitle) {
+        trackTitle.textContent = currentTrack === "synth" ? "Space Synth Ambience" : "Lofi Chill Beats";
+      }
+
+      if (isPlaying) {
+        widget.classList.add("playing");
+        playPauseBtn.querySelector(".play-icon")?.classList.add("hidden");
+        playPauseBtn.querySelector(".pause-icon")?.classList.remove("hidden");
+      } else {
+        widget.classList.remove("playing");
+        playPauseBtn.querySelector(".play-icon")?.classList.remove("hidden");
+        playPauseBtn.querySelector(".pause-icon")?.classList.add("hidden");
+      }
+
+      // Restore saved dragging position or dock state
+      const savedLeft = localStorage.getItem("audio-widget-left");
+      const savedTop = localStorage.getItem("audio-widget-top");
+      const isDocked = localStorage.getItem("audio-widget-docked") !== "false";
+
+      if (savedLeft && savedTop && !isDocked) {
+        floatWidget(parseFloat(savedLeft), parseFloat(savedTop));
+      } else {
+        dockWidget();
+      }
+    }
+  });
+</script>
+
+<style>
+  /* Base widget wrapper styles */
+  .audio-widget-wrapper {
+    width: 48px;
+    height: 48px;
+    z-index: 100;
+    font-family: inherit;
+  }
+
+  /* Position when docked in placeholder */
+  .audio-widget-wrapper.docked {
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Position when floating */
+  .audio-widget-wrapper.floating {
+    position: fixed;
+    z-index: 100;
+  }
+
+  /* Mini Circular Toggle Trigger */
+  .widget-toggle-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--color-bg-elevated, rgba(255, 255, 255, 0.85));
+    border: 1px solid var(--color-project-accent-border, rgba(255, 125, 26, 0.2));
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--color-text, #334155);
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  :global(.dark) .widget-toggle-btn {
+    background-color: rgba(15, 23, 42, 0.85);
+    color: #f1f5f9;
+  }
+
+  .widget-toggle-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--color-project-accent, #FF7D1A);
+    color: var(--color-project-accent, #FF7D1A);
+  }
+
+  .widget-toggle-btn:active {
+    cursor: grabbing;
+  }
+
+  /* Mini Visualizer lines shown inside the circle */
+  .mini-visualizer {
+    display: none; /* Hidden by default, shown when playing */
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+  }
+
+  .mini-visualizer .bar {
+    width: 2px;
+    height: 100%;
+    background-color: var(--color-project-accent, #FF7D1A);
+    border-radius: 1px;
+    transform-origin: bottom;
+  }
+
+  /* Play animations on mini visualizer bars */
+  .playing .mini-visualizer {
+    display: flex;
+  }
+  .playing .headphones-icon {
+    display: none;
+  }
+
+  .playing .mini-visualizer .bar:nth-child(1) { animation: bounceBar 0.8s ease-in-out infinite alternate; }
+  .playing .mini-visualizer .bar:nth-child(2) { animation: bounceBar 0.5s ease-in-out infinite alternate 0.15s; }
+  .playing .mini-visualizer .bar:nth-child(3) { animation: bounceBar 0.7s ease-in-out infinite alternate 0.05s; }
+  .playing .mini-visualizer .bar:nth-child(4) { animation: bounceBar 0.6s ease-in-out infinite alternate 0.2s; }
+
+  @keyframes bounceBar {
+    from { transform: scaleY(0.2); }
+    to { transform: scaleY(1); }
+  }
+
+  /* Expanded Controller Panel */
+  .widget-panel {
+    position: absolute;
+    width: 280px;
+    background-color: var(--color-bg-elevated, rgba(255, 255, 255, 0.9));
+    border: 1px solid var(--color-project-accent-border, rgba(255, 125, 26, 0.2));
+    border-radius: 1rem;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    
+    /* Animation hidden states */
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
+    z-index: 10;
+  }
+
+  /* Expansion directions and alignment classes */
+  .audio-widget-wrapper.expand-up .widget-panel {
+    bottom: calc(100% + 0.5rem);
+    top: auto;
+  }
+  .audio-widget-wrapper.expand-down .widget-panel {
+    top: calc(100% + 0.5rem);
+    bottom: auto;
+  }
+
+  .audio-widget-wrapper.align-right .widget-panel {
+    right: 0;
+    left: auto;
+  }
+  .audio-widget-wrapper.align-left .widget-panel {
+    left: 0;
+    right: auto;
+  }
+
+  /* Transform origins combined for elegant expansion scale effect */
+  .audio-widget-wrapper.expand-up.align-right .widget-panel { transform-origin: bottom right; }
+  .audio-widget-wrapper.expand-up.align-left .widget-panel { transform-origin: bottom left; }
+  .audio-widget-wrapper.expand-down.align-right .widget-panel { transform-origin: top right; }
+  .audio-widget-wrapper.expand-down.align-left .widget-panel { transform-origin: top left; }
+
+  :global(.dark) .widget-panel {
+    background-color: rgba(15, 23, 42, 0.9);
+  }
+
+  .widget-panel.expanded {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .now-playing-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary, #64748b);
+  }
+
+  .track-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :global(.dark) .track-title {
+    color: #f1f5f9;
+  }
+
+  /* Bigger Wave Visualizer in Expanded Panel */
+  .wave-visualizer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 32px;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 0.5rem;
+    padding: 4px;
+    border: 1px dashed var(--color-border, rgba(0, 0, 0, 0.05));
+  }
+
+  :global(.dark) .wave-visualizer {
+    background-color: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .wave-bar {
+    width: 4px;
+    height: 100%;
+    background-color: var(--color-project-accent, #FF7D1A);
+    opacity: 0.35;
+    border-radius: 2px;
+    transform-origin: bottom;
+    transform: scaleY(0.15);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* Dance wave-bars when playing */
+  .playing .wave-bar {
+    opacity: 0.85;
+  }
+  .playing .wave-bar:nth-child(1) { animation: bounceBar 0.9s ease-in-out infinite alternate; }
+  .playing .wave-bar:nth-child(2) { animation: bounceBar 0.5s ease-in-out infinite alternate 0.1s; }
+  .playing .wave-bar:nth-child(3) { animation: bounceBar 0.8s ease-in-out infinite alternate 0.25s; }
+  .playing .wave-bar:nth-child(4) { animation: bounceBar 0.6s ease-in-out infinite alternate 0.05s; }
+  .playing .wave-bar:nth-child(5) { animation: bounceBar 0.85s ease-in-out infinite alternate 0.2s; }
+  .playing .wave-bar:nth-child(6) { animation: bounceBar 0.4s ease-in-out infinite alternate 0.15s; }
+  .playing .wave-bar:nth-child(7) { animation: bounceBar 0.7s ease-in-out infinite alternate 0.3s; }
+  .playing .wave-bar:nth-child(8) { animation: bounceBar 0.55s ease-in-out infinite alternate 0.08s; }
+
+  /* Controls controls-row layout */
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .play-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: var(--color-project-accent, #FF7D1A);
+    border: none;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px var(--color-project-accent-bg, rgba(255, 125, 26, 0.4));
+    transition: transform 0.15s ease, background-color 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .play-btn:hover {
+    transform: scale(1.05);
+    background-color: #f97316; /* slightly darker orange */
+  }
+
+  .play-btn:active {
+    transform: scale(0.95);
+  }
+
+  .play-btn svg {
+    margin-left: 2px; /* optical alignment for triangle */
+  }
+
+  .play-btn .pause-icon {
+    margin-left: 0;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .select-volume-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  /* Sleek Glassmorphic select dropdown styling */
+  .track-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+    border-radius: 0.5rem;
+    padding: 0.35rem 2rem 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--color-text, #334155);
+    outline: none;
+    font-family: inherit;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23FF7D1A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  :global(.dark) .track-select {
+    background-color: rgba(15, 23, 42, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+  }
+
+  .track-select:focus {
+    border-color: var(--color-project-accent, #FF7D1A);
+    box-shadow: 0 0 0 2px rgba(255, 125, 26, 0.2);
+  }
+
+  .track-select option {
+    background-color: var(--color-bg-elevated, #ffffff);
+    color: var(--color-text, #0f172a);
+    padding: 0.5rem;
+  }
+
+  :global(.dark) .track-select option {
+    background-color: #1e293b;
+    color: #f1f5f9;
+  }
+
+  /* Volume Row */
+  .volume-container {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-secondary, #64748b);
+  }
+
+  .volume-slider {
+    flex-grow: 1;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--color-border, #cbd5e1);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  :global(.dark) .volume-slider {
+    background-color: #334155;
+  }
+
+  .volume-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--color-project-accent, #FF7D1A);
+    margin-top: -4px;
+    transition: transform 0.1s ease;
+  }
+
+  .volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+</style>

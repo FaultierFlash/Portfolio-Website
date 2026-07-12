@@ -1,5 +1,5 @@
 import { createClient } from '@sanity/client';
-import imageUrlBuilder from '@sanity/image-url';
+import { createImageUrlBuilder } from '@sanity/image-url';
 
 export const sanityClient = createClient({
   projectId: import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'k4t36b6u',
@@ -8,7 +8,7 @@ export const sanityClient = createClient({
   useCdn: false, // Disabled CDN to ensure slider values hot-reload immediately
 });
 
-const builder = imageUrlBuilder(sanityClient);
+const builder = createImageUrlBuilder(sanityClient);
 
 export function urlFor(source: any) {
   return builder.image(source);
@@ -32,10 +32,10 @@ export async function getTranslationOverrides(locale: string) {
 }
 
 export async function getHomePageData(locale: string) {
-  const query = `*[_type == "homePage" && locale == $locale][0] {
-    heroTitle,
-    heroSubtitle,
-    aboutText,
+  const query = `*[_type == "homePage"][0] {
+    "heroTitle": heroTitle[$locale],
+    "heroSubtitle": heroSubtitle[$locale],
+    "aboutText": aboutText[$locale],
     profileImage,
     backgroundEffect,
     topographyConfig,
@@ -51,29 +51,47 @@ export async function getHomePageData(locale: string) {
       solarConfig,
       accentColor
     },
+    showSpinWheel,
     timelineStartDate,
     timelineEndDate,
     timelineScale,
-    timeline[]{
-      title,
-      description,
+    "timeline": timeline[($locale == "de" && isVisibleDe != false) || ($locale == "en" && isVisibleEn != false)]{
+      "title": title[$locale],
+      "description": description[$locale],
       startDate,
       endDate,
       isOngoing,
       color,
       verticalPosition,
-      milestoneEvents[]{
-        title,
+      widgetImage,
+      "widgetButtonLabel": widgetButtonLabel[$locale],
+      widgetButtonLink,
+      openByDefault,
+      "milestoneEvents": milestoneEvents[($locale == "de" && isVisibleDe != false) || ($locale == "en" && isVisibleEn != false)]{
+        "title": title[$locale],
         date,
-        description,
+        "description": description[$locale],
         color,
+        widgetImage,
+        "widgetButtonLabel": widgetButtonLabel[$locale],
+        widgetButtonLink,
+        openByDefault,
         relatedProject->{
-          slug
+          slug,
+          title,
+          "description": description[$locale],
+          mainImage,
+          tags,
+          accentColor
         }
       },
       relatedProject->{
         slug,
-        accentColor
+        accentColor,
+        title,
+        "description": description[$locale],
+        mainImage,
+        tags
       }
     }
   }`;
@@ -129,3 +147,35 @@ export async function getLibrarySettings() {
   }`;
   return await sanityClient.fetch(query);
 }
+
+export async function getLegalPage(type: string, locale: string) {
+  const query = `*[_type == "legalPage" && type == $type && locale == $locale][0] {
+    title,
+    content
+  }`;
+  return await sanityClient.fetch(query, { type, locale });
+}
+
+export async function getLabEntries() {
+  const query = `*[_type == "labEntry" && status == "published"] | order(date desc) {
+    title,
+    slug,
+    date,
+    category,
+    tags,
+    language,
+    body,
+    images[]{
+      asset->,
+      alt,
+      caption
+    },
+    relatedProject->{
+      title,
+      slug,
+      accentColor
+    }
+  }`;
+  return await sanityClient.fetch(query);
+}
+
