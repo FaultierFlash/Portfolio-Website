@@ -1,0 +1,107 @@
+---
+// projects.astro
+import Layout from "../../layouts/BaseLayout.astro";
+import ProjectWheel from "../../components/ProjectWheel/index.astro";
+
+import { getProjects, urlFor } from "../../lib/sanity";
+
+// Default/Fallback projects
+import projectImage1 from "../../assets/project3.jpg";
+import projectImage2 from "../../assets/project2.jpg";
+import projectImage3 from "../../assets/project1.jpg";
+
+const defaultProjects = [
+  {
+    title: "Analytics Dashboard",
+    description: "Echtzeit-Datenvisualisierungsplattform",
+    image: projectImage1,
+    url: "/projects/analytics-dashboard",
+  },
+  {
+    title: "Blog Platform",
+    description: "Modernes Content-Management-System",
+    image: projectImage2,
+    url: "/projects/blog-platform",
+  },
+  {
+    title: "Community Forum",
+    description: "Interaktives Diskussionsforum",
+    image: projectImage3,
+    url: "/projects/community-forum",
+  },
+];
+
+const lang = Astro.currentLocale || "de";
+const sanityProjectsData = await getProjects(lang);
+
+const sanityProjects = sanityProjectsData.map((p: any) => ({
+  title: p.title,
+  description: p.description,
+  image: { src: p.mainImage ? urlFor(p.mainImage).width(800).url() : "" },
+  url: p.link || `/${lang}/projects/${p.slug.current}`,
+}));
+
+const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
+---
+
+<Layout title="Projekte">
+  <div class="projects-page-container">
+    <h1>Meine Projekte</h1>
+    <p class="subtitle text-center">Nach unten scrollen, um Projekte zu erkunden</p>
+
+    <div class="content pt-8">
+      <section class="intro text-center">
+        <h2>Willkommen bei meinem Projekt-Showcase</h2>
+        <p>Entdecke mein interaktives Projekt-Rad unten.</p>
+      </section>
+    </div>
+
+    <!-- Project wheel component at the bottom -->
+    <ProjectWheel projects={projects} />
+  </div>
+</Layout>
+
+<style>
+  .projects-page-container {
+    max-width: 80vw;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-family: "Raleway", sans-serif;
+    font-weight: 800;
+    color: var(--color-primary);
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .subtitle {
+    font-family: "Raleway", sans-serif;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .content {
+    min-height: 20vh; /* Reduced from 100vh to show the wheel faster */
+    padding-bottom: 10vh; /* Reduced padding */
+  }
+
+  section {
+    margin-bottom: 2rem;
+  }
+
+  h2 {
+    font-family: "Raleway", sans-serif;
+    font-weight: 800;
+    color: var(--color-secondary);
+    margin-bottom: 1rem;
+  }
+
+  p {
+    font-family: "Raleway", sans-serif;
+    font-weight: 500;
+    color: var(--color-text);
+    line-height: 1.6;
+  }
+</style>

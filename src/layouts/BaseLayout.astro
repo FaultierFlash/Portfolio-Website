@@ -65,6 +65,22 @@ const navLinks = [
   { href: `/${currentLocale}/contact`, text: t("nav.contact") },
 ];
 const homePath = `/${currentLocale}/`;
+
+// SEO URL configurations
+const siteUrl = "https://marlonmueller.eu";
+const canonicalURL = `${siteUrl}${Astro.url.pathname}`;
+
+const alternateLocale = currentLocale === "en" ? "de" : "en";
+let alternatePathname = Astro.url.pathname;
+if (alternatePathname.startsWith(`/${currentLocale}/`)) {
+  alternatePathname = alternatePathname.replace(`/${currentLocale}/`, `/${alternateLocale}/`);
+} else if (alternatePathname === `/${currentLocale}`) {
+  alternatePathname = `/${alternateLocale}`;
+}
+const alternateURL = `${siteUrl}${alternatePathname}`;
+
+const localeEnURL = currentLocale === "en" ? canonicalURL : alternateURL;
+const localeDeURL = currentLocale === "de" ? canonicalURL : alternateURL;
 ---
 
 <!doctype html>
@@ -80,6 +96,13 @@ const homePath = `/${currentLocale}/`;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{pageTitle}</title>
     <meta name="description" content={pageDescription} />
+    
+    <!-- Canonical and Bilingual Alternate SEO Links -->
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="alternate" hreflang="en" href={localeEnURL} />
+    <link rel="alternate" hreflang="de" href={localeDeURL} />
+    <link rel="alternate" hreflang="x-default" href={localeEnURL} />
+    
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
     <ClientRouter />

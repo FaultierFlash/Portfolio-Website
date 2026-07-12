@@ -45,9 +45,9 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
 ---
 
 <Layout title="Projects">
-  <main>
+  <div class="projects-page-container">
     <h1>My Projects</h1>
-    <p>Scroll down to explore projects</p>
+    <p class="subtitle text-center">Scroll down to explore projects</p>
 
     <div class="content pt-8">
       <section class="intro text-center">
@@ -58,11 +58,11 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
 
     <!-- Project wheel component at the bottom -->
     <ProjectWheel projects={projects} />
-  </main>
+  </div>
 </Layout>
 
 <style>
-  main {
+  .projects-page-container {
     max-width: 80vw;
     margin: 0 auto;
     padding: 2rem;
@@ -74,6 +74,12 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
     color: var(--color-primary);
     text-align: center;
     margin-bottom: 3rem;
+  }
+
+  .subtitle {
+    font-family: "Raleway", sans-serif;
+    font-weight: 500;
+    color: var(--color-text);
   }
 
   .content {
