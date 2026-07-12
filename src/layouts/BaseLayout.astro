@@ -8,6 +8,7 @@ import DynamicBackground from "../components/DynamicBackground.astro"; // New ba
 import { getProjects } from "../lib/sanity";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import CommandPalette from "../components/CommandPalette.astro";
 
 interface Props {
   title?: string;
@@ -60,6 +61,7 @@ let projectPages: { href: string; text: string }[] = allSanityProjects.map((p: a
 
 const navLinks = [
   { href: `/${currentLocale}/library`, text: t("nav.library") },
+  { href: `/${currentLocale}/notes`, text: t("nav.notes") },
   { href: `/${currentLocale}/contact`, text: t("nav.contact") },
 ];
 const homePath = `/${currentLocale}/`;
@@ -81,7 +83,7 @@ const homePath = `/${currentLocale}/`;
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
     <ClientRouter />
-    <script define:vars={{ accentColorMap: JSON.stringify(accentColorMap) }}>
+    <script is:inline define:vars={{ accentColorMap: JSON.stringify(accentColorMap) }}>
       // Expose color map globally so homepage scroll JS can update the accent vars
       window.__accentColorMap = JSON.parse(accentColorMap);
     </script>
@@ -105,6 +107,12 @@ const homePath = `/${currentLocale}/`;
     </main>
 
     <Footer />
+
+    <CommandPalette
+      currentLocale={currentLocale}
+      projectPages={projectPages}
+      navLinks={navLinks}
+    />
 
     <script>
       // BaseLayout's script is now only responsible for theme consistency application

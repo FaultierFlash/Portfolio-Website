@@ -1,13 +1,15 @@
 /* src/styles/global.css */
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --color-primary: #FF7D1A;
   --color-primary-rgb: 255, 125, 26;
   --font-sans: 'Inter', 'Raleway', sans-serif;
-  
-  --variant-dark: &:where(.dark, .dark *);
 }
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 
 :root {
     --header-height: 60px;

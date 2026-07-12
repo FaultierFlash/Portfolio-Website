@@ -1,15 +1,27 @@
 ---
 // src/components/Footer.astro
+import { useTranslations, type Locale } from "../i18n/utils";
+import AudioPlayer from "./AudioPlayer.astro";
+
+const currentLocale = (Astro.currentLocale as Locale) || "de";
+const t = useTranslations(currentLocale);
 const currentYear = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
   <div class="footer-content">
-    <p>&copy; {currentYear} Your Website Name. All rights reserved.</p>
+    <p>&copy; {currentYear} Marlon Müller. All rights reserved.</p>
     <p>
-      <a href="/privacy-policy">Privacy Policy</a> |
-      <a href="/terms-of-service">Terms of Service</a>
+      <a href={`/${currentLocale}/privacy-policy`}>{t("footer.privacy")}</a> |
+      <a href={`/${currentLocale}/terms-of-service`}>{t("footer.terms")}</a> |
+      <a href={`/${currentLocale}/impressum`}>{t("footer.impressum")}</a>
     </p>
+  </div>
+
+  <!-- Subtle placeholder for docking the floating audio player -->
+  <div id="audio-widget-placeholder" class="audio-widget-placeholder">
+    <div class="placeholder-ring"></div>
+    <AudioPlayer />
   </div>
 </footer>
 
@@ -46,5 +58,62 @@ const currentYear = new Date().getFullYear();
 
   .footer-content a:hover {
     text-decoration: underline;
+  }
+
+  /* Audio Widget Placeholder */
+  .audio-widget-placeholder {
+    position: absolute;
+    right: 2rem;
+    bottom: 1.5rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .placeholder-ring {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px dashed var(--color-project-accent-border, rgba(255, 125, 26, 0.3));
+    background-color: rgba(255, 125, 26, 0.03);
+    box-shadow: inset 0 0 8px rgba(255, 125, 26, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  :global(.dark) .placeholder-ring {
+    border-color: rgba(255, 125, 26, 0.2);
+    background-color: rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Snapping hover state glow - use :global because JS toggles this from AudioPlayer script */
+  :global(.placeholder-ring.snap-hover) {
+    border-color: var(--color-project-accent, #FF7D1A);
+    background-color: rgba(255, 125, 26, 0.15);
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(255, 125, 26, 0.4);
+  }
+
+  /* Mobile Layout - Center-align placeholder below the link lists */
+  @media (max-width: 768px) {
+    .site-footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding-bottom: 5.5rem; /* Make room for the docked player at the bottom center */
+    }
+
+    .audio-widget-placeholder {
+      position: relative;
+      right: auto;
+      bottom: auto;
+      margin-top: 1rem;
+    }
   }
 </style>

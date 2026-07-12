@@ -12,7 +12,6 @@ const books = await getBooks();
 const settings = await getLibrarySettings();
 
 const pageTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
-const pageSubtitle = (lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn);
 const backgroundEffect = settings?.backgroundEffect || "grid";
 const accentColor = settings?.accentColor || "primary";
 ---

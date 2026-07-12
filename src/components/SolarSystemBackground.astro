@@ -219,7 +219,7 @@ const {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
-      this.drawSpaceTimeGrid(centerX, centerY);
+      this.drawSpaceTimeGrid();
       
       this.ctx.beginPath();
       this.ctx.arc(centerX, centerY, 15 * this.zoom, 0, Math.PI * 2);
@@ -303,7 +303,7 @@ const {
       if (!this.isRunning && this.ctx) this.drawStaticFrame();
     }
 
-    drawSpaceTimeGrid(centerX: number, centerY: number) {
+    drawSpaceTimeGrid() {
       const spacing = 50;
       const rows = Math.ceil(window.innerHeight / spacing) + 1;
       const cols = Math.ceil(window.innerWidth / spacing) + 1;
@@ -376,7 +376,7 @@ const {
       const centerY = window.innerHeight / 2;
 
       // Draw Grid
-      this.drawSpaceTimeGrid(centerX, centerY);
+      this.drawSpaceTimeGrid();
 
       // Draw Sun
       this.ctx.beginPath();

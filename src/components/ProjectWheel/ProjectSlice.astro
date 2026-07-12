@@ -35,9 +35,7 @@ const largeArcFlag = anglePerSection > 180 ? 1 : 0;
 // Used for: Hit Area, Clips, Gaps (Background separation)
 const wedgePathData = `M 50,50 L ${startX},${startY} A 50,50 0 ${largeArcFlag},1 ${endX},${endY} z`;
 
-// RIM PATH (Open shape: Start -> Arc -> End)
-// Used for: Visible Border (Only on the outer edge, no radial lines)
-const rimPathData = `M ${startX},${startY} A 50,50 0 ${largeArcFlag},1 ${endX},${endY}`;
+
 
 // Content Placement:
 const placementAngle = 0;

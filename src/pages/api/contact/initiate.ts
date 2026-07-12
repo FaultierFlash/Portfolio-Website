@@ -5,7 +5,7 @@ import { sendVerificationEmail } from "../../../lib/email";
 export const POST: APIRoute = async ({ request, site }) => {
     try {
         const data = await request.json();
-        const { name, email, message } = data;
+        const { name, email, message, locale } = data;
 
         if (!name || !email || !message) {
             return new Response(
@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, site }) => {
 
         // Create a verification token
         // Secret should be in env, using a fallback for dev if needed (but dangerous for prod)
-        const secret = import.meta.env.JWT_SECRET || "dev-secret-do-not-use-in-prod";
+        const secret = import.meta.env.JWT_SECRET || (typeof process !== 'undefined' ? process.env.JWT_SECRET : undefined) || "dev-secret-do-not-use-in-prod";
 
         // Token payload
         const payload = {
@@ -29,10 +29,19 @@ export const POST: APIRoute = async ({ request, site }) => {
         const token = jwt.sign(payload, secret);
 
         // Site URL for the verification link
-        const siteUrl = site?.toString() || request.url.split('/api')[0]; // Fallback if site not configured
+        let siteUrl = site?.toString() || request.url.split('/api')[0]; // Fallback if site not configured
+
+        // Remove trailing slash if present
+        if (siteUrl.endsWith('/')) {
+            siteUrl = siteUrl.slice(0, -1);
+        }
+
+        // Append the target locale prefix under prefixDefaultLocale i18n routing
+        const targetLocale = locale || 'en';
+        siteUrl = `${siteUrl}/${targetLocale}`;
 
         // Send verification email
-        await sendVerificationEmail(email, token, siteUrl);
+        await sendVerificationEmail(name, email, token, siteUrl);
 
         return new Response(
             JSON.stringify({
