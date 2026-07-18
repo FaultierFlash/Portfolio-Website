@@ -5,13 +5,24 @@ import { getTranslationOverrides, getHomePageData, getProjects, urlFor } from ".
 import DynamicBackground from "../../components/DynamicBackground.astro";
 import HomeSpinWheel from "../../components/HomeSpinWheel.astro";
 import TerminalContactForm from "../../components/TerminalContactForm.astro";
+import Footer from "../../components/Footer.astro";
 
 const lang = Astro.currentLocale as Locale;
 const overrides = await getTranslationOverrides(lang);
 const t = useTranslations(lang, overrides);
 const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
-const timelineItems = homeData?.timeline || [];
+const timelineItems = (homeData?.timeline || []).map((item: any) => {
+    if (item.milestoneEvents) {
+        return {
+            ...item,
+            milestoneEvents: item.milestoneEvents.slice().sort((a: any, b: any) => 
+                new Date(a.date).getTime() - new Date(b.date).getTime()
+            )
+        };
+    }
+    return item;
+});
 const showSpinWheel = homeData?.showSpinWheel !== false;
 const allProjects = await getProjects(lang);
 const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
@@ -70,6 +81,22 @@ function getTimescaleStyles(item: any) {
         isActuallyOngoing,
         isDuration
     };
+}
+
+function getMobileRowIdx(item: any) {
+    const isDuration = !!item.endDate || item.isOngoing;
+    const pos = item.verticalPosition;
+    if (pos === 'far-above') return 0;
+    if (pos === 'above') return 1;
+    if (pos === 'below') return 3;
+    if (pos === 'far-below') return 4;
+    
+    // Default fallback if verticalPosition is undefined/empty
+    if (isDuration) {
+        return 1; // Default duration is 'above'
+    } else {
+        return 2; // Default point is centered
+    }
 }
 
 
@@ -283,6 +310,35 @@ const widgetAdjustedXMap: Record<string, number> = {};
 const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) => 
     new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
 );
+
+// Build a flat list of all events (parents + milestones) for the strip dots
+interface MobileStripEvent {
+    type: 'parent' | 'milestone';
+    parentIdx: number;
+    milestoneIdx: number; // -1 for parent
+    date: Date;
+    pct: number;
+    title: string;
+    colorKey: string;
+    rowIdx: number;
+}
+const mobileStripEvents: MobileStripEvent[] = [];
+sortedTimelineItems.forEach((item: any, pIdx: number) => {
+    const startDate = new Date(item.startDate);
+    const pct = Math.max(2, Math.min(98, ((startDate.getTime() - timelineStartDate.getTime()) / totalDurationMs) * 100));
+    const colorKey = item.relatedProject?.accentColor || item.color || 'primary';
+    const rowIdx = getMobileRowIdx(item);
+    mobileStripEvents.push({ type: 'parent', parentIdx: pIdx, milestoneIdx: -1, date: startDate, pct, title: item.title, colorKey, rowIdx });
+    if (item.milestoneEvents) {
+        item.milestoneEvents.forEach((evt: any, mIdx: number) => {
+            const evtDate = new Date(evt.date);
+            const evtPct = Math.max(2, Math.min(98, ((evtDate.getTime() - timelineStartDate.getTime()) / totalDurationMs) * 100));
+            const evtColorKey = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
+            mobileStripEvents.push({ type: 'milestone', parentIdx: pIdx, milestoneIdx: mIdx, date: evtDate, pct: evtPct, title: evt.title, colorKey: evtColorKey, rowIdx });
+        });
+    }
+});
+mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
 <BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
@@ -331,7 +387,7 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
     <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="timeline-header absolute top-16 md:top-24 w-full text-center z-10 pointer-events-none px-4">
+        <div class="timeline-header relative md:absolute pt-8 md:pt-0 md:top-24 w-full text-center z-10 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">Meine Reise</h2>
             <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover über ein Event für Details</p>
             <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Scrollen zum Erkunden · Tippe auf Punkte zum Navigieren</p>
@@ -748,47 +804,84 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
                 </div>
             </div>
         </div>        {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full relative z-20 pt-28" id="mobile-timeline">
+        <div class="block md:hidden w-full relative z-20" id="mobile-timeline">
             {/* Sticky Mini Timeline Strip */}
-            <div class="sticky z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-5 py-4" id="mobile-strip" style={`top: var(--header-height, 60px);`}>
-                <div class="relative w-full h-8">
-                    {/* Axis line */}
-                    <div class="absolute left-0 right-0 top-1/2 h-[2px] bg-slate-200 dark:bg-slate-700 -translate-y-1/2 rounded-full"></div>
-                    {/* Year markers */}
+            <div class="mobile-strip-bar sticky bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 pt-4 pb-6" id="mobile-strip" style="top: var(--header-height, 60px);">
+                <div class="relative w-full" style="height: 64px;">
+                    {/* Vertical Year Grid Lines */}
                     {yearMarkers.map((marker) => (
-                        <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={`left: ${marker.left}`}>
-                            <div class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600"></div>
-                            <span class="text-[8px] font-bold text-slate-400 dark:text-slate-500 absolute top-full mt-0.5 whitespace-nowrap">{marker.year}</span>
+                        <div class="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-800/40 pointer-events-none" style={`left: ${marker.left};`}>
+                            <span class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 absolute top-full mt-2 -translate-x-1/2 whitespace-nowrap">{marker.year}</span>
                         </div>
                     ))}
-                    {/* Present marker */}
-                    <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center" style={`left: ${presentLeftPct}%`}>
-                        <span class="text-[7px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 absolute bottom-full mb-1">
-                            {lang === 'de' ? 'Heute' : 'Present'}
-                        </span>
-                        <div class="w-[2px] h-4 bg-slate-300 dark:bg-slate-600"></div>
-                        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse absolute top-1/2 -translate-y-1/2"></div>
+                    
+                    {/* Present marker line */}
+                    <div class="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-primary/50 pointer-events-none" style={`left: ${presentLeftPct}%;`}>
+                        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse absolute top-full mt-2 -translate-x-1/2"></div>
                     </div>
-                    {/* Item dots */}
-                    {sortedTimelineItems.map((item: any, idx: number) => {
-                        const startMs = new Date(item.startDate).getTime() - timelineStartDate.getTime();
-                        const dotPct = Math.max(2, Math.min(98, (startMs / totalDurationMs) * 100));
+
+                    {/* Statically render 5 background lanes (staff lines matching the 5 stack rows) */}
+                    {[0, 1, 2, 3, 4].map((r) => (
+                        <div 
+                            class={`absolute left-0 right-0 h-[1px] pointer-events-none ${r === 2 ? 'bg-slate-300 dark:bg-slate-700/80 h-[2px]' : 'bg-slate-100 dark:bg-slate-800/40'}`}
+                            style={`top: ${r * 14 + 4}px;`}
+                        ></div>
+                    ))}
+
+                    {/* Duration capsules positioned on their CMS-mapped rowIdx */}
+                    {sortedTimelineItems.map((item: any, pIdx: number) => {
+                        const startDate = new Date(item.startDate);
+                        const startMs = startDate.getTime() - timelineStartDate.getTime();
+                        const leftPct = Math.max(0, Math.min(100, (startMs / totalDurationMs) * 100));
+
+                        const today = new Date();
+                        const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                        const endDate = isActuallyOngoing ? new Date() : (item.endDate ? new Date(item.endDate) : startDate);
+                        const endMs = endDate.getTime() - timelineStartDate.getTime();
+                        const endPct = Math.max(0, Math.min(100, (endMs / totalDurationMs) * 100));
+                        
+                        const widthPct = Math.max(1.5, endPct - leftPct);
                         const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                        const dc = colors[resolvedColor] || colors.primary;
+                        const c = colors[resolvedColor] || colors.primary;
+                        const rowIdx = getMobileRowIdx(item);
+                        const rowTop = rowIdx * 14;
+
+                        return (
+                            <div 
+                                class="mobile-strip-span absolute rounded-full transition-all duration-300 opacity-20 pointer-events-none"
+                                style={`left: ${leftPct}%; width: ${widthPct}%; height: 4px; top: ${rowTop + 4}px; transform: translateY(-50%); background-color: ${c.hex};`}
+                                data-span-parent-idx={pIdx}
+                            ></div>
+                        );
+                    })}
+
+                    {/* Event dots positioned on their CMS-mapped rowIdx */}
+                    {mobileStripEvents.map((evt, globalIdx) => {
+                        const dc = colors[evt.colorKey] || colors.primary;
+                        const isParent = evt.type === 'parent';
+                        const size = isParent ? 10 : 6;
+                        const rowTop = evt.rowIdx * 14;
                         return (
                             <button
-                                class={`mobile-strip-dot absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${dc.dot} border-2 border-white dark:border-slate-900 shadow-sm transition-all duration-300 z-10 cursor-pointer`}
-                                style={`left: ${dotPct}%; width: 12px; height: 12px;`}
-                                data-target-idx={idx}
-                                data-dot-left={dotPct}
-                                aria-label={item.title}
+                                class={`mobile-strip-dot absolute rounded-full ${dc.dot} transition-all duration-300 cursor-pointer -translate-x-1/2 -translate-y-1/2 ${isParent ? 'border-2 border-white dark:border-slate-900 shadow-sm z-10' : 'z-[9] opacity-70'}`}
+                                style={`left: ${evt.pct}%; top: ${rowTop + 4}px; width: ${size}px; height: ${size}px;`}
+                                data-strip-idx={globalIdx}
+                                data-parent-idx={evt.parentIdx}
+                                data-milestone-idx={evt.milestoneIdx}
+                                data-dot-left={evt.pct}
+                                data-dot-type={evt.type}
+                                aria-label={evt.title}
                             ></button>
                         );
                     })}
-                    {/* Active label (positioned by JS) */}
-                    <div id="mobile-strip-label" class="absolute -top-7 opacity-0 transition-all duration-300 pointer-events-none" style="left: 0; transform: translateX(-50%);">
-                        <span class="text-[9px] font-bold text-slate-700 dark:text-slate-200 max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm"></span>
-                    </div>
+                </div>
+                {/* Dynamic Active Title block */}
+                <div class="w-full text-center mt-3 h-4 overflow-hidden pointer-events-none flex items-center justify-center">
+                    <span 
+                        id="mobile-strip-title-text" 
+                        class="block text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 transition-all duration-300 transform translate-y-full opacity-0"
+                    >
+                    </span>
                 </div>
             </div>
 
@@ -836,7 +929,7 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
                                         {mobileTimeframe}
                                     </span>
                                     {isActuallyOngoing && (
-                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>Aktiv</span>
+                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>{lang === 'de' ? 'Aktiv' : 'Active'}</span>
                                     )}
                                 </div>
                                 <h3 class="text-lg font-black text-[var(--color-text)] leading-tight">{widgetTitle}</h3>
@@ -846,7 +939,7 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
                             {widgetBtnLink && widgetBtnLabel && (
                                 <a 
                                     href={widgetBtnLink} 
-                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-20`}
                                 >
                                     {widgetBtnLabel}
                                 </a>
@@ -854,19 +947,19 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
                             
                             {item.milestoneEvents && item.milestoneEvents.length > 0 && (
                                 <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
-                                    <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>Meilensteine</span>
-                                    {item.milestoneEvents.map((evt: any) => {
+                                    <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>{lang === 'de' ? 'Meilensteine' : 'Milestones'}</span>
+                                    {item.milestoneEvents.map((evt: any, mIdx: number) => {
                                         const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                                         const subWidgetDesc = evt.description || evt.relatedProject?.description;
-                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? 'Projekt ansehen' : '');
+                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
                                         const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                                         
                                         const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
                                         const ec = colors[resolvedEvtColor] || colors.primary;
 
                                         return (
-                                        <div class="relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub">
+                                        <div class="mobile-milestone-card relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub" data-parent-idx={idx} data-milestone-idx={mIdx}>
                                             {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl"></a>}
                                             {subWidgetImage && (
                                                 <img 
@@ -891,7 +984,7 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
                                             {subWidgetBtnLink && subWidgetBtnLabel && (
                                                 <a 
                                                     href={subWidgetBtnLink} 
-                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-20`}
                                                 >
                                                     {subWidgetBtnLabel}
                                                 </a>
@@ -1054,6 +1147,11 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
         <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
       </button>
     </section>
+
+    {/* Footer Section */}
+    <footer class="scroll-section footer-section shrink-0 w-full bg-slate-950 text-slate-400 border-t border-slate-900">
+        <Footer />
+    </footer>
   </div>
 </BaseLayout>
 
@@ -1846,74 +1944,173 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
     // --- Mobile Timeline Strip Logic ---
     if (timelineSection && window.innerWidth < 768) {
         const mobileCards = document.querySelectorAll('.mobile-timeline-card');
+        const milestoneCards = document.querySelectorAll('.mobile-milestone-card');
         const stripDots = document.querySelectorAll('.mobile-strip-dot');
-        const stripLabel = document.getElementById('mobile-strip-label');
-        const labelSpan = stripLabel?.querySelector('span');
+        const stripSpans = document.querySelectorAll('.mobile-strip-span');
         
-        if (mobileCards.length > 0 && stripDots.length > 0) {
-            let activeIdx = -1;
+        const mobileStrip = document.getElementById('mobile-strip');
+        const scrollContainer = document.querySelector('.scroll-container');
+        
+        if (mobileCards.length > 0 && stripDots.length > 0 && mobileStrip && scrollContainer) {
+            let activeParentIdx = -1;
+            let activeMilestoneKey = '';
             
-            function setActiveDot(idx: number) {
-                if (idx === activeIdx) return;
-                activeIdx = idx;
+            function updateDynamicTitle() {
+                const titleEl = document.getElementById('mobile-strip-title-text');
+                if (!titleEl || !mobileStrip || activeParentIdx < 0) return;
                 
-                stripDots.forEach((dot, i) => {
-                    const el = dot as HTMLElement;
-                    if (i === idx) {
-                        el.classList.add('active');
-                        el.style.width = '16px';
-                        el.style.height = '16px';
-                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.9), 0 0 8px currentColor';
-                    } else {
-                        el.classList.remove('active');
-                        el.style.width = '12px';
-                        el.style.height = '12px';
-                        el.style.boxShadow = '';
-                    }
-                });
+                const stripRect = mobileStrip.getBoundingClientRect();
+                const stripBottom = stripRect.bottom;
                 
-                if (stripLabel && labelSpan) {
-                    const activeDot = stripDots[idx] as HTMLElement;
-                    const dotLeft = activeDot.getAttribute('data-dot-left') || '0';
-                    stripLabel.style.left = dotLeft + '%';
-                    stripLabel.style.opacity = '1';
-                    const card = mobileCards[idx] as HTMLElement;
-                    const title = card?.getAttribute('data-title') || '';
-                    labelSpan.textContent = title;
+                const card = mobileCards[activeParentIdx];
+                if (!card) return;
+                
+                const cardTitle = card.querySelector('h3');
+                const titleRect = cardTitle ? cardTitle.getBoundingClientRect() : card.getBoundingClientRect();
+                
+                const nextCard = mobileCards[activeParentIdx + 1];
+                const nextRect = nextCard ? nextCard.getBoundingClientRect() : null;
+                
+                const isPastOriginalTitle = titleRect.bottom < stripBottom;
+                const isNextEntering = nextRect ? (nextRect.top < stripBottom + 40) : false;
+                
+                if (isPastOriginalTitle && !isNextEntering) {
+                    titleEl.textContent = card.getAttribute('data-title') || '';
+                    titleEl.style.transform = 'translateY(0)';
+                    titleEl.style.opacity = '1';
+                } else if (isNextEntering) {
+                    titleEl.style.transform = 'translateY(-100%)';
+                    titleEl.style.opacity = '0';
+                } else {
+                    titleEl.style.transform = 'translateY(100%)';
+                    titleEl.style.opacity = '0';
                 }
             }
-            
-            const cardObserver = new IntersectionObserver((entries) => {
-                let bestEntry: IntersectionObserverEntry | null = null;
-                let bestRatio = 0;
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.intersectionRatio > bestRatio) {
-                        bestRatio = entry.intersectionRatio;
-                        bestEntry = entry;
+
+            function updateStripHighlight(parentIdx: number, milestoneIdx: number) {
+                const newKey = `${parentIdx}-${milestoneIdx}`;
+                if (newKey === activeMilestoneKey && parentIdx === activeParentIdx) return;
+                activeParentIdx = parentIdx;
+                activeMilestoneKey = newKey;
+                
+                // Update dots highlight
+                stripDots.forEach((dot) => {
+                    const el = dot as HTMLElement;
+                    const dParent = parseInt(el.getAttribute('data-parent-idx') || '-1');
+                    const dMilestone = parseInt(el.getAttribute('data-milestone-idx') || '-1');
+                    const dotType = el.getAttribute('data-dot-type');
+                    const isParent = dotType === 'parent';
+                    const baseSize = isParent ? 10 : 6;
+                    
+                    const isActiveParent = dParent === parentIdx;
+                    const isActiveMilestone = dParent === parentIdx && dMilestone === milestoneIdx && milestoneIdx >= 0;
+                    
+                    if (isActiveMilestone) {
+                        // Currently focused milestone — big glow
+                        el.style.width = '14px';
+                        el.style.height = '14px';
+                        el.style.opacity = '1';
+                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 10px currentColor';
+                        el.style.zIndex = '15';
+                    } else if (isActiveParent && isParent) {
+                        // Active parent dot — enlarged ring
+                        el.style.width = '14px';
+                        el.style.height = '14px';
+                        el.style.opacity = '1';
+                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 8px currentColor';
+                        el.style.zIndex = '14';
+                    } else if (isActiveParent) {
+                        // Sibling milestones of active parent — slightly brighter
+                        el.style.width = (baseSize + 2) + 'px';
+                        el.style.height = (baseSize + 2) + 'px';
+                        el.style.opacity = '0.9';
+                        el.style.boxShadow = '';
+                        el.style.zIndex = '11';
+                    } else {
+                        // Inactive
+                        el.style.width = baseSize + 'px';
+                        el.style.height = baseSize + 'px';
+                        el.style.opacity = isParent ? '1' : '0.5';
+                        el.style.boxShadow = '';
+                        el.style.zIndex = isParent ? '10' : '9';
                     }
                 });
-                if (bestEntry) {
-                    const idx = parseInt(((bestEntry as IntersectionObserverEntry).target as HTMLElement).getAttribute('data-timeline-idx') || '0');
-                    setActiveDot(idx);
-                }
-            }, {
-                threshold: [0.2, 0.4, 0.6],
-                rootMargin: '-25% 0px -35% 0px'
-            });
+
+                // Highlight range capsules (spans) for parent entries
+                stripSpans.forEach((span) => {
+                    const el = span as HTMLElement;
+                    const dParent = parseInt(el.getAttribute('data-span-parent-idx') || '-1');
+                    if (dParent === parentIdx) {
+                        el.style.opacity = '0.85';
+                        el.style.height = '8px';
+                    } else {
+                        el.style.opacity = '0.2';
+                        el.style.height = '4px';
+                    }
+                });
+
+                updateDynamicTitle();
+            }
             
+            // Observe parent cards
+            const cardObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && entry.intersectionRatio > 0.2) {
+                        const idx = parseInt((entry.target as HTMLElement).getAttribute('data-timeline-idx') || '0');
+                        updateStripHighlight(idx, -1);
+                    }
+                });
+            }, {
+                threshold: [0.2, 0.5],
+                rootMargin: '-20% 0px -40% 0px'
+            });
             mobileCards.forEach(card => cardObserver.observe(card));
             
+            // Observe individual milestone cards
+            const milestoneObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+                        const el = entry.target as HTMLElement;
+                        const pIdx = parseInt(el.getAttribute('data-parent-idx') || '-1');
+                        const mIdx = parseInt(el.getAttribute('data-milestone-idx') || '-1');
+                        if (pIdx >= 0 && mIdx >= 0) {
+                            updateStripHighlight(pIdx, mIdx);
+                        }
+                    }
+                });
+            }, {
+                threshold: [0.3, 0.6],
+                rootMargin: '-25% 0px -35% 0px'
+            });
+            milestoneCards.forEach(card => milestoneObserver.observe(card));
+            
+            // Dot click → scroll to card
             stripDots.forEach(dot => {
                 dot.addEventListener('click', () => {
-                    const idx = parseInt((dot as HTMLElement).getAttribute('data-target-idx') || '0');
-                    const card = mobileCards[idx];
+                    const el = dot as HTMLElement;
+                    const pIdx = parseInt(el.getAttribute('data-parent-idx') || '0');
+                    const mIdx = parseInt(el.getAttribute('data-milestone-idx') || '-1');
+                    
+                    if (mIdx >= 0) {
+                        // Scroll to specific milestone card
+                        const target = document.querySelector(`.mobile-milestone-card[data-parent-idx="${pIdx}"][data-milestone-idx="${mIdx}"]`);
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            return;
+                        }
+                    }
+                    // Scroll to parent card
+                    const card = mobileCards[pIdx];
                     if (card) {
-                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 });
             });
+
+            // Listen to scroll to update dynamic title transition
+            scrollContainer.addEventListener('scroll', updateDynamicTitle);
             
-            setActiveDot(0);
+            updateStripHighlight(0, -1);
         }
     }
 
@@ -1964,7 +2161,21 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
 
 <style>
   html, body {
+      height: 100vh !important;
+      overflow: hidden !important;
       overscroll-behavior-y: none; /* Prevent rubber-banding on Mac */
+  }
+
+  :global(body > footer) {
+      display: none !important;
+  }
+
+  .footer-section {
+      scroll-snap-align: end !important;
+      scroll-snap-stop: always !important;
+      height: auto !important;
+      min-height: auto !important;
+      padding-top: 0 !important;
   }
 
   /* We override BaseLayout styles dynamically if possible, or force full height here */
@@ -2013,7 +2224,16 @@ const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) =>
       }
   }
 
+  .mobile-strip-bar {
+      z-index: 50 !important;
+      top: var(--header-height, 60px) !important;
+  }
+
   .mobile-timeline-card {
+      scroll-margin-top: calc(var(--header-height, 60px) + 120px);
+  }
+
+  .mobile-milestone-card {
       scroll-margin-top: calc(var(--header-height, 60px) + 120px);
   }
   
