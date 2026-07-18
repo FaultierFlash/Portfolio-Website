@@ -278,6 +278,11 @@ const widgetAdjustedXMap: Record<string, number> = {};
 [...topWidgets, ...bottomWidgets].forEach(w => {
     widgetAdjustedXMap[w.id] = w.x;
 });
+
+// --- Mobile Timeline Strip Pre-computation ---
+const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) => 
+    new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+);
 ---
 
 <BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
@@ -329,7 +334,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
         <div class="timeline-header absolute top-16 md:top-24 w-full text-center z-10 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">My Journey</h2>
             <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover events for details</p>
-            <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Tap events for details</p>
+            <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Scroll to explore · Tap dots to navigate</p>
         </div>        
         <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-45px);">
             {/* The Track Canvas */}
@@ -734,44 +739,77 @@ const widgetAdjustedXMap: Record<string, number> = {};
         </div>
 
         {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full px-6 pt-32 pb-48 relative no-scrollbar overflow-y-auto z-20" id="mobile-timeline">
-            <div class="absolute left-10 top-32 bottom-48 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none"></div>
-            {timelineItems.slice().sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map((item: any) => {
-                const today = new Date();
-                const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
-                const isDuration = !!item.endDate || isActuallyOngoing;
-                const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                const c = colors[resolvedColor] || colors.primary;
-                const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
-
-                const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
-                const widgetTitle = item.title;
-                const widgetDesc = item.description || item.relatedProject?.description;
-                const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
-                const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
-
-                const mobileTimeframe = (() => {
-                    const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
-                    if (!isDuration) {
-                        return start;
-                    }
-                    const end = isActuallyOngoing 
-                        ? (lang === 'de' ? 'Heute' : 'Present') 
-                        : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
-                    return end ? `${start} - ${end}` : start;
-                })();
-
-                return (
-                    <div class="relative w-full flex mb-12 group">
-                        {/* Timeline node/dot */}
-                        <div class="w-16 shrink-0 flex flex-col justify-start items-center relative pt-4 z-10">
-                            <div class={`w-4 h-4 rounded-full border-[3px] border-white dark:border-[var(--color-bg)] ${c.bgSolid} shadow-lg ring-2 ring-transparent group-active:ring-[var(--color-project-accent-bg)] transition-all`}></div>
-                            <span class={`text-[10px] font-black uppercase tracking-wider mt-3 opacity-60 text-slate-500`}>
-                                {new Date(item.startDate).getFullYear()}
-                            </span>
+        <div class="block md:hidden w-full relative z-20 pt-28" id="mobile-timeline">
+            {/* Sticky Mini Timeline Strip */}
+            <div class="sticky z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-5 py-4" id="mobile-strip" style={`top: var(--header-height, 60px);`}>
+                <div class="relative w-full h-8">
+                    {/* Axis line */}
+                    <div class="absolute left-0 right-0 top-1/2 h-[2px] bg-slate-200 dark:bg-slate-700 -translate-y-1/2 rounded-full"></div>
+                    {/* Year markers */}
+                    {yearMarkers.map((marker) => (
+                        <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={`left: ${marker.left}`}>
+                            <div class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600"></div>
+                            <span class="text-[8px] font-bold text-slate-400 dark:text-slate-500 absolute top-full mt-0.5 whitespace-nowrap">{marker.year}</span>
                         </div>
-                        {/* Content Card */}
-                        <div class={`flex-1 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-xl transition-all flex flex-col gap-3 relative`}>
+                    ))}
+                    {/* Present marker */}
+                    <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center" style={`left: ${presentLeftPct}%`}>
+                        <span class="text-[7px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 absolute bottom-full mb-1">
+                            {lang === 'de' ? 'Heute' : 'Present'}
+                        </span>
+                        <div class="w-[2px] h-4 bg-slate-300 dark:bg-slate-600"></div>
+                        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse absolute top-1/2 -translate-y-1/2"></div>
+                    </div>
+                    {/* Item dots */}
+                    {sortedTimelineItems.map((item: any, idx: number) => {
+                        const startMs = new Date(item.startDate).getTime() - timelineStartDate.getTime();
+                        const dotPct = Math.max(2, Math.min(98, (startMs / totalDurationMs) * 100));
+                        const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                        const dc = colors[resolvedColor] || colors.primary;
+                        return (
+                            <button
+                                class={`mobile-strip-dot absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${dc.dot} border-2 border-white dark:border-slate-900 shadow-sm transition-all duration-300 z-10 cursor-pointer`}
+                                style={`left: ${dotPct}%; width: 12px; height: 12px;`}
+                                data-target-idx={idx}
+                                data-dot-left={dotPct}
+                                aria-label={item.title}
+                            ></button>
+                        );
+                    })}
+                    {/* Active label (positioned by JS) */}
+                    <div id="mobile-strip-label" class="absolute -top-7 opacity-0 transition-all duration-300 pointer-events-none" style="left: 0; transform: translateX(-50%);">
+                        <span class="text-[9px] font-bold text-slate-700 dark:text-slate-200 max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm"></span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Card list */}
+            <div class="px-5 pt-6 pb-16 flex flex-col gap-6">
+                {sortedTimelineItems.map((item: any, idx: number) => {
+                    const today = new Date();
+                    const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                    const isDuration = !!item.endDate || isActuallyOngoing;
+                    const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                    const c = colors[resolvedColor] || colors.primary;
+                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
+
+                    const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
+                    const widgetTitle = item.title;
+                    const widgetDesc = item.description || item.relatedProject?.description;
+                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
+
+                    const mobileTimeframe = (() => {
+                        const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
+                        if (!isDuration) return start;
+                        const end = isActuallyOngoing 
+                            ? (lang === 'de' ? 'Heute' : 'Present') 
+                            : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
+                        return end ? `${start} — ${end}` : start;
+                    })();
+
+                    return (
+                        <div class={`mobile-timeline-card relative border-l-[3px] ${c.border} bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-lg transition-all flex flex-col gap-3`} data-timeline-idx={idx} data-title={item.title}>
                             {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
                             
                             {widgetImage && (
@@ -783,25 +821,31 @@ const widgetAdjustedXMap: Record<string, number> = {};
                             )}
 
                             <div class="flex flex-col">
-                                <span class={`text-[10px] font-black uppercase tracking-widest ${c.text} mb-1 block`}>
-                                    {mobileTimeframe}
-                                </span>
-                                <h3 class={`text-lg font-black text-[var(--color-text)] leading-tight`}>{widgetTitle}</h3>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <div class={`w-2 h-2 rounded-full ${c.dot} shrink-0`}></div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                        {mobileTimeframe}
+                                    </span>
+                                    {isActuallyOngoing && (
+                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>Active</span>
+                                    )}
+                                </div>
+                                <h3 class="text-lg font-black text-[var(--color-text)] leading-tight">{widgetTitle}</h3>
                                 {widgetDesc && <p class="text-sm border-t border-[var(--color-card-border)] pt-3 mt-3 text-[var(--color-text-dim)] font-medium leading-relaxed">{widgetDesc}</p>}
                             </div>
 
                             {widgetBtnLink && widgetBtnLabel && (
                                 <a 
                                     href={widgetBtnLink} 
-                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} ${c.text} ${c.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
                                 >
                                     {widgetBtnLabel}
                                 </a>
                             )}
                             
                             {item.milestoneEvents && item.milestoneEvents.length > 0 && (
-                                <div class="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
-                                    <span class="text-[10px] uppercase font-black text-[var(--color-project-accent)] tracking-widest">Milestones</span>
+                                <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
+                                    <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>{lang === 'de' ? 'Meilensteine' : 'Milestones'}</span>
                                     {item.milestoneEvents.map((evt: any) => {
                                         const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
@@ -823,7 +867,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                                 />
                                             )}
                                             <div class="flex flex-col">
-                                                <span class="text-[9px] font-black mb-1 opacity-50 text-[var(--color-text)]">
+                                                <span class="text-[9px] font-black mb-1 text-slate-500 dark:text-slate-400">
                                                     {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
                                                 </span>
                                                 <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover/sub:text-[var(--color-project-accent)] transition-colors">
@@ -838,7 +882,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                             {subWidgetBtnLink && subWidgetBtnLabel && (
                                                 <a 
                                                     href={subWidgetBtnLink} 
-                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} ${ec.text} ${ec.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
                                                 >
                                                     {subWidgetBtnLabel}
                                                 </a>
@@ -849,11 +893,11 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                 </div>
                             )}
                         </div>
-                    </div>
-                )
-            })}
-            {/* Observer anchor to trigger Next Section button */}
-            <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
+                    )
+                })}
+                {/* Observer anchor to trigger Next Section button */}
+                <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
+            </div>
         </div>
 
         {/* Future Infinite Dashed Line (restricts overflow inside timeline section) */}
@@ -1793,6 +1837,80 @@ const widgetAdjustedXMap: Record<string, number> = {};
         });
     }
 
+    // --- Mobile Timeline Strip Logic ---
+    if (timelineSection && window.innerWidth < 768) {
+        const mobileCards = document.querySelectorAll('.mobile-timeline-card');
+        const stripDots = document.querySelectorAll('.mobile-strip-dot');
+        const stripLabel = document.getElementById('mobile-strip-label');
+        const labelSpan = stripLabel?.querySelector('span');
+        
+        if (mobileCards.length > 0 && stripDots.length > 0) {
+            let activeIdx = -1;
+            
+            function setActiveDot(idx: number) {
+                if (idx === activeIdx) return;
+                activeIdx = idx;
+                
+                stripDots.forEach((dot, i) => {
+                    const el = dot as HTMLElement;
+                    if (i === idx) {
+                        el.classList.add('active');
+                        el.style.width = '16px';
+                        el.style.height = '16px';
+                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.9), 0 0 8px currentColor';
+                    } else {
+                        el.classList.remove('active');
+                        el.style.width = '12px';
+                        el.style.height = '12px';
+                        el.style.boxShadow = '';
+                    }
+                });
+                
+                if (stripLabel && labelSpan) {
+                    const activeDot = stripDots[idx] as HTMLElement;
+                    const dotLeft = activeDot.getAttribute('data-dot-left') || '0';
+                    stripLabel.style.left = dotLeft + '%';
+                    stripLabel.style.opacity = '1';
+                    const card = mobileCards[idx] as HTMLElement;
+                    const title = card?.getAttribute('data-title') || '';
+                    labelSpan.textContent = title;
+                }
+            }
+            
+            const cardObserver = new IntersectionObserver((entries) => {
+                let bestEntry: IntersectionObserverEntry | null = null;
+                let bestRatio = 0;
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && entry.intersectionRatio > bestRatio) {
+                        bestRatio = entry.intersectionRatio;
+                        bestEntry = entry;
+                    }
+                });
+                if (bestEntry) {
+                    const idx = parseInt(((bestEntry as IntersectionObserverEntry).target as HTMLElement).getAttribute('data-timeline-idx') || '0');
+                    setActiveDot(idx);
+                }
+            }, {
+                threshold: [0.2, 0.4, 0.6],
+                rootMargin: '-25% 0px -35% 0px'
+            });
+            
+            mobileCards.forEach(card => cardObserver.observe(card));
+            
+            stripDots.forEach(dot => {
+                dot.addEventListener('click', () => {
+                    const idx = parseInt((dot as HTMLElement).getAttribute('data-target-idx') || '0');
+                    const card = mobileCards[idx];
+                    if (card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            });
+            
+            setActiveDot(0);
+        }
+    }
+
     // Library Section Horizontal Scroll Support (if needed)
     // Currently vertical snap works best for the Library layout
 
@@ -1879,6 +1997,21 @@ const widgetAdjustedXMap: Record<string, number> = {};
     scroll-snap-stop: always;
     height: 100vh;
     padding-top: var(--header-height, 60px); /* Account for fixed header */
+  }
+  
+  @media (max-width: 767px) {
+      .scroll-container {
+          scroll-snap-type: y proximity;
+      }
+      .scroll-section.timeline-section {
+          height: auto;
+          min-height: auto;
+          scroll-snap-stop: normal;
+      }
+  }
+
+  .mobile-timeline-card {
+      scroll-margin-top: calc(var(--header-height, 60px) + 120px);
   }
   
   .heading-font {
