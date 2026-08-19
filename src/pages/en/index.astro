@@ -341,7 +341,7 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
+<BaseLayout title={homeData?.heroTitle || t("page.home.title")} hidePageScrollbar={true}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
@@ -797,7 +797,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         {/* --- MOBILE VERTICAL TIMELINE --- */}
         <div class="block md:hidden w-full relative z-20" id="mobile-timeline">
             {/* Sticky Mini Timeline Strip */}
-            <div class="mobile-strip-bar sticky bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 pt-4 pb-6" id="mobile-strip" style="top: var(--header-height, 60px);">
+            <div class="mobile-strip-bar sticky bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 pt-4 pb-6" id="mobile-strip" style="top: 0;">
                 <div class="relative w-full" style="height: 64px;">
                     {/* Vertical Year Grid Lines */}
                     {yearMarkers.map((marker) => (
@@ -867,10 +867,10 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     })}
                 </div>
                 {/* Dynamic Active Title block */}
-                <div class="w-full text-center mt-3 h-4 overflow-hidden pointer-events-none flex items-center justify-center">
+                <div class="w-full text-center mt-6 h-4 overflow-hidden pointer-events-none flex items-center justify-center">
                     <span 
                         id="mobile-strip-title-text" 
-                        class="block text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 transition-all duration-300 transform translate-y-full opacity-0"
+                        class="text-slate-700 dark:text-slate-300"
                     >
                     </span>
                 </div>
@@ -1948,37 +1948,50 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         if (mobileCards.length > 0 && stripDots.length > 0 && mobileStrip && scrollContainer) {
             let activeParentIdx = -1;
             let activeMilestoneKey = '';
+            let animatingTitle = '';
+            let animationTimeoutId: any = null;
             
             function updateDynamicTitle() {
                 const titleEl = document.getElementById('mobile-strip-title-text');
-                if (!titleEl || !mobileStrip || activeParentIdx < 0) return;
+                if (!titleEl || !mobileStrip) return;
                 
-                const stripRect = mobileStrip.getBoundingClientRect();
-                const stripBottom = stripRect.bottom;
+                if (activeParentIdx < 0) {
+                    titleEl.classList.remove('active');
+                    animatingTitle = '';
+                    if (animationTimeoutId) {
+                        clearTimeout(animationTimeoutId);
+                        animationTimeoutId = null;
+                    }
+                    return;
+                }
                 
                 const card = mobileCards[activeParentIdx];
                 if (!card) return;
                 
-                const cardTitle = card.querySelector('h3');
-                const titleRect = cardTitle ? cardTitle.getBoundingClientRect() : card.getBoundingClientRect();
+                const newTitle = card.getAttribute('data-title') || '';
                 
-                const nextCard = mobileCards[activeParentIdx + 1];
-                const nextRect = nextCard ? nextCard.getBoundingClientRect() : null;
-                
-                const isPastOriginalTitle = titleRect.bottom < stripBottom;
-                const isNextEntering = nextRect ? (nextRect.top < stripBottom + 40) : false;
-                
-                if (isPastOriginalTitle && !isNextEntering) {
-                    titleEl.textContent = card.getAttribute('data-title') || '';
-                    titleEl.style.transform = 'translateY(0)';
-                    titleEl.style.opacity = '1';
-                } else if (isNextEntering) {
-                    titleEl.style.transform = 'translateY(-100%)';
-                    titleEl.style.opacity = '0';
-                } else {
-                    titleEl.style.transform = 'translateY(100%)';
-                    titleEl.style.opacity = '0';
+                // If the new title is already what we are animating/displaying, ensure active and return
+                if (newTitle === animatingTitle) {
+                    titleEl.classList.add('active');
+                    return;
                 }
+                
+                // Clear any pending transition
+                if (animationTimeoutId) {
+                    clearTimeout(animationTimeoutId);
+                }
+                
+                animatingTitle = newTitle;
+                
+                // Slide down and fade out current title
+                titleEl.classList.remove('active');
+                
+                animationTimeoutId = setTimeout(() => {
+                    titleEl.textContent = newTitle;
+                    // Slide up and fade in new title
+                    titleEl.classList.add('active');
+                    animationTimeoutId = null;
+                }, 200);
             }
 
             function updateStripHighlight(parentIdx: number, milestoneIdx: number) {
@@ -1996,8 +2009,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const isParent = dotType === 'parent';
                     const baseSize = isParent ? 10 : 6;
                     
-                    const isActiveParent = dParent === parentIdx;
-                    const isActiveMilestone = dParent === parentIdx && dMilestone === milestoneIdx && milestoneIdx >= 0;
+                    const isActiveParent = dParent === parentIdx && parentIdx >= 0;
+                    const isActiveMilestone = dParent === parentIdx && dMilestone === milestoneIdx && milestoneIdx >= 0 && parentIdx >= 0;
                     
                     if (isActiveMilestone) {
                         // Currently focused milestone — big glow
@@ -2034,7 +2047,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 stripSpans.forEach((span) => {
                     const el = span as HTMLElement;
                     const dParent = parseInt(el.getAttribute('data-span-parent-idx') || '-1');
-                    if (dParent === parentIdx) {
+                    if (dParent === parentIdx && parentIdx >= 0) {
                         el.style.opacity = '0.85';
                         el.style.height = '8px';
                     } else {
@@ -2046,37 +2059,63 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 updateDynamicTitle();
             }
             
-            // Observe parent cards
-            const cardObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.intersectionRatio > 0.2) {
-                        const idx = parseInt((entry.target as HTMLElement).getAttribute('data-timeline-idx') || '0');
-                        updateStripHighlight(idx, -1);
+            function handleScroll() {
+                if (!scrollContainer || !mobileStrip) return;
+                const containerRect = scrollContainer.getBoundingClientRect();
+                const stripHeight = mobileStrip.getBoundingClientRect().height;
+                
+                // The activation line is just below the sticky strip
+                const activationLine = containerRect.top + stripHeight + 40;
+                
+                let activeIdx = -1;
+                mobileCards.forEach((card, idx) => {
+                    const rect = card.getBoundingClientRect();
+                    if (rect.top <= activationLine && rect.bottom >= activationLine) {
+                        activeIdx = idx;
                     }
                 });
-            }, {
-                threshold: [0.2, 0.5],
-                rootMargin: '-20% 0px -40% 0px'
-            });
-            mobileCards.forEach(card => cardObserver.observe(card));
-            
-            // Observe individual milestone cards
-            const milestoneObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
-                        const el = entry.target as HTMLElement;
-                        const pIdx = parseInt(el.getAttribute('data-parent-idx') || '-1');
-                        const mIdx = parseInt(el.getAttribute('data-milestone-idx') || '-1');
-                        if (pIdx >= 0 && mIdx >= 0) {
-                            updateStripHighlight(pIdx, mIdx);
+                
+                // If center is not inside any card, determine if we are above the timeline or below it
+                if (activeIdx < 0 && mobileCards.length > 0) {
+                    const firstRect = mobileCards[0].getBoundingClientRect();
+                    if (firstRect.top > activationLine) {
+                        // Above the timeline (e.g. in hero)
+                        activeIdx = -1;
+                    } else {
+                        // Check if below the timeline (e.g. in footer/contact)
+                        const lastRect = mobileCards[mobileCards.length - 1].getBoundingClientRect();
+                        if (lastRect.bottom < activationLine) {
+                            activeIdx = -1;
+                        } else {
+                            // Currently in a gap between cards inside the timeline — keep the card that has already crossed active
+                            for (let i = mobileCards.length - 1; i >= 0; i--) {
+                                const rect = mobileCards[i].getBoundingClientRect();
+                                if (rect.top <= activationLine) {
+                                    activeIdx = i;
+                                    break;
+                                }
+                            }
                         }
                     }
-                });
-            }, {
-                threshold: [0.3, 0.6],
-                rootMargin: '-25% 0px -35% 0px'
-            });
-            milestoneCards.forEach(card => milestoneObserver.observe(card));
+                }
+                
+                let activeMIdx = -1;
+                if (activeIdx >= 0) {
+                    milestoneCards.forEach((mCard) => {
+                        const rect = mCard.getBoundingClientRect();
+                        // Highlight milestone dot when its card crosses the activation line area
+                        if (rect.top <= activationLine + 40 && rect.bottom >= activationLine - 40) {
+                            const pIdx = parseInt(mCard.getAttribute('data-parent-idx') || '-1');
+                            const mIdx = parseInt(mCard.getAttribute('data-milestone-idx') || '-1');
+                            if (pIdx === activeIdx) {
+                                activeMIdx = mIdx;
+                            }
+                        }
+                    });
+                }
+                
+                updateStripHighlight(activeIdx, activeMIdx);
+            }
             
             // Dot click → scroll to card
             stripDots.forEach(dot => {
@@ -2085,26 +2124,41 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const pIdx = parseInt(el.getAttribute('data-parent-idx') || '0');
                     const mIdx = parseInt(el.getAttribute('data-milestone-idx') || '-1');
                     
+                    const containerRect = scrollContainer.getBoundingClientRect();
+                    const stripHeight = mobileStrip.getBoundingClientRect().height;
+                    
                     if (mIdx >= 0) {
                         // Scroll to specific milestone card
-                        const target = document.querySelector(`.mobile-milestone-card[data-parent-idx="${pIdx}"][data-milestone-idx="${mIdx}"]`);
+                        const target = document.querySelector(`.mobile-milestone-card[data-parent-idx="${pIdx}"][data-milestone-idx="${mIdx}"]`) as HTMLElement;
                         if (target) {
-                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const targetRect = target.getBoundingClientRect();
+                            // Center the milestone card below the strip
+                            const targetScrollTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - stripHeight - 20;
+                            scrollContainer.scrollTo({
+                                top: targetScrollTop,
+                                behavior: 'smooth'
+                            });
                             return;
                         }
                     }
+                    
                     // Scroll to parent card
-                    const card = mobileCards[pIdx];
+                    const card = mobileCards[pIdx] as HTMLElement;
                     if (card) {
-                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        const cardRect = card.getBoundingClientRect();
+                        const targetScrollTop = scrollContainer.scrollTop + (cardRect.top - containerRect.top) - stripHeight - 10;
+                        scrollContainer.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
+                        });
                     }
                 });
             });
 
-            // Listen to scroll to update dynamic title transition
-            scrollContainer.addEventListener('scroll', updateDynamicTitle);
+            // Listen to scroll to update dynamic highlights and title ticker
+            scrollContainer.addEventListener('scroll', handleScroll);
             
-            updateStripHighlight(0, -1);
+            handleScroll();
         }
     }
 
@@ -2157,7 +2211,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 </script>
 
 <style>
-  html, body {
+  :global(html), :global(body) {
       height: 100vh !important;
       overflow: hidden !important;
       overscroll-behavior-y: none; /* Prevent rubber-banding on Mac */
@@ -2223,7 +2277,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
   .mobile-strip-bar {
       z-index: 50 !important;
-      top: var(--header-height, 60px) !important;
+      top: 0 !important;
   }
 
   .mobile-timeline-card {
@@ -2325,5 +2379,20 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   #timeline-revealed-future {
       -webkit-mask-image: linear-gradient(to right, transparent 0px, transparent calc(var(--reveal-pos, 0px) + 50vw - 20px), black calc(var(--reveal-pos, 0px) + 50vw + 20px));
       mask-image: linear-gradient(to right, transparent 0px, transparent calc(var(--reveal-pos, 0px) + 50vw - 20px), black calc(var(--reveal-pos, 0px) + 50vw + 20px));
+  }
+
+  #mobile-strip-title-text {
+      display: block;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(12px);
+      opacity: 0;
+  }
+  #mobile-strip-title-text.active {
+      transform: translateY(0);
+      opacity: 1;
   }
 </style>
