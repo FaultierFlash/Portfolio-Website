@@ -34,10 +34,26 @@ export default defineConfig({
                   .schemaType('librarySettings')
                   .documentId('librarySettings')
               ),
+            S.listItem()
+              .title('Social Links Settings')
+              .id('socialsSettings')
+              .child(
+                S.document()
+                  .schemaType('socialsSettings')
+                  .documentId('socialsSettings')
+              ),
+            S.listItem()
+              .title('Notes Settings')
+              .id('notesSettings')
+              .child(
+                S.document()
+                  .schemaType('notesSettings')
+                  .documentId('notesSettings')
+              ),
             S.divider(),
             ...S.documentTypeListItems().filter(
               (listItem) =>
-                !['homePage', 'librarySettings'].includes(listItem.getId() || '')
+                !['homePage', 'librarySettings', 'socialsSettings', 'notesSettings'].includes(listItem.getId() || '')
             ),
           ]),
     }),

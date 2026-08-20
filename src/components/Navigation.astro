@@ -22,6 +22,7 @@ interface Props {
   mainNavigationLabel: LocalizedString | string;
   projectsSubmenuLabel: LocalizedString | string;
   accentColor?: string;
+  socials?: any;
 }
 
 const {
@@ -32,6 +33,7 @@ const {
   mainNavigationLabel,
   projectsSubmenuLabel,
   accentColor = "primary",
+  socials,
 } = Astro.props;
 ---
 
@@ -96,6 +98,53 @@ const {
       }
     </div>
     <div class="controls">
+      {/* Social Links */}
+      {socials?.github?.enabled && socials.github.url && (
+        <a
+          href={socials.github.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="control-btn"
+          aria-label="GitHub"
+          title="GitHub"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+          </svg>
+        </a>
+      )}
+      {socials?.linkedin?.enabled && socials.linkedin.url && (
+        <a
+          href={socials.linkedin.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="control-btn"
+          aria-label="LinkedIn"
+          title="LinkedIn"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+            <rect x="2" y="9" width="4" height="12"></rect>
+            <circle cx="4" cy="4" r="2"></circle>
+          </svg>
+        </a>
+      )}
+      {socials?.instagram?.enabled && socials.instagram.url && (
+        <a
+          href={socials.instagram.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="control-btn"
+          aria-label="Instagram"
+          title="Instagram"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </a>
+      )}
       <button id="search-palette-trigger" class="control-btn" aria-label="Open Command Palette" title="Command Palette (Cmd+K)">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </button>
@@ -446,6 +495,7 @@ const {
     padding: 0.5rem;
     border-radius: 0.375rem;
     color: var(--color-text);
+    text-decoration: none;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
   .control-btn:hover {
