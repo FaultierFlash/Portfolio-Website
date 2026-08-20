@@ -1,18 +1,74 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import { getLabEntries } from "../../lib/sanity";
+import { getLabEntries, getNotesSettings } from "../../lib/sanity";
 import LabNotebook from "../../components/LabNotebook.astro";
 
-const lang = Astro.currentLocale as Locale;
+const lang = (Astro.currentLocale as Locale) || "de";
 const t = useTranslations(lang);
 
-const entries = await getLabEntries();
+const [entries, notesSettings] = await Promise.all([
+  getLabEntries(),
+  getNotesSettings(),
+]);
+
+const isPreview = Astro.url.searchParams.get("preview") === "true";
+const isEnabled = notesSettings?.enabled === true || isPreview;
+const pageTitle = notesSettings?.titleDe || t("nav.notes");
+
+const dLabels = {
+  badge: "Eingeschränkter Zugriff",
+  stamp: "IN ARBEIT",
+  title: "Forschung im Gange",
+  subtitle: "Das Labor-Notizbuch wird derzeit indexiert und aufbereitet.",
+  description: "Beobachtungen, Simulationen und technische Ausarbeitungen werden derzeit kuratiert. Schau bald wieder vorbei.",
+  backHome: "Zurück zur Startseite",
+};
 ---
 
-<BaseLayout title={t("nav.notes")}>
+<BaseLayout title={pageTitle}>
   <div class="notes-page-container">
-    <LabNotebook entries={entries} locale={lang} />
+    {isEnabled ? (
+      <div class="w-full max-w-[900px]">
+        {isPreview && (
+          <div class="mb-4 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 dark:text-amber-400 text-xs font-mono flex items-center justify-between">
+            <span>⚠️ <strong>Vorschaumodus</strong> — Das Notizbuch ist aktuell für reguläre Besucher deaktiviert.</span>
+            <a href={`/${lang}/notes`} class="underline hover:text-amber-500">Vorschau beenden</a>
+          </div>
+        )}
+        <LabNotebook entries={entries} locale={lang} />
+      </div>
+    ) : (
+      <div class="under-construction-notebook">
+        <div class="notebook-cover">
+          <div class="page-texture"></div>
+          <div class="ruled-lines"></div>
+          
+          <div class="construction-content">
+            <div class="stamp-container">
+              <div class="construction-stamp">
+                <span class="stamp-icon">🔬</span>
+                <span class="stamp-text">{dLabels.stamp}</span>
+              </div>
+            </div>
+
+            <span class="restricted-tag">{dLabels.badge}</span>
+            <h1 class="construction-title">{dLabels.title}</h1>
+            <p class="construction-subtitle">{dLabels.subtitle}</p>
+            <div class="construction-divider"></div>
+            <p class="construction-desc">{dLabels.description}</p>
+
+            <a href={`/${lang}/`} class="back-home-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>{dLabels.backHome}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 </BaseLayout>
 
@@ -22,6 +78,196 @@ const entries = await getLabEntries();
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1rem;
+    padding: 6rem 1rem 3rem 1rem;
+    box-sizing: border-box;
+  }
+
+  /* Vintage Under Construction Notebook Card */
+  .under-construction-notebook {
+    --paper-color: #faf6f0;
+    --paper-line: rgba(165, 145, 120, 0.15);
+    --ink-color: #2c2416;
+    --ink-secondary: #6b5e4f;
+    --cover-color: #5c3d2e;
+    --cover-dark: #3a2518;
+    --line-height: 28px;
+    --baseline-offset: 21px;
+
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    position: relative;
+    font-family: "Georgia", "Palatino Linotype", "Times New Roman", serif;
+  }
+
+  .notebook-cover {
+    position: relative;
+    background-color: var(--paper-color);
+    border: 1px solid rgba(0,0,0,0.12);
+    border-left: 14px solid var(--cover-color);
+    border-radius: 6px 12px 12px 6px;
+    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+    overflow: hidden;
+    padding: 3rem 2.5rem;
+  }
+
+  .page-texture {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(200, 180, 150, 0.04), transparent 50%),
+      radial-gradient(ellipse at 80% 30%, rgba(180, 160, 130, 0.03), transparent 40%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ruled-lines {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent calc(var(--line-height) - 1px),
+      var(--paper-line) calc(var(--line-height) - 1px),
+      var(--paper-line) var(--line-height)
+    );
+    background-position: 0 var(--baseline-offset);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.7;
+  }
+
+  .construction-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .stamp-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .construction-stamp {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 80px;
+    height: 80px;
+    border: 3px solid #dc2626;
+    border-radius: 50%;
+    transform: rotate(-10deg);
+    opacity: 0.8;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .construction-stamp::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 1px dashed #dc2626;
+    opacity: 0.4;
+  }
+
+  .stamp-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  .stamp-text {
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: #dc2626;
+    font-family: "Courier New", monospace;
+  }
+
+  .restricted-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-secondary);
+    font-family: "Courier New", monospace;
+    margin-bottom: 0.5rem;
+  }
+
+  .construction-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ink-color);
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+  }
+
+  .construction-subtitle {
+    font-size: 0.95rem;
+    color: var(--ink-secondary);
+    font-style: italic;
+    margin: 0 0 1.25rem 0;
+    line-height: 1.5;
+  }
+
+  .construction-divider {
+    width: 60px;
+    height: 1px;
+    background: var(--ink-secondary);
+    opacity: 0.3;
+    margin-bottom: 1.25rem;
+  }
+
+  .construction-desc {
+    font-size: 0.875rem;
+    color: var(--ink-secondary);
+    line-height: 1.7;
+    margin: 0 0 2rem 0;
+    max-width: 380px;
+  }
+
+  .back-home-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Courier New", monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-color);
+    background: transparent;
+    border: 1px dashed var(--ink-secondary);
+    border-radius: 6px;
+    padding: 0.6rem 1.25rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .back-home-btn:hover {
+    background: rgba(0,0,0,0.04);
+    border-color: var(--ink-color);
+    transform: translateY(-1px);
+  }
+
+  /* Dark mode */
+  :global(.dark) .under-construction-notebook {
+    --paper-color: #1e1b17;
+    --paper-line: rgba(100, 90, 75, 0.2);
+    --ink-color: #d4c8b8;
+    --ink-secondary: #8c7e6e;
+    --cover-color: #3d2b1e;
+  }
+  :global(.dark) .notebook-cover {
+    border-color: rgba(255,255,255,0.06);
+    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5);
+  }
+  :global(.dark) .back-home-btn:hover {
+    background: rgba(255,255,255,0.04);
   }
 </style>
+

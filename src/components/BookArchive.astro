@@ -4,9 +4,11 @@ import { urlFor } from "../lib/sanity";
 interface Props {
   books: any[];
   locale: "en" | "de";
+  title?: string;
+  subtitle?: string;
 }
 
-const { books, locale } = Astro.props;
+const { books, locale, title, subtitle } = Astro.props;
 
 // Helper to group books and pre-calculate URLs
 const groupBooks = (items: any[]) => {
@@ -99,10 +101,10 @@ const t = {
     <div id="library-container" class="max-w-[1600px] mx-auto relative z-10 transition-all duration-700">
         <div class="mb-16 text-center">
             <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
-                {t.title}
+                {title || t.title}
             </h2>
             <p class="text-lg text-[var(--color-text-dim)] max-w-2xl mx-auto font-medium leading-relaxed">
-                {t.subtitle}
+                {subtitle || t.subtitle}
             </p>
         </div>
 
