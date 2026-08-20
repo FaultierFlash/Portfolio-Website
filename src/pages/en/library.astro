@@ -11,11 +11,9 @@ const books = await getBooks();
 const settings = await getLibrarySettings();
 
 const pageTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
+const pageSubtitle = lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn;
 const backgroundEffect = settings?.backgroundEffect || "grid";
 const accentColor = settings?.accentColor || "primary";
-
-// If we have a custom subtitle from Sanity, we might want to pass it to BookArchive 
-// or render it here. For now, BookArchive handles its own subtitle.
 ---
 
 <BaseLayout 
@@ -25,7 +23,7 @@ const accentColor = settings?.accentColor || "primary";
   topographyConfig={settings?.topographyConfig}
 >
   <div class="library-page-container">
-    <BookArchive books={books} locale={lang} />
+    <BookArchive books={books} locale={lang} title={pageTitle} subtitle={pageSubtitle} />
   </div>
 </BaseLayout>
 

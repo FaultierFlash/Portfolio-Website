@@ -1,1 +1,2 @@
+/static/*  /studio/static/:splat  200
 /studio/*  /studio/index.html  200

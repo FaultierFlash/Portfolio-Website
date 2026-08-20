@@ -618,15 +618,19 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
   }
 
   /* Responsive Adjustments */
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .ascii-art {
       display: none;
     }
     .terminal-window {
       width: 100% !important;
       height: 100% !important;
-      border: none;
-      border-radius: 0;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      border: 1px solid var(--term-border, var(--color-accent));
+      border-radius: 0.5rem;
       box-shadow: none;
       transform: none !important;
       top: 0 !important;
@@ -644,11 +648,15 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     .output-line {
       margin-bottom: 0.15rem;
     }
+    .terminal-output {
+      min-height: 0 !important;
+      padding: 0.75rem !important;
+    }
     .message-editor-container {
-      min-height: 150px;
+      min-height: 100px;
     }
     .message-textarea {
-      min-height: 100px;
+      min-height: 60px;
     }
   }
 </style>
@@ -922,7 +930,20 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
     function setInitialPositionAndSize() {
       // If the terminal has been manually moved or resized, skip automatic centering/sizing
-      if (terminalWindow.dataset.terminalInteracted === "true") return;
+      if (terminalWindow.dataset.terminalInteracted === "true" && !isMobile) return;
+
+      if (isMobile) {
+        terminalWindow.style.position = 'relative';
+        terminalWindow.style.width = '100%';
+        terminalWindow.style.height = '100%';
+        terminalWindow.style.top = '';
+        terminalWindow.style.left = '';
+        terminalWindow.style.minWidth = '0';
+        terminalWindow.style.minHeight = '0';
+        terminalWindow.style.maxWidth = '100%';
+        terminalWindow.style.maxHeight = '100%';
+        return;
+      }
 
       const initialW = Math.min(768, window.innerWidth * 0.9);
       const vh = window.innerHeight;
@@ -2108,6 +2129,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
     function dragStart(e) {
       if (
+        isMobile ||
         isExited ||
         e.target === commandInput ||
         e.target === messageInput ||
@@ -2174,7 +2196,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     function resizeStart(e) {
-      if (isExited) return;
+      if (isMobile || isExited) return;
       isResizing = true;
       terminalWindow.dataset.terminalInteracted = "true";
       document.body.style.userSelect = "none";
@@ -2345,6 +2367,26 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     currentWindowResizeHandler = () => {
       clearTimeout(windowResizeTimeout);
       windowResizeTimeout = setTimeout(() => {
+        try {
+          isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        } catch (e) {}
+
+        if (isMobile) {
+          if (terminalWindow) {
+            terminalWindow.style.position = 'relative';
+            terminalWindow.style.width = '100%';
+            terminalWindow.style.height = '100%';
+            terminalWindow.style.top = '';
+            terminalWindow.style.left = '';
+            terminalWindow.style.minWidth = '0';
+            terminalWindow.style.minHeight = '0';
+            terminalWindow.style.maxWidth = '100%';
+            terminalWindow.style.maxHeight = '100%';
+          }
+          if (currentStep !== 3) updateCommandPrompt();
+          return;
+        }
+
         if (!isExited && terminalWindow) {
           const pos = getTerminalPosition();
           const currentLeft = pos.left;
@@ -2373,6 +2415,16 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }, 100);
     };
     window.addEventListener("resize", currentWindowResizeHandler);
+
+    let visualViewportHandler = null;
+    if (window.visualViewport) {
+      visualViewportHandler = () => {
+        if (!isMobile) return;
+        scrollToBottom();
+      };
+      window.visualViewport.addEventListener("resize", visualViewportHandler);
+      window.visualViewport.addEventListener("scroll", visualViewportHandler);
+    }
 
     setInputMode("command", false);
     startTerminal();
@@ -2408,6 +2460,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
       if (typeof currentWindowResizeHandler === "function") {
         window.removeEventListener("resize", currentWindowResizeHandler);
+      }
+      if (visualViewportHandler && window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", visualViewportHandler);
+        window.visualViewport.removeEventListener("scroll", visualViewportHandler);
       }
       document.body.style.userSelect = "";
       console.log(

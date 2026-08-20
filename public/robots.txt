@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block search engines from crawling your admin backend and API routes
+Disallow: /studio/
+Disallow: /api/
+
+# Link to sitemap
+Sitemap: https://marlonmueller.eu/sitemap.xml

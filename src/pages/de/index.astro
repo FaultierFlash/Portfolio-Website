@@ -5,13 +5,24 @@ import { getTranslationOverrides, getHomePageData, getProjects, urlFor } from ".
 import DynamicBackground from "../../components/DynamicBackground.astro";
 import HomeSpinWheel from "../../components/HomeSpinWheel.astro";
 import TerminalContactForm from "../../components/TerminalContactForm.astro";
+import Footer from "../../components/Footer.astro";
 
 const lang = Astro.currentLocale as Locale;
 const overrides = await getTranslationOverrides(lang);
 const t = useTranslations(lang, overrides);
 const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
-const timelineItems = homeData?.timeline || [];
+const timelineItems = (homeData?.timeline || []).map((item: any) => {
+    if (item.milestoneEvents) {
+        return {
+            ...item,
+            milestoneEvents: item.milestoneEvents.slice().sort((a: any, b: any) => 
+                new Date(a.date).getTime() - new Date(b.date).getTime()
+            )
+        };
+    }
+    return item;
+});
 const showSpinWheel = homeData?.showSpinWheel !== false;
 const allProjects = await getProjects(lang);
 const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
@@ -70,6 +81,22 @@ function getTimescaleStyles(item: any) {
         isActuallyOngoing,
         isDuration
     };
+}
+
+function getMobileRowIdx(item: any) {
+    const isDuration = !!item.endDate || item.isOngoing;
+    const pos = item.verticalPosition;
+    if (pos === 'far-above') return 0;
+    if (pos === 'above') return 1;
+    if (pos === 'below') return 3;
+    if (pos === 'far-below') return 4;
+    
+    // Default fallback if verticalPosition is undefined/empty
+    if (isDuration) {
+        return 1; // Default duration is 'above'
+    } else {
+        return 2; // Default point is centered
+    }
 }
 
 
@@ -278,9 +305,43 @@ const widgetAdjustedXMap: Record<string, number> = {};
 [...topWidgets, ...bottomWidgets].forEach(w => {
     widgetAdjustedXMap[w.id] = w.x;
 });
+
+// --- Mobile Timeline Strip Pre-computation ---
+const sortedTimelineItems = timelineItems.slice().sort((a: any, b: any) => 
+    new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+);
+
+// Build a flat list of all events (parents + milestones) for the strip dots
+interface MobileStripEvent {
+    type: 'parent' | 'milestone';
+    parentIdx: number;
+    milestoneIdx: number; // -1 for parent
+    date: Date;
+    pct: number;
+    title: string;
+    colorKey: string;
+    rowIdx: number;
+}
+const mobileStripEvents: MobileStripEvent[] = [];
+sortedTimelineItems.forEach((item: any, pIdx: number) => {
+    const startDate = new Date(item.startDate);
+    const pct = Math.max(2, Math.min(98, ((startDate.getTime() - timelineStartDate.getTime()) / totalDurationMs) * 100));
+    const colorKey = item.relatedProject?.accentColor || item.color || 'primary';
+    const rowIdx = getMobileRowIdx(item);
+    mobileStripEvents.push({ type: 'parent', parentIdx: pIdx, milestoneIdx: -1, date: startDate, pct, title: item.title, colorKey, rowIdx });
+    if (item.milestoneEvents) {
+        item.milestoneEvents.forEach((evt: any, mIdx: number) => {
+            const evtDate = new Date(evt.date);
+            const evtPct = Math.max(2, Math.min(98, ((evtDate.getTime() - timelineStartDate.getTime()) / totalDurationMs) * 100));
+            const evtColorKey = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
+            mobileStripEvents.push({ type: 'milestone', parentIdx: pIdx, milestoneIdx: mIdx, date: evtDate, pct: evtPct, title: evt.title, colorKey: evtColorKey, rowIdx });
+        });
+    }
+});
+mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout title={homeData?.heroTitle || t("page.home.title")}>
+<BaseLayout hidePageScrollbar={true}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
@@ -326,10 +387,10 @@ const widgetAdjustedXMap: Record<string, number> = {};
     <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="timeline-header absolute top-16 md:top-24 w-full text-center z-10 pointer-events-none px-4">
+        <div class="timeline-header relative md:absolute pt-8 md:pt-0 md:top-24 w-full text-center z-10 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">Meine Reise</h2>
             <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">Hover über ein Event für Details</p>
-            <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Tippe auf ein Event für Details</p>
+            <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">Scrollen zum Erkunden · Tippe auf Punkte zum Navigieren</p>
         </div>        
         <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-45px);">
             {/* The Track Canvas */}
@@ -554,7 +615,6 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                 <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
                                     <div class="w-8 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
                                 </div>
-
                                 {/* Close Button */}
                                 <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label="Close card">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -563,8 +623,16 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                 <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
                                     {widgetImage && (
                                         <img 
-                                            src={urlFor(widgetImage).width(240).url()} 
+                                            src={urlFor(widgetImage).width(480).auto('format').quality(85).url()} 
+                                            srcset={`
+                                                ${urlFor(widgetImage).width(240).auto('format').quality(80).url()} 240w,
+                                                ${urlFor(widgetImage).width(480).auto('format').quality(85).url()} 480w,
+                                                ${urlFor(widgetImage).width(720).auto('format').quality(85).url()} 720w
+                                            `}
+                                            sizes="(max-width: 768px) 100vw, 240px"
                                             alt={widgetTitle}
+                                            loading="lazy"
+                                            decoding="async"
                                             class="w-full h-auto rounded-lg"
                                         />
                                     )}
@@ -668,8 +736,16 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                         <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
                                             {subWidgetImage && (
                                                 <img 
-                                                    src={urlFor(subWidgetImage).width(240).url()} 
+                                                    src={urlFor(subWidgetImage).width(480).auto('format').quality(85).url()} 
+                                                    srcset={`
+                                                        ${urlFor(subWidgetImage).width(240).auto('format').quality(80).url()} 240w,
+                                                        ${urlFor(subWidgetImage).width(480).auto('format').quality(85).url()} 480w,
+                                                        ${urlFor(subWidgetImage).width(720).auto('format').quality(85).url()} 720w
+                                                    `}
+                                                    sizes="(max-width: 768px) 100vw, 240px"
                                                     alt={subWidgetTitle}
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     class="w-full h-auto rounded-lg"
                                                 />
                                             )}
@@ -743,75 +819,159 @@ const widgetAdjustedXMap: Record<string, number> = {};
                 </div>
             </div>
         </div>        {/* --- MOBILE VERTICAL TIMELINE --- */}
-        <div class="block md:hidden w-full px-6 pt-32 pb-48 relative no-scrollbar overflow-y-auto z-20" id="mobile-timeline">
-            <div class="absolute left-10 top-32 bottom-48 w-[2px] bg-slate-300 dark:bg-slate-700 pointer-events-none"></div>
-            {timelineItems.slice().sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).map((item: any) => {
-                const today = new Date();
-                const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
-                const isDuration = !!item.endDate || isActuallyOngoing;
-                const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
-                const c = colors[resolvedColor] || colors.primary;
-                const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
-
-                const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
-                const widgetTitle = item.title;
-                const widgetDesc = item.description || item.relatedProject?.description;
-                const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
-                const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
-
-                const mobileTimeframe = (() => {
-                    const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
-                    if (!isDuration) {
-                        return start;
-                    }
-                    const end = isActuallyOngoing 
-                        ? (lang === 'de' ? 'Heute' : 'Present') 
-                        : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
-                    return end ? `${start} - ${end}` : start;
-                })();
-
-                return (
-                    <div class="relative w-full flex mb-12 group">
-                        {/* Timeline node/dot */}
-                        <div class="w-16 shrink-0 flex flex-col justify-start items-center relative pt-4 z-10">
-                            <div class={`w-4 h-4 rounded-full border-[3px] border-white dark:border-[var(--color-bg)] ${c.bgSolid} shadow-lg ring-2 ring-transparent group-active:ring-[var(--color-project-accent-bg)] transition-all`}></div>
-                            <span class={`text-[10px] font-black uppercase tracking-wider mt-3 opacity-60 text-slate-500`}>
-                                {new Date(item.startDate).getFullYear()}
-                            </span>
+        <div class="block md:hidden w-full relative z-20" id="mobile-timeline">
+            {/* Sticky Mini Timeline Strip */}
+            <div class="mobile-strip-bar sticky bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 pt-4 pb-6" id="mobile-strip" style="top: 0;">
+                <div class="relative w-full" style="height: 64px;">
+                    {/* Vertical Year Grid Lines */}
+                    {yearMarkers.map((marker) => (
+                        <div class="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-800/40 pointer-events-none" style={`left: ${marker.left};`}>
+                            <span class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 absolute top-full mt-2 -translate-x-1/2 whitespace-nowrap">{marker.year}</span>
                         </div>
-                        {/* Content Card */}
-                        <div class={`flex-1 bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-xl transition-all flex flex-col gap-3 relative`}>
+                    ))}
+                    
+                    {/* Present marker line */}
+                    <div class="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-primary/50 pointer-events-none" style={`left: ${presentLeftPct}%;`}>
+                        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse absolute top-full mt-2 -translate-x-1/2"></div>
+                    </div>
+
+                    {/* Statically render 5 background lanes (staff lines matching the 5 stack rows) */}
+                    {[0, 1, 2, 3, 4].map((r) => (
+                        <div 
+                            class={`absolute left-0 right-0 h-[1px] pointer-events-none ${r === 2 ? 'bg-slate-300 dark:bg-slate-700/80 h-[2px]' : 'bg-slate-100 dark:bg-slate-800/40'}`}
+                            style={`top: ${r * 14 + 4}px;`}
+                        ></div>
+                    ))}
+
+                    {/* Duration capsules positioned on their CMS-mapped rowIdx */}
+                    {sortedTimelineItems.map((item: any, pIdx: number) => {
+                        const startDate = new Date(item.startDate);
+                        const startMs = startDate.getTime() - timelineStartDate.getTime();
+                        const leftPct = Math.max(0, Math.min(100, (startMs / totalDurationMs) * 100));
+
+                        const today = new Date();
+                        const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                        const endDate = isActuallyOngoing ? new Date() : (item.endDate ? new Date(item.endDate) : startDate);
+                        const endMs = endDate.getTime() - timelineStartDate.getTime();
+                        const endPct = Math.max(0, Math.min(100, (endMs / totalDurationMs) * 100));
+                        
+                        const widthPct = Math.max(1.5, endPct - leftPct);
+                        const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                        const c = colors[resolvedColor] || colors.primary;
+                        const rowIdx = getMobileRowIdx(item);
+                        const rowTop = rowIdx * 14;
+
+                        return (
+                            <div 
+                                class="mobile-strip-span absolute rounded-full transition-all duration-300 opacity-20 pointer-events-none"
+                                style={`left: ${leftPct}%; width: ${widthPct}%; height: 4px; top: ${rowTop + 4}px; transform: translateY(-50%); background-color: ${c.hex};`}
+                                data-span-parent-idx={pIdx}
+                            ></div>
+                        );
+                    })}
+
+                    {/* Event dots positioned on their CMS-mapped rowIdx */}
+                    {mobileStripEvents.map((evt, globalIdx) => {
+                        const dc = colors[evt.colorKey] || colors.primary;
+                        const isParent = evt.type === 'parent';
+                        const size = isParent ? 10 : 6;
+                        const rowTop = evt.rowIdx * 14;
+                        return (
+                            <button
+                                class={`mobile-strip-dot absolute rounded-full ${dc.dot} transition-all duration-300 cursor-pointer -translate-x-1/2 -translate-y-1/2 ${isParent ? 'border-2 border-white dark:border-slate-900 shadow-sm z-10' : 'z-[9] opacity-70'}`}
+                                style={`left: ${evt.pct}%; top: ${rowTop + 4}px; width: ${size}px; height: ${size}px;`}
+                                data-strip-idx={globalIdx}
+                                data-parent-idx={evt.parentIdx}
+                                data-milestone-idx={evt.milestoneIdx}
+                                data-dot-left={evt.pct}
+                                data-dot-type={evt.type}
+                                aria-label={evt.title}
+                            ></button>
+                        );
+                    })}
+                </div>
+                {/* Dynamic Active Title block */}
+                <div class="w-full text-center mt-6 h-4 overflow-hidden pointer-events-none flex items-center justify-center">
+                    <span 
+                        id="mobile-strip-title-text" 
+                        class="text-slate-700 dark:text-slate-300"
+                    >
+                    </span>
+                </div>
+            </div>
+
+            {/* Card list */}
+            <div class="px-5 pt-6 pb-16 flex flex-col gap-6">
+                {sortedTimelineItems.map((item: any, idx: number) => {
+                    const today = new Date();
+                    const isActuallyOngoing = item.isOngoing && (!item.endDate || new Date(item.endDate) >= today);
+                    const isDuration = !!item.endDate || isActuallyOngoing;
+                    const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
+                    const c = colors[resolvedColor] || colors.primary;
+                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
+
+                    const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
+                    const widgetTitle = item.title;
+                    const widgetDesc = item.description || item.relatedProject?.description;
+                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
+
+                    const mobileTimeframe = (() => {
+                        const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
+                        if (!isDuration) return start;
+                        const end = isActuallyOngoing 
+                            ? (lang === 'de' ? 'Heute' : 'Present') 
+                            : (item.endDate ? new Date(item.endDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' }) : '');
+                        return end ? `${start} — ${end}` : start;
+                    })();
+
+                    return (
+                        <div class={`mobile-timeline-card relative border-l-[3px] ${c.border} bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-lg transition-all flex flex-col gap-3`} data-timeline-idx={idx} data-title={item.title}>
                             {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
                             
                             {widgetImage && (
                                 <img 
-                                    src={urlFor(widgetImage).width(400).url()} 
+                                    src={urlFor(widgetImage).width(800).auto('format').quality(85).url()} 
+                                    srcset={`
+                                        ${urlFor(widgetImage).width(400).auto('format').quality(80).url()} 400w,
+                                        ${urlFor(widgetImage).width(800).auto('format').quality(85).url()} 800w,
+                                        ${urlFor(widgetImage).width(1200).auto('format').quality(85).url()} 1200w
+                                    `}
+                                    sizes="(max-width: 640px) calc(100vw - 40px), 600px"
                                     alt={widgetTitle}
+                                    loading="lazy"
+                                    decoding="async"
                                     class="w-full h-auto rounded-xl"
                                 />
                             )}
 
                             <div class="flex flex-col">
-                                <span class={`text-[10px] font-black uppercase tracking-widest ${c.text} mb-1 block`}>
-                                    {mobileTimeframe}
-                                </span>
-                                <h3 class={`text-lg font-black text-[var(--color-text)] leading-tight`}>{widgetTitle}</h3>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <div class={`w-2 h-2 rounded-full ${c.dot} shrink-0`}></div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                        {mobileTimeframe}
+                                    </span>
+                                    {isActuallyOngoing && (
+                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>{lang === 'de' ? 'Aktiv' : 'Active'}</span>
+                                    )}
+                                </div>
+                                <h3 class="text-lg font-black text-[var(--color-text)] leading-tight">{widgetTitle}</h3>
                                 {widgetDesc && <p class="text-sm border-t border-[var(--color-card-border)] pt-3 mt-3 text-[var(--color-text-dim)] font-medium leading-relaxed">{widgetDesc}</p>}
                             </div>
 
                             {widgetBtnLink && widgetBtnLabel && (
                                 <a 
                                     href={widgetBtnLink} 
-                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} ${c.text} ${c.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${c.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-20`}
                                 >
                                     {widgetBtnLabel}
                                 </a>
                             )}
                             
                             {item.milestoneEvents && item.milestoneEvents.length > 0 && (
-                                <div class="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
-                                    <span class="text-[10px] uppercase font-black text-[var(--color-project-accent)] tracking-widest font-black">Meilensteine</span>
-                                    {item.milestoneEvents.map((evt: any) => {
+                                <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
+                                    <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>{lang === 'de' ? 'Meilensteine' : 'Milestones'}</span>
+                                    {item.milestoneEvents.map((evt: any, mIdx: number) => {
                                         const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                                         const subWidgetDesc = evt.description || evt.relatedProject?.description;
@@ -822,17 +982,25 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                         const ec = colors[resolvedEvtColor] || colors.primary;
 
                                         return (
-                                        <div class="relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub">
+                                        <div class="mobile-milestone-card relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub" data-parent-idx={idx} data-milestone-idx={mIdx}>
                                             {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl"></a>}
                                             {subWidgetImage && (
                                                 <img 
-                                                    src={urlFor(subWidgetImage).width(300).url()} 
+                                                    src={urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 
+                                                    srcset={`
+                                                        ${urlFor(subWidgetImage).width(300).auto('format').quality(80).url()} 300w,
+                                                        ${urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 600w,
+                                                        ${urlFor(subWidgetImage).width(900).auto('format').quality(85).url()} 900w
+                                                    `}
+                                                    sizes="(max-width: 640px) calc(100vw - 64px), 500px"
                                                     alt={evt.title} 
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     class="w-full h-auto rounded-lg"
                                                 />
                                             )}
                                             <div class="flex flex-col">
-                                                <span class="text-[9px] font-black mb-1 opacity-50 text-[var(--color-text)]">
+                                                <span class="text-[9px] font-black mb-1 text-slate-500 dark:text-slate-400">
                                                     {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
                                                 </span>
                                                 <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover/sub:text-[var(--color-project-accent)] transition-colors">
@@ -847,7 +1015,7 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                             {subWidgetBtnLink && subWidgetBtnLabel && (
                                                 <a 
                                                     href={subWidgetBtnLink} 
-                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} ${ec.text} ${ec.textDark || ''} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-30`}
+                                                    class={`text-[10px] font-bold text-center py-1.5 px-3 rounded-lg border-[1.5px] ${ec.border} text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition duration-300 mt-1 relative z-20`}
                                                 >
                                                     {subWidgetBtnLabel}
                                                 </a>
@@ -858,11 +1026,11 @@ const widgetAdjustedXMap: Record<string, number> = {};
                                 </div>
                             )}
                         </div>
-                    </div>
-                )
-            })}
-            {/* Observer anchor to trigger Next Section button */}
-            <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
+                    )
+                })}
+                {/* Observer anchor to trigger Next Section button */}
+                <div id="mobile-timeline-end" class="w-full h-8 mt-4"></div>
+            </div>
         </div>
 
         {/* Future Infinite Dashed Line (restricts overflow inside timeline section) */}
@@ -1005,11 +1173,16 @@ const widgetAdjustedXMap: Record<string, number> = {};
           sendButton: t("terminal.sendButton"),
         }} />
       </div>
-      <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
+      <button class="nav-up-btn hidden md:flex absolute top-24 left-1/2 -translate-x-1/2 flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
         <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
       </button>
     </section>
+
+    {/* Footer Section */}
+    <footer class="scroll-section footer-section shrink-0 w-full bg-slate-950 text-slate-400 border-t border-slate-900">
+        <Footer />
+    </footer>
   </div>
 </BaseLayout>
 
@@ -1034,8 +1207,38 @@ const widgetAdjustedXMap: Record<string, number> = {};
   }
 
   .contact-terminal-wrapper #terminal {
-    position: absolute !important;
-    /* Do NOT set top/left here, let JS handle initial centering relative to this absolute parent */
+    --terminal-position: absolute;
+  }
+
+  @media (max-width: 767px) {
+    .contact-terminal-wrapper {
+      min-height: 0 !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      padding: 0.5rem !important;
+      box-sizing: border-box !important;
+      align-items: stretch !important;
+    }
+
+    .contact-terminal-wrapper .component-terminal-wrapper {
+      height: 100% !important;
+      padding: 0 !important;
+      align-items: stretch !important;
+    }
+
+    .contact-terminal-wrapper #terminal {
+      position: relative !important;
+      --terminal-position: relative !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      top: auto !important;
+      left: auto !important;
+      margin: 0 !important;
+    }
   }
 </style>
 
@@ -1799,6 +2002,233 @@ const widgetAdjustedXMap: Record<string, number> = {};
         });
     }
 
+    // --- Mobile Timeline Strip Logic ---
+    if (timelineSection && window.innerWidth < 768) {
+        const mobileCards = document.querySelectorAll('.mobile-timeline-card');
+        const milestoneCards = document.querySelectorAll('.mobile-milestone-card');
+        const stripDots = document.querySelectorAll('.mobile-strip-dot');
+        const stripSpans = document.querySelectorAll('.mobile-strip-span');
+        
+        const mobileStrip = document.getElementById('mobile-strip');
+        const scrollContainer = document.querySelector('.scroll-container');
+        
+        if (mobileCards.length > 0 && stripDots.length > 0 && mobileStrip && scrollContainer) {
+            let activeParentIdx = -1;
+            let activeMilestoneKey = '';
+            let animatingTitle = '';
+            let animationTimeoutId: any = null;
+            
+            function updateDynamicTitle() {
+                const titleEl = document.getElementById('mobile-strip-title-text');
+                if (!titleEl || !mobileStrip) return;
+                
+                if (activeParentIdx < 0) {
+                    titleEl.classList.remove('active');
+                    animatingTitle = '';
+                    if (animationTimeoutId) {
+                        clearTimeout(animationTimeoutId);
+                        animationTimeoutId = null;
+                    }
+                    return;
+                }
+                
+                const card = mobileCards[activeParentIdx];
+                if (!card) return;
+                
+                const newTitle = card.getAttribute('data-title') || '';
+                
+                // If the new title is already what we are animating/displaying, ensure active and return
+                if (newTitle === animatingTitle) {
+                    titleEl.classList.add('active');
+                    return;
+                }
+                
+                // Clear any pending transition
+                if (animationTimeoutId) {
+                    clearTimeout(animationTimeoutId);
+                }
+                
+                animatingTitle = newTitle;
+                
+                // Slide down and fade out current title
+                titleEl.classList.remove('active');
+                
+                animationTimeoutId = setTimeout(() => {
+                    titleEl.textContent = newTitle;
+                    // Slide up and fade in new title
+                    titleEl.classList.add('active');
+                    animationTimeoutId = null;
+                }, 200);
+            }
+
+            function updateStripHighlight(parentIdx: number, milestoneIdx: number) {
+                const newKey = `${parentIdx}-${milestoneIdx}`;
+                if (newKey === activeMilestoneKey && parentIdx === activeParentIdx) return;
+                activeParentIdx = parentIdx;
+                activeMilestoneKey = newKey;
+                
+                // Update dots highlight
+                stripDots.forEach((dot) => {
+                    const el = dot as HTMLElement;
+                    const dParent = parseInt(el.getAttribute('data-parent-idx') || '-1');
+                    const dMilestone = parseInt(el.getAttribute('data-milestone-idx') || '-1');
+                    const dotType = el.getAttribute('data-dot-type');
+                    const isParent = dotType === 'parent';
+                    const baseSize = isParent ? 10 : 6;
+                    
+                    const isActiveParent = dParent === parentIdx && parentIdx >= 0;
+                    const isActiveMilestone = dParent === parentIdx && dMilestone === milestoneIdx && milestoneIdx >= 0 && parentIdx >= 0;
+                    
+                    if (isActiveMilestone) {
+                        // Currently focused milestone — big glow
+                        el.style.width = '14px';
+                        el.style.height = '14px';
+                        el.style.opacity = '1';
+                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 10px currentColor';
+                        el.style.zIndex = '15';
+                    } else if (isActiveParent && isParent) {
+                        // Active parent dot — enlarged ring
+                        el.style.width = '14px';
+                        el.style.height = '14px';
+                        el.style.opacity = '1';
+                        el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 8px currentColor';
+                        el.style.zIndex = '14';
+                    } else if (isActiveParent) {
+                        // Sibling milestones of active parent — slightly brighter
+                        el.style.width = (baseSize + 2) + 'px';
+                        el.style.height = (baseSize + 2) + 'px';
+                        el.style.opacity = '0.9';
+                        el.style.boxShadow = '';
+                        el.style.zIndex = '11';
+                    } else {
+                        // Inactive
+                        el.style.width = baseSize + 'px';
+                        el.style.height = baseSize + 'px';
+                        el.style.opacity = isParent ? '1' : '0.5';
+                        el.style.boxShadow = '';
+                        el.style.zIndex = isParent ? '10' : '9';
+                    }
+                });
+
+                // Highlight range capsules (spans) for parent entries
+                stripSpans.forEach((span) => {
+                    const el = span as HTMLElement;
+                    const dParent = parseInt(el.getAttribute('data-span-parent-idx') || '-1');
+                    if (dParent === parentIdx && parentIdx >= 0) {
+                        el.style.opacity = '0.85';
+                        el.style.height = '8px';
+                    } else {
+                        el.style.opacity = '0.2';
+                        el.style.height = '4px';
+                    }
+                });
+
+                updateDynamicTitle();
+            }
+            
+            function handleScroll() {
+                if (!scrollContainer || !mobileStrip) return;
+                const containerRect = scrollContainer.getBoundingClientRect();
+                const stripHeight = mobileStrip.getBoundingClientRect().height;
+                
+                // The activation line is just below the sticky strip
+                const activationLine = containerRect.top + stripHeight + 40;
+                
+                let activeIdx = -1;
+                mobileCards.forEach((card, idx) => {
+                    const rect = card.getBoundingClientRect();
+                    if (rect.top <= activationLine && rect.bottom >= activationLine) {
+                        activeIdx = idx;
+                    }
+                });
+                
+                // If center is not inside any card, determine if we are above the timeline or below it
+                if (activeIdx < 0 && mobileCards.length > 0) {
+                    const firstRect = mobileCards[0].getBoundingClientRect();
+                    if (firstRect.top > activationLine) {
+                        // Above the timeline (e.g. in hero)
+                        activeIdx = -1;
+                    } else {
+                        // Check if below the timeline (e.g. in footer/contact)
+                        const lastRect = mobileCards[mobileCards.length - 1].getBoundingClientRect();
+                        if (lastRect.bottom < activationLine) {
+                            activeIdx = -1;
+                        } else {
+                            // Currently in a gap between cards inside the timeline — keep the card that has already crossed active
+                            for (let i = mobileCards.length - 1; i >= 0; i--) {
+                                const rect = mobileCards[i].getBoundingClientRect();
+                                if (rect.top <= activationLine) {
+                                    activeIdx = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                let activeMIdx = -1;
+                if (activeIdx >= 0) {
+                    milestoneCards.forEach((mCard) => {
+                        const rect = mCard.getBoundingClientRect();
+                        // Highlight milestone dot when its card crosses the activation line area
+                        if (rect.top <= activationLine + 40 && rect.bottom >= activationLine - 40) {
+                            const pIdx = parseInt(mCard.getAttribute('data-parent-idx') || '-1');
+                            const mIdx = parseInt(mCard.getAttribute('data-milestone-idx') || '-1');
+                            if (pIdx === activeIdx) {
+                                activeMIdx = mIdx;
+                            }
+                        }
+                    });
+                }
+                
+                updateStripHighlight(activeIdx, activeMIdx);
+            }
+            
+            // Dot click → scroll to card
+            stripDots.forEach(dot => {
+                dot.addEventListener('click', () => {
+                    const el = dot as HTMLElement;
+                    const pIdx = parseInt(el.getAttribute('data-parent-idx') || '0');
+                    const mIdx = parseInt(el.getAttribute('data-milestone-idx') || '-1');
+                    
+                    const containerRect = scrollContainer.getBoundingClientRect();
+                    const stripHeight = mobileStrip.getBoundingClientRect().height;
+                    
+                    if (mIdx >= 0) {
+                        // Scroll to specific milestone card
+                        const target = document.querySelector(`.mobile-milestone-card[data-parent-idx="${pIdx}"][data-milestone-idx="${mIdx}"]`) as HTMLElement;
+                        if (target) {
+                            const targetRect = target.getBoundingClientRect();
+                            // Center the milestone card below the strip
+                            const targetScrollTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - stripHeight - 20;
+                            scrollContainer.scrollTo({
+                                top: targetScrollTop,
+                                behavior: 'smooth'
+                            });
+                            return;
+                        }
+                    }
+                    
+                    // Scroll to parent card
+                    const card = mobileCards[pIdx] as HTMLElement;
+                    if (card) {
+                        const cardRect = card.getBoundingClientRect();
+                        const targetScrollTop = scrollContainer.scrollTop + (cardRect.top - containerRect.top) - stripHeight - 10;
+                        scrollContainer.scrollTo({
+                            top: targetScrollTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+
+            // Listen to scroll to update dynamic highlights and title ticker
+            scrollContainer.addEventListener('scroll', handleScroll);
+            
+            handleScroll();
+        }
+    }
+
     // Library Section Horizontal Scroll Support (if needed)
     // Currently vertical snap works best for the Library layout
 
@@ -1811,33 +2241,84 @@ const widgetAdjustedXMap: Record<string, number> = {};
       rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.15)',   border: 'rgba(244,63,94,0.5)'  },
       gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.15)', border: 'rgba(107,114,128,0.5)'},
     };
+
     function setAccentColor(colorKey: string) {
       const c = colorMap[colorKey] || colorMap.primary;
       document.documentElement.style.setProperty('--color-project-accent', c.main);
       document.documentElement.style.setProperty('--color-project-accent-bg', c.bg);
       document.documentElement.style.setProperty('--color-project-accent-border', c.border);
     }
-    const projectSections = document.querySelectorAll('.project-section[data-accent-color]');
-    if (projectSections.length > 0) {
-      const accentObserver = new IntersectionObserver((entries) => {
-        let best: IntersectionObserverEntry | null = null;
-        entries.forEach(entry => {
+
+      const projectSections = document.querySelectorAll('.project-section[data-accent-color]');
+      if (projectSections.length > 0) {
+        const accentObserver = new IntersectionObserver((entries) => {
+          let best: IntersectionObserverEntry | null = null;
+          entries.forEach(entry => {
           if (entry.isIntersecting && (!best || (entry as any).intersectionRatio > (best as any).intersectionRatio)) {
             best = entry;
           }
         });
         if (best) setAccentColor(((best as any).target as HTMLElement).dataset.accentColor || 'primary');
-      }, { threshold: [0.4, 0.6, 0.8] });
+        }, { threshold: [0.4, 0.6, 0.8] });
   
-      const nonProjectSections = document.querySelectorAll('.hero-section, .timeline-section');
+        const nonProjectSections = document.querySelectorAll('.hero-section, .timeline-section');
       const resetObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.5) setAccentColor('primary');
         });
       }, { threshold: 0.5 });
+
       projectSections.forEach(s => accentObserver.observe(s));
       nonProjectSections.forEach(s => resetObserver.observe(s));
     }
+
+    // Dynamic measurement of footer height for mobile contact subpage
+    function setupMobileContactLayout() {
+      const footer = document.querySelector('.footer-section') as HTMLElement | null;
+      const contactSection = document.querySelector('.contact-section') as HTMLElement | null;
+      if (!footer) return;
+
+      const updateFooterHeight = () => {
+        if (window.innerWidth <= 767) {
+          const h = footer.offsetHeight || 120;
+          document.documentElement.style.setProperty('--mobile-footer-height', `${h}px`);
+        } else {
+          document.documentElement.style.removeProperty('--mobile-footer-height');
+        }
+      };
+
+      updateFooterHeight();
+      window.addEventListener('resize', updateFooterHeight);
+
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+          updateFooterHeight();
+        });
+        ro.observe(footer);
+      }
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          if (window.innerWidth <= 767 && contactSection) {
+            const vvHeight = window.visualViewport?.height || window.innerHeight;
+            const isKeyboardOpen = vvHeight < window.innerHeight * 0.75;
+            if (isKeyboardOpen) {
+              const availH = Math.max(200, vvHeight - 60);
+              contactSection.style.height = `${availH}px`;
+              contactSection.style.minHeight = `${availH}px`;
+              contactSection.style.maxHeight = `${availH}px`;
+            } else {
+              contactSection.style.height = '';
+              contactSection.style.minHeight = '';
+              contactSection.style.maxHeight = '';
+              updateFooterHeight();
+            }
+          }
+        });
+      }
+    }
+
+    setupMobileContactLayout();
   }
 
   // Handle Astro page transitions
@@ -1845,8 +2326,22 @@ const widgetAdjustedXMap: Record<string, number> = {};
 </script>
 
 <style>
-  html, body {
+  :global(html), :global(body) {
+      height: 100vh !important;
+      overflow: hidden !important;
       overscroll-behavior-y: none; /* Prevent rubber-banding on Mac */
+  }
+
+  :global(body > footer) {
+      display: none !important;
+  }
+
+  .footer-section {
+      scroll-snap-align: end !important;
+      scroll-snap-stop: always !important;
+      height: auto !important;
+      min-height: auto !important;
+      padding-top: 0 !important;
   }
 
   /* We override BaseLayout styles dynamically if possible, or force full height here */
@@ -1882,6 +2377,50 @@ const widgetAdjustedXMap: Record<string, number> = {};
     scroll-snap-stop: always;
     height: 100vh;
     padding-top: var(--header-height, 60px); /* Account for fixed header */
+  }
+  
+  @media (max-width: 767px) {
+      .scroll-container {
+          scroll-snap-type: y proximity;
+      }
+      .scroll-section.timeline-section {
+          height: auto;
+          min-height: auto;
+          scroll-snap-stop: normal;
+      }
+      .scroll-section.contact-section {
+          height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          min-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          max-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          padding-top: var(--header-height, 60px) !important;
+          padding-bottom: 0 !important;
+          box-sizing: border-box !important;
+          scroll-snap-align: start !important;
+          scroll-snap-stop: always !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: stretch !important;
+          align-items: stretch !important;
+      }
+      .footer-section {
+          scroll-snap-align: none !important;
+          scroll-snap-stop: normal !important;
+          height: auto !important;
+          min-height: auto !important;
+      }
+  }
+
+  .mobile-strip-bar {
+      z-index: 50 !important;
+      top: 0 !important;
+  }
+
+  .mobile-timeline-card {
+      scroll-margin-top: calc(var(--header-height, 60px) + 120px);
+  }
+
+  .mobile-milestone-card {
+      scroll-margin-top: calc(var(--header-height, 60px) + 120px);
   }
   
   .heading-font {
@@ -1975,5 +2514,20 @@ const widgetAdjustedXMap: Record<string, number> = {};
   #timeline-revealed-future {
       -webkit-mask-image: linear-gradient(to right, transparent 0px, transparent calc(var(--reveal-pos, 0px) + 50vw - 20px), black calc(var(--reveal-pos, 0px) + 50vw + 20px));
       mask-image: linear-gradient(to right, transparent 0px, transparent calc(var(--reveal-pos, 0px) + 50vw - 20px), black calc(var(--reveal-pos, 0px) + 50vw + 20px));
+  }
+
+  #mobile-strip-title-text {
+      display: block;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(12px);
+      opacity: 0;
+  }
+  #mobile-strip-title-text.active {
+      transform: translateY(0);
+      opacity: 1;
   }
 </style>

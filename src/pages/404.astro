@@ -1,0 +1,86 @@
+---
+// src/pages/404.astro
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { useTranslations, type Locale } from "../i18n/utils";
+
+const rawPath = Astro.url.pathname;
+const isDe = rawPath.startsWith("/de");
+const lang: Locale = isDe ? "de" : "en";
+const t = useTranslations(lang);
+
+const homeHref = `/${lang}/`;
+const projectsHref = `/${lang}/projects`;
+
+const content = {
+  en: {
+    badge: "Error 404 // Signal Lost",
+    heading: "Waypoint Not Found",
+    description: "The trajectory you requested does not exist or has been shifted in coordinates. Re-align with known paths below.",
+    homeBtn: "Return to Orbit (~)",
+    projectsBtn: "Explore Projects",
+  },
+  de: {
+    badge: "Fehler 404 // Signal verloren",
+    heading: "Wegpunkt nicht gefunden",
+    description: "Die von Ihnen angeforderte Flugbahn existiert nicht oder ihre Koordinaten wurden verschoben. Kehren Sie zu bekannten Pfaden zurück.",
+    homeBtn: "Zurück zur Startseite (~)",
+    projectsBtn: "Projekte ansehen",
+  },
+}[lang];
+---
+
+<BaseLayout 
+  title={isDe ? "404 - Seite nicht gefunden" : "404 - Page Not Found"}
+  description={content.description}
+  backgroundEffect="grid"
+  accentColor="primary"
+>
+  <main class="min-h-[80vh] flex items-center justify-center px-6 py-20">
+    <div class="max-w-xl w-full text-center space-y-8">
+      
+      {/* Visual Terminal / Radar Box */}
+      <div class="relative p-8 rounded-2xl bg-black/5 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 backdrop-blur-md shadow-2xl overflow-hidden">
+        
+        {/* Subtle grid pattern inside card */}
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,125,26,0.08)_0%,transparent_70%)] pointer-events-none"></div>
+
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-widest uppercase bg-primary/10 text-primary border border-primary/20 mb-6">
+          <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+          {content.badge}
+        </div>
+
+        <h1 class="text-6xl md:text-7xl font-black tracking-tighter text-[var(--color-text)] mb-4 font-mono">
+          4<span class="text-primary">0</span>4
+        </h1>
+
+        <h2 class="text-2xl font-bold text-[var(--color-text)] mb-3">
+          {content.heading}
+        </h2>
+
+        <p class="text-base text-[var(--color-text-dim)] leading-relaxed max-w-md mx-auto">
+          {content.description}
+        </p>
+
+        {/* Action Buttons */}
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a
+            href={homeHref}
+            class="w-full sm:w-auto px-6 py-3 rounded-lg font-bold text-sm bg-primary hover:bg-orange-600 text-white transition-all shadow-lg hover:shadow-primary/25 focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            {content.homeBtn}
+          </a>
+          <a
+            href={projectsHref}
+            class="w-full sm:w-auto px-6 py-3 rounded-lg font-bold text-sm border border-black/15 dark:border-white/20 hover:border-primary text-[var(--color-text)] hover:text-primary transition-all bg-transparent hover:bg-primary/5 focus:outline-none"
+          >
+            {content.projectsBtn}
+          </a>
+        </div>
+      </div>
+
+      <div class="font-mono text-xs text-[var(--color-text-dim)] opacity-60">
+        SYS_STATUS: 404_TARGET_UNREACHABLE // PORTFOLIO_V2
+      </div>
+    </div>
+  </main>
+</BaseLayout>
