@@ -5,7 +5,7 @@
   "main": "package.json",
   "scripts": {
     "dev": "sanity dev",
-    "build": "sanity build ../public/studio --clean --yes",
+    "build": "npx sanity build ../public/studio --clean --yes",
     "start": "sanity start",
     "lint": "eslint ."
   },
