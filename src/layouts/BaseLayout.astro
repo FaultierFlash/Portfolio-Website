@@ -95,6 +95,30 @@ const alternateURL = `${siteUrl}${alternatePathname}`;
 
 const localeEnURL = currentLocale === "en" ? canonicalURL : alternateURL;
 const localeDeURL = currentLocale === "de" ? canonicalURL : alternateURL;
+
+// Structured Data (Schema.org JSON-LD)
+const sameAsLinks = [
+  socials?.github?.enabled ? socials.github.url : null,
+  socials?.linkedin?.enabled ? socials.linkedin.url : null,
+  socials?.instagram?.enabled ? socials.instagram.url : null,
+].filter(Boolean);
+
+const personSchema = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Marlon Müller",
+  "url": "https://marlonmueller.eu",
+  "jobTitle": "Developer & Creator",
+  "sameAs": sameAsLinks,
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Marlon Müller",
+  "url": "https://marlonmueller.eu",
+  "inLanguage": ["en", "de"],
+};
 ---
 
 <!doctype html>
@@ -108,6 +132,11 @@ const localeDeURL = currentLocale === "de" ? canonicalURL : alternateURL;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Preload Critical Fonts (Accelerates FCP & LCP) -->
+    <link rel="preload" href="/fonts/raleway-v34-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/raleway-v34-latin-800.woff2" as="font" type="font/woff2" crossorigin />
+
     <title>{pageTitle}</title>
     <meta name="title" content={pageTitle} />
     <meta name="description" content={pageDescription} />
@@ -134,6 +163,10 @@ const localeDeURL = currentLocale === "de" ? canonicalURL : alternateURL;
     <link rel="alternate" hreflang="en" href={localeEnURL} />
     <link rel="alternate" hreflang="de" href={localeDeURL} />
     <link rel="alternate" hreflang="x-default" href={localeEnURL} />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json" set:html={JSON.stringify(personSchema)} />
+    <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
     
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
