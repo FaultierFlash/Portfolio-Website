@@ -148,6 +148,49 @@ export async function getLibrarySettings() {
   return await sanityClient.fetch(query);
 }
 
+export async function getNotesSettings() {
+  const query = `*[_type == "notesSettings"][0] {
+    enabled,
+    titleEn,
+    titleDe,
+    subtitleEn,
+    subtitleDe
+  }`;
+  return await sanityClient.fetch(query);
+}
+
+export async function getSocialsSettings() {
+  const query = `*[_type == "socialsSettings"][0] {
+    linkedin {
+      enabled,
+      url
+    },
+    github {
+      enabled,
+      url
+    },
+    instagram {
+      enabled,
+      url
+    }
+  }`;
+  const data = await sanityClient.fetch(query);
+  return {
+    linkedin: {
+      enabled: data?.linkedin?.enabled !== undefined ? data.linkedin.enabled : true,
+      url: data?.linkedin?.url || "https://linkedin.com",
+    },
+    github: {
+      enabled: data?.github?.enabled !== undefined ? data.github.enabled : true,
+      url: data?.github?.url || "https://github.com/FaultierFlash",
+    },
+    instagram: {
+      enabled: data?.instagram?.enabled !== undefined ? data.instagram.enabled : false,
+      url: data?.instagram?.url || "",
+    },
+  };
+}
+
 export async function getLegalPage(type: string, locale: string) {
   const query = `*[_type == "legalPage" && type == $type && locale == $locale][0] {
     title,

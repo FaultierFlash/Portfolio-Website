@@ -341,7 +341,7 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout title={homeData?.heroTitle || t("page.home.title")} hidePageScrollbar={true}>
+<BaseLayout hidePageScrollbar={true}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
@@ -613,8 +613,16 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
                                     {widgetImage && (
                                         <img 
-                                            src={urlFor(widgetImage).width(240).url()} 
+                                            src={urlFor(widgetImage).width(480).auto('format').quality(85).url()} 
+                                            srcset={`
+                                                ${urlFor(widgetImage).width(240).auto('format').quality(80).url()} 240w,
+                                                ${urlFor(widgetImage).width(480).auto('format').quality(85).url()} 480w,
+                                                ${urlFor(widgetImage).width(720).auto('format').quality(85).url()} 720w
+                                            `}
+                                            sizes="(max-width: 768px) 100vw, 240px"
                                             alt={widgetTitle}
+                                            loading="lazy"
+                                            decoding="async"
                                             class="w-full h-auto rounded-lg"
                                         />
                                     )}
@@ -718,8 +726,16 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                         <div class="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0 pr-1 mt-1.5 custom-scrollbar">
                                             {subWidgetImage && (
                                                 <img 
-                                                    src={urlFor(subWidgetImage).width(240).url()} 
+                                                    src={urlFor(subWidgetImage).width(480).auto('format').quality(85).url()} 
+                                                    srcset={`
+                                                        ${urlFor(subWidgetImage).width(240).auto('format').quality(80).url()} 240w,
+                                                        ${urlFor(subWidgetImage).width(480).auto('format').quality(85).url()} 480w,
+                                                        ${urlFor(subWidgetImage).width(720).auto('format').quality(85).url()} 720w
+                                                    `}
+                                                    sizes="(max-width: 768px) 100vw, 240px"
                                                     alt={subWidgetTitle}
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     class="w-full h-auto rounded-lg"
                                                 />
                                             )}
@@ -907,8 +923,16 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                             
                             {widgetImage && (
                                 <img 
-                                    src={urlFor(widgetImage).width(400).url()} 
+                                    src={urlFor(widgetImage).width(800).auto('format').quality(85).url()} 
+                                    srcset={`
+                                        ${urlFor(widgetImage).width(400).auto('format').quality(80).url()} 400w,
+                                        ${urlFor(widgetImage).width(800).auto('format').quality(85).url()} 800w,
+                                        ${urlFor(widgetImage).width(1200).auto('format').quality(85).url()} 1200w
+                                    `}
+                                    sizes="(max-width: 640px) calc(100vw - 40px), 600px"
                                     alt={widgetTitle}
+                                    loading="lazy"
+                                    decoding="async"
                                     class="w-full h-auto rounded-xl"
                                 />
                             )}
@@ -954,8 +978,16 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                             {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl"></a>}
                                             {subWidgetImage && (
                                                 <img 
-                                                    src={urlFor(subWidgetImage).width(300).url()} 
+                                                    src={urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 
+                                                    srcset={`
+                                                        ${urlFor(subWidgetImage).width(300).auto('format').quality(80).url()} 300w,
+                                                        ${urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 600w,
+                                                        ${urlFor(subWidgetImage).width(900).auto('format').quality(85).url()} 900w
+                                                    `}
+                                                    sizes="(max-width: 640px) calc(100vw - 64px), 500px"
                                                     alt={evt.title} 
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     class="w-full h-auto rounded-lg"
                                                 />
                                             )}
@@ -1135,7 +1167,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
           sendButton: t("terminal.sendButton"),
         }} />
       </div>
-      <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
+      <button class="nav-up-btn hidden md:flex absolute top-24 left-1/2 -translate-x-1/2 flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
         <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
       </button>
@@ -1172,6 +1204,37 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   .contact-terminal-wrapper #terminal {
     --terminal-position: absolute;
     /* Removed fixed width/height to allow JS resizing/dragging */
+  }
+
+  @media (max-width: 767px) {
+    .contact-terminal-wrapper {
+      min-height: 0 !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      padding: 0.5rem !important;
+      box-sizing: border-box !important;
+      align-items: stretch !important;
+    }
+
+    .contact-terminal-wrapper .component-terminal-wrapper {
+      height: 100% !important;
+      padding: 0 !important;
+      align-items: stretch !important;
+    }
+
+    .contact-terminal-wrapper #terminal {
+      position: relative !important;
+      --terminal-position: relative !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      top: auto !important;
+      left: auto !important;
+      margin: 0 !important;
+    }
   }
 </style>
 
@@ -2204,6 +2267,54 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       projectSections.forEach(s => accentObserver.observe(s));
       nonProjectSections.forEach(s => resetObserver.observe(s));
     }
+
+    // Dynamic measurement of footer height for mobile contact subpage
+    function setupMobileContactLayout() {
+      const footer = document.querySelector('.footer-section') as HTMLElement | null;
+      const contactSection = document.querySelector('.contact-section') as HTMLElement | null;
+      if (!footer) return;
+
+      const updateFooterHeight = () => {
+        if (window.innerWidth <= 767) {
+          const h = footer.offsetHeight || 120;
+          document.documentElement.style.setProperty('--mobile-footer-height', `${h}px`);
+        } else {
+          document.documentElement.style.removeProperty('--mobile-footer-height');
+        }
+      };
+
+      updateFooterHeight();
+      window.addEventListener('resize', updateFooterHeight);
+
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+          updateFooterHeight();
+        });
+        ro.observe(footer);
+      }
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          if (window.innerWidth <= 767 && contactSection) {
+            const vvHeight = window.visualViewport?.height || window.innerHeight;
+            const isKeyboardOpen = vvHeight < window.innerHeight * 0.75;
+            if (isKeyboardOpen) {
+              const availH = Math.max(200, vvHeight - 60);
+              contactSection.style.height = `${availH}px`;
+              contactSection.style.minHeight = `${availH}px`;
+              contactSection.style.maxHeight = `${availH}px`;
+            } else {
+              contactSection.style.height = '';
+              contactSection.style.minHeight = '';
+              contactSection.style.maxHeight = '';
+              updateFooterHeight();
+            }
+          }
+        });
+      }
+    }
+
+    setupMobileContactLayout();
   }
 
   // Handle Astro page transitions
@@ -2272,6 +2383,26 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
           height: auto;
           min-height: auto;
           scroll-snap-stop: normal;
+      }
+      .scroll-section.contact-section {
+          height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          min-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          max-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
+          padding-top: var(--header-height, 60px) !important;
+          padding-bottom: 0 !important;
+          box-sizing: border-box !important;
+          scroll-snap-align: start !important;
+          scroll-snap-stop: always !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: stretch !important;
+          align-items: stretch !important;
+      }
+      .footer-section {
+          scroll-snap-align: none !important;
+          scroll-snap-stop: normal !important;
+          height: auto !important;
+          min-height: auto !important;
       }
   }
 

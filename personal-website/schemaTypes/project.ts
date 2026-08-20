@@ -62,6 +62,73 @@ export const project = defineType({
             ]
         }),
         defineField({
+            name: 'gallery',
+            title: 'Project Gallery / Media Assets',
+            type: 'array',
+            description: 'Upload images for this project. They will appear in the project gallery below the text, and you can also copy their URLs to embed directly inside the Markdown body.',
+            of: [
+                {
+                    type: 'image',
+                    options: {
+                        hotspot: true,
+                    },
+                    fields: [
+                        {
+                            name: 'caption',
+                            type: 'string',
+                            title: 'Caption',
+                        },
+                        {
+                            name: 'alt',
+                            type: 'string',
+                            title: 'Alternative Text',
+                        },
+                    ],
+                },
+            ],
+            options: {
+                layout: 'grid',
+            },
+        }),
+        defineField({
+            name: 'documents',
+            title: 'Project Documents & Downloads',
+            type: 'array',
+            description: 'Upload downloadable files (PDFs, whitepapers, datasheets, ZIPs, etc.). They will appear as download cards below the project description and their URLs can also be copied for Markdown links.',
+            of: [
+                {
+                    type: 'file',
+                    fields: [
+                        {
+                            name: 'title',
+                            type: 'string',
+                            title: 'Document Title',
+                            description: 'e.g. "Research Paper (PDF)", "CAD Schematic (ZIP)"',
+                            validation: (rule) => rule.required(),
+                        },
+                        {
+                            name: 'description',
+                            type: 'string',
+                            title: 'Short Description',
+                        },
+                        {
+                            name: 'language',
+                            type: 'string',
+                            title: 'Language',
+                            options: {
+                                list: [
+                                    { title: 'All / Multilingual', value: 'all' },
+                                    { title: 'English only', value: 'en' },
+                                    { title: 'German only', value: 'de' },
+                                ],
+                            },
+                            initialValue: 'all',
+                        },
+                    ],
+                },
+            ],
+        }),
+        defineField({
             name: 'languages',
             title: 'Active Languages',
             type: 'array',

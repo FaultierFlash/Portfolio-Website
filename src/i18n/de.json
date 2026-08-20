@@ -1,4 +1,9 @@
 {
+  "site": {
+    "title": "Marlon Müller",
+    "logoText": "Marlon Müller",
+    "description": "Portfolio von Marlon Müller – Student der Ingenieurswissenschaften an der TUM & Odonatum Mitgründer."
+  },
   "page": {
     "home":{
       "title": "Willkommen!",

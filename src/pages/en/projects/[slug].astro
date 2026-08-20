@@ -12,9 +12,18 @@ const lang = "en"; // Hardcoded for this route directory
 const projectData = await sanityClient.fetch(
   `*[_type == "project" && slug.current == $slug && $lang in languages][0] {
     ...,
-    "title": title[$lang],
+    "title": coalesce(title[$lang], title),
     "description": description[$lang],
     "body": body[$lang],
+    documents[] {
+      title,
+      description,
+      language,
+      "url": asset->url,
+      "size": asset->size,
+      "extension": asset->extension,
+      "originalFilename": asset->originalFilename
+    },
     topographyConfig,
     solarConfig
   }`,
@@ -26,6 +35,17 @@ if (!projectData) {
 }
 
 const parsedBody = projectData.body ? marked.parse(projectData.body, { async: false }) as string : "";
+
+const projectDocuments = (projectData.documents || []).filter(
+  (doc: any) => doc.url && (doc.language === "all" || doc.language === lang || !doc.language)
+);
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 type ColorClasses = { text: string, borderGhost: string, btn: string, tagBg: string };
 const colors: Record<string, ColorClasses> = {
@@ -100,6 +120,72 @@ const pc = colors[projectData.accentColor || 'primary'] || colors.primary;
             <h2 class="text-2xl md:text-3xl font-semibold mb-4">Project Overview</h2>
             <p class="text-gray-900 dark:text-gray-100 font-medium leading-relaxed">{projectData.description}</p>
           </section>
+      )}
+
+      {projectData.gallery && projectData.gallery.length > 0 && (
+        <section class="gallery-section mt-12 mb-10 not-prose">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">Project Gallery</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {projectData.gallery.map((img: any) => (
+              <figure class="group relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 transition-all hover:shadow-xl">
+                <img
+                  src={urlFor(img).width(1200).auto('format').quality(85).url()}
+                  alt={img.alt || projectData.title}
+                  loading="lazy"
+                  decoding="async"
+                  class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+                {img.caption && (
+                  <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-400 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+                    {img.caption}
+                  </figcaption>
+                )}
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {projectDocuments && projectDocuments.length > 0 && (
+        <section class="documents-section mt-12 mb-10 not-prose">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">Documents & Downloads</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {projectDocuments.map((doc: any) => (
+              <a
+                href={`${doc.url}?dl=${encodeURIComponent(doc.originalFilename || doc.title)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-start gap-4 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all hover:shadow-md group"
+              >
+                <div class="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 font-bold uppercase text-xs font-mono">
+                  {doc.extension || "FILE"}
+                </div>
+                <div class="flex-grow min-w-0">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
+                      {doc.title}
+                    </h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-primary transition-transform group-hover:translate-y-0.5 flex-shrink-0">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                  </div>
+                  {doc.description && (
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      {doc.description}
+                    </p>
+                  )}
+                  {doc.size && (
+                    <span class="inline-block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">
+                      {formatFileSize(doc.size)}
+                    </span>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
       )}
 
       <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">

@@ -6,12 +6,21 @@ export const prerender = false; // Run dynamically on request
 export const GET: APIRoute = async () => {
   const domain = 'https://marlonmueller.eu';
 
+  // Check if notes section is enabled in Sanity
+  let showNotes = false;
+  try {
+    const notesSettings = await sanityClient.fetch(`*[_type == "notesSettings"][0]{ enabled }`);
+    showNotes = notesSettings?.enabled === true;
+  } catch (e) {
+    showNotes = false;
+  }
+
   // 1. Static paths for both locales
   const locales = ['en', 'de'];
   const staticPaths = [
     '',
     '/library',
-    '/notes',
+    ...(showNotes ? ['/notes'] : []),
     '/contact',
     '/projects',
     '/impressum',

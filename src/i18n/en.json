@@ -1,8 +1,8 @@
 {
   "site": {
-    "title": "My Astro Site",
-    "logoText": "Logo",
-    "description": "This is the homepage."
+    "title": "Marlon Müller",
+    "logoText": "Marlon Müller",
+    "description": "Portfolio of Marlon Müller – Engineering Science student at TUM & Odonatum Co-founder."
   },
   "page": {
     "home": {
