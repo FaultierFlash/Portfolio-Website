@@ -59,8 +59,8 @@
     </div>
   </div>
 
-  <!-- HTML5 Audio Element for streamed track -->
-  <audio id="html5-audio-element" loop src="https://upload.wikimedia.org/wikipedia/commons/6/69/Lo-fi_by_PetroVenus.mp3"></audio>
+  <!-- HTML5 Audio Element for streamed track (deferred load on user interaction) -->
+  <audio id="html5-audio-element" loop preload="none" data-src="https://upload.wikimedia.org/wikipedia/commons/6/69/Lo-fi_by_PetroVenus.mp3"></audio>
 </div>
 
 <script>
@@ -456,6 +456,36 @@
       }
     });
 
+    // Deferred audio loading logic: only buffer on first user activity or play request
+    function ensureAudioLoaded() {
+      if (!audioEl) return;
+      if (!audioEl.src && audioEl.dataset.src) {
+        audioEl.src = audioEl.dataset.src;
+        audioEl.preload = "auto";
+        audioEl.load();
+      }
+      removeInteractionListeners();
+    }
+
+    const interactionEvents = ["pointerdown", "mousemove", "scroll", "keydown", "touchstart"];
+    function onFirstUserInteraction() {
+      ensureAudioLoaded();
+    }
+
+    function addInteractionListeners() {
+      interactionEvents.forEach((evt) => {
+        window.addEventListener(evt, onFirstUserInteraction, { passive: true, once: true });
+      });
+    }
+
+    function removeInteractionListeners() {
+      interactionEvents.forEach((evt) => {
+        window.removeEventListener(evt, onFirstUserInteraction);
+      });
+    }
+
+    addInteractionListeners();
+
     // Play/Pause Action
     playPauseBtn.addEventListener("click", () => {
       if (isPlaying) {
@@ -480,6 +510,10 @@
         trackTitle.textContent = currentTrack === "synth" ? "Space Synth Ambience" : "Lofi Chill Beats";
       }
 
+      if (currentTrack === "lofi") {
+        ensureAudioLoaded();
+      }
+
       if (wasPlaying) {
         setTimeout(playAudio, 200);
       }
@@ -501,7 +535,8 @@
       if (currentTrack === "synth") {
         startSynth();
       } else {
-        audioEl?.play().catch(e => {
+        ensureAudioLoaded();
+        audioEl?.play().catch((e) => {
           console.warn("Audio play blocked by browser. User interaction needed:", e);
           pauseAudio();
         });

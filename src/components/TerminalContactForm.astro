@@ -85,11 +85,13 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         {/* Added prompt-hostname class */}
         <div class="input-wrapper">
           <div id="input-display" class="input-display"></div>
+          <label for="commandInput" class="sr-only">Terminal command input</label>
           <input
             type="text"
             id="commandInput"
             class="terminal-input"
             autocomplete="off"
+            aria-label="Terminal command input"
           />
         </div>
       </div>
@@ -105,8 +107,9 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
               "Enter message (Ctrl+Enter or Button to Send)"
           }
         </div>
-        <textarea id="messageInput" class="message-textarea"></textarea>
-        <button id="sendButton" class="send-button">
+        <label for="messageInput" class="sr-only">Contact message input</label>
+        <textarea id="messageInput" class="message-textarea" aria-label="Contact message input"></textarea>
+        <button id="sendButton" class="send-button" aria-label={translations.sendButton || "Send message"}>
           {translations.sendButton || "Send"}
         </button>
       </div>
