@@ -128,14 +128,11 @@ const { id = "theme-toggle", className = "" } = Astro.props;
       // Wait for the pseudo-elements to be created
       await transition.ready;
 
-      // Calculate radius to cover the screen from the center
-      const maxRadius = Math.hypot(window.innerWidth / 2, window.innerHeight / 2);
-      const pauseRadius = maxRadius * 0.3;
+      // Calculate radius to expand well beyond the screen corners from the center
+      const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
+      const pauseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
 
-      // Animate the circle clip-path from exact screen center (50% 50%)
-      // 0% -> 30% (fast)
-      // 30% -> 30% (pause)
-      // 30% -> 100% (fast)
+      // Animate the circle clip-path from center: expand -> brief pause -> expand far beyond screen
       document.documentElement.animate(
         {
           clipPath: [
@@ -146,15 +143,16 @@ const { id = "theme-toggle", className = "" } = Astro.props;
           ],
           offset: [
             0,
-            0.35, // Reach 30% a bit slower for smoothness
-            0.75, // Hold for longer (40% of total time)
+            0.3,
+            0.55,
             1.0,
           ],
-          easing: "cubic-bezier(0.25, 0.1, 0.25, 1)", // Apply global fluid easing, effective for the moving parts
+          easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
         },
         {
-          duration: 1500, // Increased duration for better visibility
+          duration: 1200,
           pseudoElement: "::view-transition-new(root)",
+          fill: "forwards",
         },
       );
     };

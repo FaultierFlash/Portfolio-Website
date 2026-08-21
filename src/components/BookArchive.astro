@@ -117,7 +117,7 @@ const t = {
     <div id="library-container" class="max-w-[1600px] mx-auto relative z-10 transition-all duration-700">
         <div class="mb-16 text-center">
             <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
-                {title || t.title}
+                {(title || t.title)?.replace(/Libary/g, 'Library').replace(/libary/g, 'library')}
             </h2>
             <p class="text-lg text-[var(--color-text-dim)] max-w-2xl mx-auto font-medium leading-relaxed">
                 {subtitle || t.subtitle}

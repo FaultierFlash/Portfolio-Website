@@ -97,6 +97,22 @@ const {
     id="mobile-menu"
     aria-label={mainNavigationLabel}
   >
+    {/* Mobile Drawer Header with Close Button */}
+    <div class="mobile-drawer-header">
+      <span class="mobile-drawer-title">{mainNavigationLabel}</span>
+      <button
+        type="button"
+        id="mobile-drawer-close-btn"
+        class="mobile-drawer-close-btn"
+        aria-label="Close menu"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
     <div class="desktop-links">
       {
         projectPages.length > 0 && (
@@ -286,6 +302,23 @@ const {
     } else {
       console.log(
         "Navigation: Hamburger button not found for interactivity setup."
+      );
+    }
+
+    const drawerCloseBtn = document.getElementById("mobile-drawer-close-btn");
+    if (drawerCloseBtn) {
+      if ((drawerCloseBtn as any)._closeClickHandler) {
+        drawerCloseBtn.removeEventListener(
+          "click",
+          (drawerCloseBtn as any)._closeClickHandler
+        );
+      }
+      (drawerCloseBtn as any)._closeClickHandler = () => {
+        closeMainMenu();
+      };
+      drawerCloseBtn.addEventListener(
+        "click",
+        (drawerCloseBtn as any)._closeClickHandler
       );
     }
 
@@ -618,12 +651,48 @@ const {
     color: var(--color-project-accent, var(--color-primary, #FF7D1A));
   }
 
+  .mobile-drawer-header {
+    display: none;
+  }
+
   @media (max-width: 768px) {
     .mobile-header-controls {
       display: flex;
     }
     .mobile-header-controls .control-btn {
       padding: 0.35rem;
+    }
+    .mobile-drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.5rem;
+      border-bottom: 1px solid var(--color-border, #e0e0e0);
+      background-color: var(--color-bg-elevated, var(--color-bg, #fff));
+      flex-shrink: 0;
+    }
+    .mobile-drawer-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-dim, #64748b);
+    }
+    .mobile-drawer-close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      padding: 0.4rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      color: var(--color-text);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .mobile-drawer-close-btn:hover {
+      background-color: var(--color-project-accent-bg, rgba(255, 125, 26, 0.1));
+      color: var(--color-project-accent, #FF7D1A);
     }
     /* Hamburger button visibility is controlled by HamburgerButton.astro's own style or parent */
     .navigation-area {
@@ -639,8 +708,7 @@ const {
       height: 100vh;
       background-color: var(--color-bg-elevated, var(--color-bg, #fff));
       border-left: 1px solid var(--color-border, #e0e0e0);
-      /* Ensure padding accounts for header height, which might need to be passed as a CSS var or prop */
-      padding: calc(var(--header-height, 60px) + 1rem) 0 0 0;
+      padding: 0;
       box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
       z-index: 1000;
       overflow-y: auto;
