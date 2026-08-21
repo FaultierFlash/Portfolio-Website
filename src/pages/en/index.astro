@@ -8,9 +8,12 @@ import TerminalContactForm from "../../components/TerminalContactForm.astro";
 import Footer from "../../components/Footer.astro";
 
 const lang = Astro.currentLocale as Locale;
-const overrides = await getTranslationOverrides(lang);
+const [overrides, homeData, allProjects] = await Promise.all([
+  getTranslationOverrides(lang),
+  getHomePageData(lang),
+  getProjects(lang),
+]);
 const t = useTranslations(lang, overrides);
-const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
 const timelineItems = (homeData?.timeline || []).map((item: any) => {
     if (item.milestoneEvents) {
@@ -24,9 +27,8 @@ const timelineItems = (homeData?.timeline || []).map((item: any) => {
     return item;
 });
 const showSpinWheel = homeData?.showSpinWheel !== false;
-const allProjects = await getProjects(lang);
 const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
-const nonFeaturedProjects = allProjects.filter((p: any) => !featuredSlugs.has(p.slug.current));
+const nonFeaturedProjects = (allProjects || []).filter((p: any) => !featuredSlugs.has(p.slug.current));
 
 // --- Timescale Math Logic ---
 // We lock the timeline container strictly to the user-defined bounds.
@@ -361,8 +363,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
         {homeData?.profileImage && (
           <img
-            src={urlFor(homeData.profileImage).width(300).height(300).url()}
+            src={urlFor(homeData.profileImage).width(300).height(300).auto('format').quality(85).url()}
             alt={homeData.heroTitle || "Profile"}
+            width="224"
+            height="224"
+            fetchpriority="high"
+            decoding="async"
             class="mx-auto rounded-full w-40 h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-8 border-4 border-white dark:border-gray-800"
           />
         )}
@@ -628,14 +634,14 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                     )}
                                     <div class="flex flex-col">
                                         <div class="flex items-center justify-between gap-2">
-                                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                                 {item.relatedProject ? (lang === 'de' ? 'Zugehöriges Projekt' : 'Related Project') : (lang === 'de' ? 'Info' : 'Details')}
                                             </span>
                                             <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                                 {parentTimeframe}
                                             </span>
                                         </div>
-                                        <h5 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{widgetTitle}</h5>
+                                        <h3 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{widgetTitle}</h3>
                                         {widgetDesc && (
                                             <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-snug">{widgetDesc}</p>
                                         )}
@@ -741,14 +747,14 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                             )}
                                             <div class="flex flex-col">
                                                 <div class="flex items-center justify-between gap-2">
-                                                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                                         {evt.relatedProject ? (lang === 'de' ? 'Zugehöriges Projekt' : 'Related Project') : (lang === 'de' ? 'Meilenstein' : 'Milestone')}
                                                     </span>
                                                     <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                                         {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
                                                     </span>
                                                 </div>
-                                                <h5 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{subWidgetTitle}</h5>
+                                                <h4 class="text-sm font-black text-slate-900 dark:text-white leading-tight mt-1">{subWidgetTitle}</h4>
                                                 {subWidgetDesc && (
                                                     <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-snug">{subWidgetDesc}</p>
                                                 )}
@@ -1092,8 +1098,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               {project.mainImage && (
                 <div class="flex-1 w-full max-w-lg hidden md:block group perspective">
                    <img
-                      src={urlFor(project.mainImage).width(800).url()}
+                      src={urlFor(project.mainImage).width(800).auto('format').quality(85).url()}
                       alt={project.title}
+                      loading="lazy"
+                      decoding="async"
+                      width="800"
+                      height="500"
                       class="w-full rounded-xl shadow-2xl transition-transform duration-700 transform group-hover:scale-[1.02] group-hover:-rotate-y-2 glow-effect"
                    />
                 </div>
@@ -1323,52 +1333,57 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         return false;
     };
 
+    let titleMaskRafId: number | null = null;
     function updateTitleMask() {
-        if (!titleHeader || !timelineContainer) return;
-        
-        const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
-        if (activeCards.length === 0) {
-            titleHeader.style.maskImage = '';
-            titleHeader.style.webkitMaskImage = '';
-            return;
-        }
-        
-        const titleRect = titleHeader.getBoundingClientRect();
-        const titleCenterX = titleRect.left + titleRect.width / 2;
-        const titleCenterY = titleRect.top + titleRect.height / 2;
-        
-        let closestCard: HTMLElement | null = null;
-        let minDist = Infinity;
-        let closestCardCenterX = 0;
-        let closestCardCenterY = 0;
-        
-        activeCards.forEach(el => {
-            const card = el as HTMLElement;
-            const cardRect = card.getBoundingClientRect();
-            const cardCenterX = cardRect.left + cardRect.width / 2;
-            const cardCenterY = cardRect.top + cardRect.height / 2;
+        if (titleMaskRafId !== null) return;
+        titleMaskRafId = requestAnimationFrame(() => {
+            titleMaskRafId = null;
+            if (!titleHeader || !timelineContainer) return;
             
-            const dist = Math.hypot(cardCenterX - titleCenterX, cardCenterY - titleCenterY);
-            if (dist < minDist) {
-                minDist = dist;
-                closestCard = card;
-                closestCardCenterX = cardCenterX;
-                closestCardCenterY = cardCenterY;
+            const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+            if (activeCards.length === 0) {
+                titleHeader.style.maskImage = '';
+                titleHeader.style.webkitMaskImage = '';
+                return;
             }
+            
+            const titleRect = titleHeader.getBoundingClientRect();
+            const titleCenterX = titleRect.left + titleRect.width / 2;
+            const titleCenterY = titleRect.top + titleRect.height / 2;
+            
+            let closestCard: HTMLElement | null = null;
+            let minDist = Infinity;
+            let closestCardCenterX = 0;
+            let closestCardCenterY = 0;
+            
+            activeCards.forEach(el => {
+                const card = el as HTMLElement;
+                const cardRect = card.getBoundingClientRect();
+                const cardCenterX = cardRect.left + cardRect.width / 2;
+                const cardCenterY = cardRect.top + cardRect.height / 2;
+                
+                const dist = Math.hypot(cardCenterX - titleCenterX, cardCenterY - titleCenterY);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestCard = card;
+                    closestCardCenterX = cardCenterX;
+                    closestCardCenterY = cardCenterY;
+                }
+            });
+            
+            if (minDist > 550) {
+                titleHeader.style.maskImage = '';
+                titleHeader.style.webkitMaskImage = '';
+                return;
+            }
+            
+            const relativeX = closestCardCenterX - titleRect.left;
+            const relativeY = closestCardCenterY - titleRect.top;
+            
+            const maskStr = `radial-gradient(circle 240px at ${relativeX}px ${relativeY}px, transparent 0px, transparent 130px, black 240px)`;
+            titleHeader.style.maskImage = maskStr;
+            titleHeader.style.webkitMaskImage = maskStr;
         });
-        
-        if (minDist > 550) {
-            titleHeader.style.maskImage = '';
-            titleHeader.style.webkitMaskImage = '';
-            return;
-        }
-        
-        const relativeX = closestCardCenterX - titleRect.left;
-        const relativeY = closestCardCenterY - titleRect.top;
-        
-        const maskStr = `radial-gradient(circle 240px at ${relativeX}px ${relativeY}px, transparent 0px, transparent 130px, black 240px)`;
-        titleHeader.style.maskImage = maskStr;
-        titleHeader.style.webkitMaskImage = maskStr;
     }
 
     function pushCardHorizontally(card: HTMLElement) {
