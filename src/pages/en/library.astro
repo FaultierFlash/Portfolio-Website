@@ -12,7 +12,8 @@ const [books, settings] = await Promise.all([
   getLibrarySettings(),
 ]);
 
-const pageTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
+const rawTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
+const pageTitle = rawTitle ? rawTitle.replace(/Libary/g, 'Library').replace(/libary/g, 'library') : "Library";
 const pageSubtitle = lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn;
 const backgroundEffect = settings?.backgroundEffect || "grid";
 const accentColor = settings?.accentColor || "primary";
