@@ -3,7 +3,7 @@
 // Glassmorphic Audio Player with Web Audio API Space Ambience Synth
 ---
 
-<div id="audio-player-widget" class="audio-widget-wrapper docked expand-up align-right" transition:persist>
+<div id="audio-player-widget" class="audio-widget-wrapper floating expand-up align-right" transition:persist>
   <!-- Mini Circular Button -->
   <button id="widget-toggle-btn" class="widget-toggle-btn" aria-label="Music Player" title="Play Music">
     <!-- Visualizer Icon (Static or Animated) -->
@@ -237,19 +237,23 @@
 
     widget.classList.add("docked");
     widget.classList.remove("floating");
-    widget.style.left = "";
-    widget.style.top = "";
-    widget.style.right = "";
-    widget.style.bottom = "";
+    widget.style.removeProperty("left");
+    widget.style.removeProperty("top");
+    widget.style.removeProperty("right");
+    widget.style.removeProperty("bottom");
+    widget.style.removeProperty("position");
 
     widget.classList.add("expand-up");
     widget.classList.remove("expand-down");
     widget.classList.add("align-right");
     widget.classList.remove("align-left");
 
+    sessionStorage.removeItem("audio-widget-left");
+    sessionStorage.removeItem("audio-widget-top");
+    sessionStorage.setItem("audio-widget-docked", "true");
     localStorage.removeItem("audio-widget-left");
     localStorage.removeItem("audio-widget-top");
-    localStorage.setItem("audio-widget-docked", "true");
+    localStorage.removeItem("audio-widget-docked");
   }
 
   function floatWidget(left: number, top: number) {
@@ -262,16 +266,27 @@
 
     widget.classList.remove("docked");
     widget.classList.add("floating");
-    widget.style.left = `${left}px`;
-    widget.style.top = `${top}px`;
+
+    const buttonWidth = 48;
+    const buttonHeight = 48;
+    const minX = 10;
+    const minY = 10;
+    const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
+    const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
+
+    const safeLeft = Math.max(minX, Math.min(maxX, left));
+    const safeTop = Math.max(minY, Math.min(maxY, top));
+
+    widget.style.left = `${safeLeft}px`;
+    widget.style.top = `${safeTop}px`;
     widget.style.right = "auto";
     widget.style.bottom = "auto";
 
-    updateWidgetPositionClasses(left, top);
+    updateWidgetPositionClasses(safeLeft, safeTop);
 
-    localStorage.setItem("audio-widget-left", `${left}px`);
-    localStorage.setItem("audio-widget-top", `${top}px`);
-    localStorage.setItem("audio-widget-docked", "false");
+    sessionStorage.setItem("audio-widget-left", `${safeLeft}px`);
+    sessionStorage.setItem("audio-widget-top", `${safeTop}px`);
+    sessionStorage.setItem("audio-widget-docked", "false");
   }
 
   // --- UI Interactivity ---
@@ -322,7 +337,7 @@
         toggleBtn.setPointerCapture(e.pointerId);
       } catch (err) {}
 
-      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onPointerUp);
     }
@@ -338,6 +353,10 @@
       }
 
       if (hasMovedWidget) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
         if (activeWidget.classList.contains("docked")) {
           activeWidget.classList.remove("docked");
           activeWidget.classList.add("floating");
@@ -354,8 +373,8 @@
         const buttonHeight = 48;
         const minX = 10;
         const minY = 10;
-        const maxX = window.innerWidth - buttonWidth - 10;
-        const maxY = window.innerHeight - buttonHeight - 10;
+        const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
+        const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
 
         newLeft = Math.max(minX, Math.min(maxX, newLeft));
         newTop = Math.max(minY, Math.min(maxY, newTop));
@@ -366,10 +385,10 @@
 
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
-          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0;
+          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
           const distance = Math.hypot(newLeft - pRect.left, newTop - pRect.top);
           
-          if (isPlaceholderVisible && distance < 65) {
+          if (isPlaceholderVisible && distance < 75) {
             placeholderRing?.classList.add("snap-hover");
             // Visually snap
             newLeft = pRect.left;
@@ -408,26 +427,31 @@
 
       const placeholder = document.getElementById("audio-widget-placeholder");
       const placeholderRing = placeholder?.querySelector(".placeholder-ring");
-      const isSnapHovered = placeholderRing?.classList.contains("snap-hover");
+      const wasSnapHovered = placeholderRing?.classList.contains("snap-hover");
       placeholderRing?.classList.remove("snap-hover");
 
       if (hasMovedWidget) {
-        let snapped = false;
+        let shouldDock = false;
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
           const widgetRect = activeWidget.getBoundingClientRect();
           const distance = Math.hypot(widgetRect.left - pRect.left, widgetRect.top - pRect.top);
-          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0;
-          if (isPlaceholderVisible && (distance < 65 || isSnapHovered)) {
-            snapped = true;
+          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
+          if (isPlaceholderVisible && (distance < 75 || wasSnapHovered)) {
+            shouldDock = true;
           }
         }
 
-        if (snapped) {
+        if (shouldDock) {
           dockWidget();
         } else {
           floatWidget(parseFloat(activeWidget.style.left), parseFloat(activeWidget.style.top));
         }
+
+        // Reset hasMovedWidget shortly after trailing click event has been handled
+        setTimeout(() => {
+          hasMovedWidget = false;
+        }, 80);
       }
     }
 
@@ -564,8 +588,8 @@
     const buttonHeight = 48;
     const minX = 10;
     const minY = 10;
-    const maxX = window.innerWidth - buttonWidth - 10;
-    const maxY = window.innerHeight - buttonHeight - 10;
+    const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
+    const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
     
     const newLeft = Math.max(minX, Math.min(maxX, left));
     const newTop = Math.max(minY, Math.min(maxY, top));
@@ -576,10 +600,14 @@
     updateWidgetPositionClasses(newLeft, newTop);
   });
 
-  // Re-initialize UI event hooks after page navigation under View Transitions
-  document.addEventListener("astro:page-load", () => {
+  function initAudioWidget() {
     setupAudioPlayer();
-    
+
+    // Clear obsolete legacy localStorage keys
+    localStorage.removeItem("audio-widget-left");
+    localStorage.removeItem("audio-widget-top");
+    localStorage.removeItem("audio-widget-docked");
+
     // Sync UI to current playing state (since widget persists, state variables stay active)
     const widget = document.getElementById("audio-player-widget");
     const playPauseBtn = document.getElementById("audio-play-pause-btn");
@@ -604,18 +632,31 @@
         playPauseBtn.querySelector(".pause-icon")?.classList.add("hidden");
       }
 
-      // Restore saved dragging position or dock state
-      const savedLeft = localStorage.getItem("audio-widget-left");
-      const savedTop = localStorage.getItem("audio-widget-top");
-      const isDocked = localStorage.getItem("audio-widget-docked") !== "false";
+      // Check session state
+      const savedLeft = sessionStorage.getItem("audio-widget-left");
+      const savedTop = sessionStorage.getItem("audio-widget-top");
+      const isDocked = sessionStorage.getItem("audio-widget-docked") === "true";
 
-      if (savedLeft && savedTop && !isDocked) {
+      if (isDocked) {
+        dockWidget();
+      } else if (savedLeft && savedTop) {
         floatWidget(parseFloat(savedLeft), parseFloat(savedTop));
       } else {
-        dockWidget();
+        // Default initial floating position: bottom-right of viewport
+        const defaultLeft = window.innerWidth - 64;
+        const defaultTop = window.innerHeight - 64;
+        floatWidget(defaultLeft, defaultTop);
       }
     }
-  });
+  }
+
+  // Initialize immediately and on view transitions
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAudioWidget);
+  } else {
+    initAudioWidget();
+  }
+  document.addEventListener("astro:page-load", initAudioWidget);
 </script>
 
 <style>
@@ -626,6 +667,9 @@
     z-index: 100;
     font-family: inherit;
     touch-action: none;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
   }
 
   /* Position when docked in placeholder */
