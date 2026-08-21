@@ -907,10 +907,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
     }
     
-    // Check if we are on a mobile device to prevent aggressive autofocusing
+    // Check if we are on a mobile device (based purely on viewport width <= 768)
     let isMobile = false;
     try {
-      isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      isMobile = window.innerWidth <= 768;
     } catch (e) {}
 
     let isDragging = false;
@@ -2371,7 +2371,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       clearTimeout(windowResizeTimeout);
       windowResizeTimeout = setTimeout(() => {
         try {
-          isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+          isMobile = window.innerWidth <= 768;
         } catch (e) {}
 
         if (isMobile) {

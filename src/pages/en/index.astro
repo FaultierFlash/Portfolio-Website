@@ -2397,7 +2397,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       .scroll-section.timeline-section {
           height: auto;
           min-height: auto;
-          scroll-snap-stop: normal;
+          scroll-snap-align: none !important;
+          scroll-snap-stop: normal !important;
       }
       .scroll-section.contact-section {
           height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
