@@ -8,5 +8,3 @@ Disallow: /api/
 # Link to sitemap
 Sitemap: https://marlonmueller.eu/sitemap.xml
 
-
-...
