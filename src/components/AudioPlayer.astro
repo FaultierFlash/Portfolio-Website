@@ -3,7 +3,7 @@
 // Glassmorphic Audio Player with Web Audio API Space Ambience Synth
 ---
 
-<div id="audio-player-widget" class="audio-widget-wrapper floating expand-up align-right" transition:persist>
+<div id="audio-player-widget" class="audio-widget-wrapper docked expand-up align-right" transition:persist="audio-player-widget">
   <!-- Mini Circular Button -->
   <button id="widget-toggle-btn" class="widget-toggle-btn" aria-label="Music Player" title="Play Music">
     <!-- Visualizer Icon (Static or Animated) -->
@@ -229,9 +229,9 @@
   function dockWidget() {
     const widget = document.getElementById("audio-player-widget");
     const placeholder = document.getElementById("audio-widget-placeholder");
-    if (!widget || !placeholder) return;
+    if (!widget) return;
 
-    if (widget.parentElement !== placeholder) {
+    if (placeholder && widget.parentElement !== placeholder) {
       placeholder.appendChild(widget);
     }
 
@@ -248,9 +248,9 @@
     widget.classList.add("align-right");
     widget.classList.remove("align-left");
 
+    sessionStorage.setItem("audio-widget-docked", "true");
     sessionStorage.removeItem("audio-widget-left");
     sessionStorage.removeItem("audio-widget-top");
-    sessionStorage.setItem("audio-widget-docked", "true");
     localStorage.removeItem("audio-widget-left");
     localStorage.removeItem("audio-widget-top");
     localStorage.removeItem("audio-widget-docked");
@@ -267,12 +267,11 @@
     widget.classList.remove("docked");
     widget.classList.add("floating");
 
-    const buttonWidth = 48;
-    const buttonHeight = 48;
+    const buttonSize = window.innerWidth <= 768 ? 44 : 48;
     const minX = 10;
     const minY = 10;
-    const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
-    const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
+    const maxX = Math.max(minX, window.innerWidth - buttonSize - 10);
+    const maxY = Math.max(minY, window.innerHeight - buttonSize - 10);
 
     const safeLeft = Math.max(minX, Math.min(maxX, left));
     const safeTop = Math.max(minY, Math.min(maxY, top));
@@ -284,9 +283,9 @@
 
     updateWidgetPositionClasses(safeLeft, safeTop);
 
+    sessionStorage.setItem("audio-widget-docked", "false");
     sessionStorage.setItem("audio-widget-left", `${safeLeft}px`);
     sessionStorage.setItem("audio-widget-top", `${safeTop}px`);
-    sessionStorage.setItem("audio-widget-docked", "false");
   }
 
   // --- UI Interactivity ---
@@ -302,11 +301,10 @@
 
     if (!widget || !toggleBtn || !panel || !playPauseBtn || !trackSelect || !volumeSlider || !audioEl) return;
 
-    // Prevent duplicate listener bindings on Astro View Transitions
+    // Prevent duplicate listener bindings
     if (widget.dataset.audioInitialized === "true") return;
     widget.dataset.audioInitialized = "true";
 
-    // Use non-nullable constant to satisfy TypeScript inside closures
     const activeWidget = widget;
 
     // Set initial volume value
@@ -314,18 +312,19 @@
     volumeSlider.value = userVolume.toString();
 
     // Draggable Movability State with Pointer Events
-    let hasMovedWidget = false;
-    let isDragging = false;
+    let isPointerDown = false;
+    let hasDragged = false;
     let startX = 0;
     let startY = 0;
     let initialLeft = 0;
     let initialTop = 0;
+    let suppressClickUntil = 0;
 
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-      isDragging = true;
-      hasMovedWidget = false;
+      isPointerDown = true;
+      hasDragged = false;
       startX = e.clientX;
       startY = e.clientY;
 
@@ -333,51 +332,55 @@
       initialLeft = rect.left;
       initialTop = rect.top;
 
-      try {
-        toggleBtn.setPointerCapture(e.pointerId);
-      } catch (err) {}
-
       window.addEventListener('pointermove', onPointerMove, { passive: false });
       window.addEventListener('pointerup', onPointerUp);
-      window.addEventListener('pointercancel', onPointerUp);
+      window.addEventListener('pointercancel', onPointerCancel);
     }
 
     function onPointerMove(e: PointerEvent) {
-      if (!isDragging) return;
+      if (!isPointerDown) return;
 
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
+      const dist = Math.hypot(deltaX, deltaY);
 
-      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
-        hasMovedWidget = true;
-      }
-
-      if (hasMovedWidget) {
-        if (e.cancelable) {
-          e.preventDefault();
-        }
+      if (!hasDragged && dist > 6) {
+        hasDragged = true;
 
         if (activeWidget.classList.contains("docked")) {
+          const rect = activeWidget.getBoundingClientRect();
           activeWidget.classList.remove("docked");
           activeWidget.classList.add("floating");
           if (activeWidget.parentElement !== document.body) {
             document.body.appendChild(activeWidget);
           }
+          // Rebase coordinate origin seamlessly without visual jump
+          initialLeft = rect.left;
+          initialTop = rect.top;
+          startX = e.clientX;
+          startY = e.clientY;
         }
 
-        let newLeft = initialLeft + deltaX;
-        let newTop = initialTop + deltaY;
+        // Close expanded panel while dragging
+        panel.classList.remove("expanded");
+      }
 
-        // Viewport constraints (48px width/height of the button wrapper)
-        const buttonWidth = 48;
-        const buttonHeight = 48;
+      if (hasDragged) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        let currentX = initialLeft + (e.clientX - startX);
+        let currentY = initialTop + (e.clientY - startY);
+
+        const buttonSize = window.innerWidth <= 768 ? 44 : 48;
         const minX = 10;
         const minY = 10;
-        const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
-        const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
+        const maxX = Math.max(minX, window.innerWidth - buttonSize - 10);
+        const maxY = Math.max(minY, window.innerHeight - buttonSize - 10);
 
-        newLeft = Math.max(minX, Math.min(maxX, newLeft));
-        newTop = Math.max(minY, Math.min(maxY, newTop));
+        currentX = Math.max(minX, Math.min(maxX, currentX));
+        currentY = Math.max(minY, Math.min(maxY, currentY));
 
         // Check snapping distance to footer placeholder
         const placeholder = document.getElementById("audio-widget-placeholder");
@@ -385,59 +388,59 @@
 
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
-          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
-          const distance = Math.hypot(newLeft - pRect.left, newTop - pRect.top);
-          
-          if (isPlaceholderVisible && distance < 75) {
+          const isPlaceholderInView = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
+          const snapDist = Math.hypot(currentX - pRect.left, currentY - pRect.top);
+
+          if (isPlaceholderInView && snapDist < 65) {
             placeholderRing?.classList.add("snap-hover");
-            // Visually snap
-            newLeft = pRect.left;
-            newTop = pRect.top;
-            
+            currentX = pRect.left;
+            currentY = pRect.top;
             activeWidget.classList.add("expand-up");
             activeWidget.classList.remove("expand-down");
             activeWidget.classList.add("align-right");
             activeWidget.classList.remove("align-left");
           } else {
             placeholderRing?.classList.remove("snap-hover");
-            updateWidgetPositionClasses(newLeft, newTop);
+            updateWidgetPositionClasses(currentX, currentY);
           }
         } else {
-          updateWidgetPositionClasses(newLeft, newTop);
+          updateWidgetPositionClasses(currentX, currentY);
         }
 
-        activeWidget.style.left = `${newLeft}px`;
-        activeWidget.style.top = `${newTop}px`;
+        activeWidget.style.left = `${currentX}px`;
+        activeWidget.style.top = `${currentY}px`;
         activeWidget.style.right = 'auto';
         activeWidget.style.bottom = 'auto';
       }
     }
 
-    function onPointerUp(e: PointerEvent) {
-      if (!isDragging) return;
-      isDragging = false;
-
-      try {
-        toggleBtn.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-
+    function cleanupPointerListeners() {
+      isPointerDown = false;
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    }
+
+    function onPointerUp(e: PointerEvent) {
+      if (!isPointerDown) return;
+      const wasDragged = hasDragged;
+      cleanupPointerListeners();
 
       const placeholder = document.getElementById("audio-widget-placeholder");
       const placeholderRing = placeholder?.querySelector(".placeholder-ring");
-      const wasSnapHovered = placeholderRing?.classList.contains("snap-hover");
+      const wasSnapHover = placeholderRing?.classList.contains("snap-hover");
       placeholderRing?.classList.remove("snap-hover");
 
-      if (hasMovedWidget) {
+      if (wasDragged) {
+        suppressClickUntil = Date.now() + 300;
+
         let shouldDock = false;
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
-          const widgetRect = activeWidget.getBoundingClientRect();
-          const distance = Math.hypot(widgetRect.left - pRect.left, widgetRect.top - pRect.top);
-          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
-          if (isPlaceholderVisible && (distance < 75 || wasSnapHovered)) {
+          const wRect = activeWidget.getBoundingClientRect();
+          const dist = Math.hypot(wRect.left - pRect.left, wRect.top - pRect.top);
+          const isPlaceholderInView = pRect.top < window.innerHeight && pRect.bottom > 0 && pRect.left < window.innerWidth && pRect.right > 0;
+          if (isPlaceholderInView && (dist < 65 || wasSnapHover)) {
             shouldDock = true;
           }
         }
@@ -445,27 +448,35 @@
         if (shouldDock) {
           dockWidget();
         } else {
-          floatWidget(parseFloat(activeWidget.style.left), parseFloat(activeWidget.style.top));
+          floatWidget(parseFloat(activeWidget.style.left) || initialLeft, parseFloat(activeWidget.style.top) || initialTop);
         }
-
-        // Reset hasMovedWidget shortly after trailing click event has been handled
-        setTimeout(() => {
-          hasMovedWidget = false;
-        }, 80);
+      } else {
+        // Pure click/tap action
+        panel.classList.toggle("expanded");
       }
     }
 
-    // Attach dragging listeners to toggle button
+    function onPointerCancel() {
+      if (!isPointerDown) return;
+      cleanupPointerListeners();
+      const placeholderRing = document.getElementById("audio-widget-placeholder")?.querySelector(".placeholder-ring");
+      placeholderRing?.classList.remove("snap-hover");
+      if (hasDragged) {
+        suppressClickUntil = Date.now() + 300;
+      }
+    }
+
+    // Attach pointerdown dragging listener to toggle button
     toggleBtn.addEventListener('pointerdown', onPointerDown);
 
-    // Toggle expanded panel (prevented if dragged)
+    // Suppress native click if trailing after drag
     toggleBtn.addEventListener("click", (e) => {
-      if (hasMovedWidget) {
-        e.preventDefault();
-        e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
+      if (Date.now() < suppressClickUntil) {
         return;
       }
-      panel.classList.toggle("expanded");
+      // Note: toggle is executed directly in onPointerUp when not dragged
     });
 
     // Close panel when clicking outside the widget
@@ -584,12 +595,11 @@
     const left = parseFloat(widget.style.left);
     const top = parseFloat(widget.style.top);
     
-    const buttonWidth = 48;
-    const buttonHeight = 48;
+    const buttonSize = window.innerWidth <= 768 ? 44 : 48;
     const minX = 10;
     const minY = 10;
-    const maxX = Math.max(minX, window.innerWidth - buttonWidth - 10);
-    const maxY = Math.max(minY, window.innerHeight - buttonHeight - 10);
+    const maxX = Math.max(minX, window.innerWidth - buttonSize - 10);
+    const maxY = Math.max(minY, window.innerHeight - buttonSize - 10);
     
     const newLeft = Math.max(minX, Math.min(maxX, left));
     const newTop = Math.max(minY, Math.min(maxY, top));
@@ -602,11 +612,6 @@
 
   function initAudioWidget() {
     setupAudioPlayer();
-
-    // Clear obsolete legacy localStorage keys
-    localStorage.removeItem("audio-widget-left");
-    localStorage.removeItem("audio-widget-top");
-    localStorage.removeItem("audio-widget-docked");
 
     // Sync UI to current playing state (since widget persists, state variables stay active)
     const widget = document.getElementById("audio-player-widget");
@@ -632,20 +637,15 @@
         playPauseBtn.querySelector(".pause-icon")?.classList.add("hidden");
       }
 
-      // Check session state
+      // Check session state - default is docked (unless explicitly marked floating)
+      const isFloating = sessionStorage.getItem("audio-widget-docked") === "false";
       const savedLeft = sessionStorage.getItem("audio-widget-left");
       const savedTop = sessionStorage.getItem("audio-widget-top");
-      const isDocked = sessionStorage.getItem("audio-widget-docked") === "true";
 
-      if (isDocked) {
-        dockWidget();
-      } else if (savedLeft && savedTop) {
+      if (isFloating && savedLeft && savedTop) {
         floatWidget(parseFloat(savedLeft), parseFloat(savedTop));
       } else {
-        // Default initial floating position: bottom-right of viewport
-        const defaultLeft = window.innerWidth - 64;
-        const defaultTop = window.innerHeight - 64;
-        floatWidget(defaultLeft, defaultTop);
+        dockWidget();
       }
     }
   }
@@ -667,9 +667,7 @@
     z-index: 100;
     font-family: inherit;
     touch-action: none;
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
+    position: relative;
   }
 
   /* Position when docked in placeholder */
@@ -680,12 +678,16 @@
     right: auto !important;
     bottom: auto !important;
     z-index: 10;
+    width: 48px;
+    height: 48px;
   }
 
   /* Position when floating */
   .audio-widget-wrapper.floating {
     position: fixed !important;
-    z-index: 100;
+    z-index: 1000;
+    width: 48px;
+    height: 48px;
   }
 
   /* Mini Circular Toggle Trigger */
@@ -1022,5 +1024,29 @@
 
   .volume-slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
+  }
+
+  /* Mobile Layout Adaptations */
+  @media (max-width: 768px) {
+    .audio-widget-wrapper.docked {
+      width: 36px;
+      height: 36px;
+    }
+    .audio-widget-wrapper.docked .widget-toggle-btn {
+      width: 36px;
+      height: 36px;
+    }
+    .audio-widget-wrapper.docked .widget-toggle-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+    .audio-widget-wrapper.floating {
+      width: 44px;
+      height: 44px;
+    }
+    .audio-widget-wrapper.floating .widget-toggle-btn {
+      width: 44px;
+      height: 44px;
+    }
   }
 </style>

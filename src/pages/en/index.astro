@@ -343,7 +343,7 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout hidePageScrollbar={true}>
+<BaseLayout hidePageScrollbar={true} showFooter={false}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
