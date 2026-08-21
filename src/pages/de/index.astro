@@ -346,18 +346,18 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 <BaseLayout hidePageScrollbar={true}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
-    <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh] min-h-[100dvh]">
+    <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
         config={homeData?.backgroundEffect === 'solar' ? homeData?.solarConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
       
-      <div class="z-10 text-center px-4 max-w-4xl pt-6 pb-20 md:py-0 flex flex-col items-center justify-center">
-        <h1 class="text-2xl sm:text-3xl md:text-6xl font-extrabold mb-2 md:mb-6 tracking-tight">
+      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 md:py-0">
+        <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-1.5 md:mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-sm sm:text-base md:text-2xl mb-3 md:mb-8 font-bold opacity-90">
+        <p class="text-base sm:text-lg md:text-2xl mb-3 md:mb-8 font-bold opacity-90">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
 
@@ -369,21 +369,21 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             height="224"
             fetchpriority="high"
             decoding="async"
-            class="mx-auto rounded-full w-24 h-24 sm:w-32 sm:h-32 md:w-56 md:h-56 object-cover shadow-2xl mb-3 md:mb-8 border-4 border-white dark:border-gray-800"
+            class="mx-auto rounded-full w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-3 md:mb-8 border-4 border-white dark:border-gray-800"
           />
         )}
 
         {homeData?.aboutText && (
-          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-black opacity-80 line-clamp-4 md:line-clamp-none">
+          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-semibold opacity-80 line-clamp-3 sm:line-clamp-4 md:line-clamp-none">
             {homeData.aboutText}
           </p>
         )}
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1.5 md:p-2 z-20" aria-label="Scroll to projects">
+        <button id="scroll-down-btn" class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Scroll to projects">
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">Reise beginnen</span>
-           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       )}
     </section>
@@ -1117,11 +1117,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               )}
             </div>
 
-            <button class="nav-up-btn absolute top-12 md:top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+            <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Vorheriges</span>
             </button>
-            <button class="nav-down-btn absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Slide">
+            <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Slide">
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
                  {isLastSection ? (showSpinWheel ? 'Alle Projekte' : 'Kontakt') : 'Nächstes Projekt'}
               </span>
@@ -1138,20 +1138,26 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     {showSpinWheel && nonFeaturedProjects.length > 0 && (
       <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-accent-color="primary">
         <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
-        <button class="nav-up-btn absolute top-12 md:top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Vorheriger Abschnitt">
+        <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Vorheriger Abschnitt">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
         </button>
-        <button class="nav-down-btn absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Nächster Abschnitt">
+        <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Nächster Abschnitt">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Kontakt</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       </section>
     )}
 
-    {/* Section: Kontakt */}
-    <section class="scroll-section contact-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
-      <div class="contact-terminal-wrapper">
+    {/* Section: Kontakt & Footer */}
+    <section class="scroll-section contact-section relative flex flex-col justify-between min-h-[100vh] min-h-[100dvh] h-[100vh] h-[100dvh] w-full overflow-hidden" data-accent-color="primary">
+      <button class="nav-up-btn hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 flex-col items-center gap-1 group cursor-pointer p-1.5 z-20" aria-label="Vorheriger Abschnitt">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
+      </button>
+
+      {/* Wrapper dynamically sizes terminal to remaining vertical height above footer */}
+      <div class="contact-terminal-wrapper flex-1 min-h-0 w-full flex items-center justify-center relative p-2 md:p-4">
         <TerminalContactForm 
           projects={allProjects}
           currentLocale={lang}
@@ -1183,16 +1189,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
           sendButton: t("terminal.sendButton"),
         }} />
       </div>
-      <button class="nav-up-btn hidden md:flex absolute top-24 left-1/2 -translate-x-1/2 flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Vorheriger Abschnitt">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-        <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Zurück</span>
-      </button>
-    </section>
 
-    {/* Footer Section */}
-    <footer class="scroll-section footer-section shrink-0 w-full bg-slate-950 text-slate-400 border-t border-slate-900">
+      {/* Footer Section */}
+      <footer class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-20">
         <Footer />
-    </footer>
+      </footer>
+    </section>
   </div>
 </BaseLayout>
 
@@ -1202,38 +1204,58 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     position: relative;
     width: 100%;
     height: 100%;
-    min-height: 100vh;
+    min-height: 0;
+    flex: 1 1 0%;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden; /* Anchor terminal within this slide */
   }
 
+  /* Override the terminal's default position:fixed when in homepage context */
   .contact-terminal-wrapper .component-terminal-wrapper {
     position: relative;
     width: 100%;
     height: 100%;
+    min-height: 0;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .contact-terminal-wrapper #terminal {
-    --terminal-position: absolute;
+    --terminal-position: relative;
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0 auto;
+    aspect-ratio: 4 / 3;
+    width: min(760px, calc((100vh - 180px) * 4 / 3), 85vw);
+    max-height: calc(100% - 1rem);
+    height: auto;
   }
 
   @media (max-width: 767px) {
     .contact-terminal-wrapper {
       min-height: 0 !important;
       height: 100% !important;
+      flex: 1 1 0% !important;
       max-height: 100% !important;
-      padding: 0.5rem !important;
+      padding: 0.25rem 0.5rem !important;
       box-sizing: border-box !important;
       align-items: stretch !important;
+      display: flex !important;
+      overflow: hidden !important;
     }
 
     .contact-terminal-wrapper .component-terminal-wrapper {
       height: 100% !important;
+      min-height: 0 !important;
+      flex: 1 1 0% !important;
       padding: 0 !important;
       align-items: stretch !important;
+      display: flex !important;
     }
 
     .contact-terminal-wrapper #terminal {
@@ -1248,6 +1270,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       top: auto !important;
       left: auto !important;
       margin: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+
+    .contact-terminal-wrapper #terminal .terminal-output-container {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
     }
   }
 </style>
@@ -2366,7 +2397,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
   .scroll-container {
-    height: 100vh;
+    height: calc(100vh - var(--header-height, 60px));
+    height: calc(100dvh - var(--header-height, 60px));
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
@@ -2390,37 +2422,72 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   .scroll-section {
     scroll-snap-align: start;
     scroll-snap-stop: always;
-    height: 100vh;
-    padding-top: var(--header-height, 60px); /* Account for fixed header */
+    height: calc(100vh - var(--header-height, 60px));
+    height: calc(100dvh - var(--header-height, 60px));
+    min-height: calc(100vh - var(--header-height, 60px));
+    min-height: calc(100dvh - var(--header-height, 60px));
+    padding-top: 0;
+    box-sizing: border-box;
   }
   
+  .scroll-section.contact-section {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    height: calc(100vh - var(--header-height, 60px)) !important;
+    height: calc(100dvh - var(--header-height, 60px)) !important;
+    min-height: calc(100vh - var(--header-height, 60px)) !important;
+    min-height: calc(100dvh - var(--header-height, 60px)) !important;
+    max-height: calc(100vh - var(--header-height, 60px)) !important;
+    max-height: calc(100dvh - var(--header-height, 60px)) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    scroll-snap-align: start !important;
+    scroll-snap-stop: always !important;
+  }
+
+  .footer-section {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   @media (max-width: 767px) {
       .scroll-container {
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
           scroll-snap-type: y proximity;
       }
+      .scroll-section {
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          min-height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
+          padding-top: 0 !important;
+          box-sizing: border-box !important;
+      }
       .scroll-section.timeline-section {
-          height: auto;
-          min-height: auto;
+          height: auto !important;
+          min-height: auto !important;
+          max-height: none !important;
           scroll-snap-align: none !important;
           scroll-snap-stop: normal !important;
       }
       .scroll-section.contact-section {
-          height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          min-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          max-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          padding-top: var(--header-height, 60px) !important;
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          min-height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
+          padding-top: 0 !important;
           padding-bottom: 0 !important;
           box-sizing: border-box !important;
-          scroll-snap-align: start !important;
-          scroll-snap-stop: always !important;
           display: flex !important;
           flex-direction: column !important;
-          justify-content: stretch !important;
-          align-items: stretch !important;
+          justify-content: space-between !important;
+          overflow: hidden !important;
+          scroll-snap-align: start !important;
+          scroll-snap-stop: always !important;
       }
       .footer-section {
-          scroll-snap-align: none !important;
-          scroll-snap-stop: normal !important;
           height: auto !important;
           min-height: auto !important;
       }

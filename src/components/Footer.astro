@@ -34,11 +34,11 @@ const currentYear = new Date().getFullYear();
     position: relative;
     z-index: 50; /* Ensure it covers the fixed wheel */
     color: var(--color-secondary, #475569); /* Use a secondary text color */
-    padding: 2rem 1.5rem;
+    padding: 1rem 1.5rem 1.15rem;
     text-align: center;
-    border-top: 2px solid var(--color-project-accent-border, rgba(255,125,26,0.5));
+    border-top: 1px solid var(--color-project-accent-border, rgba(255,125,26,0.3));
     transition: border-color 0.5s ease;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .footer-content {
@@ -47,7 +47,7 @@ const currentYear = new Date().getFullYear();
   }
 
   .footer-content p {
-    margin: 0.5rem 0;
+    margin: 0.2rem 0;
   }
 
   .footer-content a {
@@ -64,7 +64,8 @@ const currentYear = new Date().getFullYear();
   .audio-widget-placeholder {
     position: absolute;
     right: 2rem;
-    bottom: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
     width: 48px;
     height: 48px;
     display: flex;
@@ -105,15 +106,28 @@ const currentYear = new Date().getFullYear();
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1.5rem;
-      padding-bottom: 5.5rem; /* Make room for the docked player at the bottom center */
+      gap: 0.2rem;
+      padding: 0.4rem 1rem max(0.85rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
+      font-size: 0.75rem;
+    }
+
+    .footer-content p {
+      margin: 0.1rem 0;
     }
 
     .audio-widget-placeholder {
       position: relative;
       right: auto;
-      bottom: auto;
-      margin-top: 1rem;
+      top: auto;
+      transform: none;
+      margin-top: 0.15rem;
+      width: 36px;
+      height: 36px;
+    }
+
+    .placeholder-ring {
+      width: 32px;
+      height: 32px;
     }
   }
 </style>

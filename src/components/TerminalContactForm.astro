@@ -255,6 +255,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     align-items: center;
     flex-shrink: 0;
     user-select: none; /* Prevent text selection on header title */
+    cursor: grab;
+  }
+  .terminal-window.dragging .terminal-header {
+    cursor: grabbing;
   }
   .header-title {
     text-align: center;
@@ -935,16 +939,25 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       // If the terminal has been manually moved or resized, skip automatic centering/sizing
       if (terminalWindow.dataset.terminalInteracted === "true" && !isMobile) return;
 
-      if (isMobile) {
+      const isHomepageContact = !!terminalWindow.closest(".contact-terminal-wrapper");
+      if (isHomepageContact || isMobile) {
         terminalWindow.style.position = 'relative';
-        terminalWindow.style.width = '100%';
-        terminalWindow.style.height = '100%';
         terminalWindow.style.top = '';
         terminalWindow.style.left = '';
-        terminalWindow.style.minWidth = '0';
-        terminalWindow.style.minHeight = '0';
-        terminalWindow.style.maxWidth = '100%';
-        terminalWindow.style.maxHeight = '100%';
+        if (isMobile) {
+          terminalWindow.style.width = '100%';
+          terminalWindow.style.height = '100%';
+          terminalWindow.style.minWidth = '0';
+          terminalWindow.style.minHeight = '0';
+          terminalWindow.style.maxWidth = '100%';
+          terminalWindow.style.maxHeight = '100%';
+          terminalWindow.style.aspectRatio = '';
+        } else {
+          terminalWindow.style.width = 'min(760px, calc((100vh - 180px) * 4 / 3), 85vw)';
+          terminalWindow.style.height = 'auto';
+          terminalWindow.style.aspectRatio = '4 / 3';
+          terminalWindow.style.maxHeight = 'calc(100% - 1rem)';
+        }
         return;
       }
 
@@ -2028,18 +2041,35 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         (entries) => {
           entries.forEach((entry) => {
             if (
-              entry.isIntersecting &&
+              (entry.isIntersecting || entry.intersectionRatio > 0) &&
               terminalWindow.dataset.terminalStarted !== "true"
             ) {
               terminalWindow.dataset.terminalStarted = "true";
               runStartSequence();
-              observer.unobserve(terminalWindow);
+              try { observer.unobserve(terminalWindow); } catch (e) {}
             }
           });
         },
-        { threshold: 0.5 },
-      ); // Increased threshold to avoid early triggers
+        { threshold: [0, 0.05, 0.1, 0.25, 0.5] },
+      );
       observer.observe(terminalWindow);
+
+      const scrollContainer = document.querySelector('.scroll-container');
+      const checkVisibility = () => {
+        if (terminalWindow.dataset.terminalStarted === "true") return;
+        const rect = terminalWindow.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          terminalWindow.dataset.terminalStarted = "true";
+          runStartSequence();
+          try { observer.unobserve(terminalWindow); } catch (e) {}
+          if (scrollContainer) scrollContainer.removeEventListener('scroll', checkVisibility);
+        }
+      };
+      if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', checkVisibility, { passive: true });
+      }
+      setTimeout(checkVisibility, 200);
+      setTimeout(checkVisibility, 800);
     }
 
     function runStartSequence() {
@@ -2149,9 +2179,27 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       terminalWindow.dataset.terminalInteracted = "true";
       terminalWindow.classList.add("dragging");
       document.body.style.userSelect = "none";
-      const pos = getTerminalPosition();
-      initialLeft = pos.left;
-      initialTop = pos.top;
+
+      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      const rect = terminalWindow.getBoundingClientRect();
+      terminalWindow.style.width = `${rect.width}px`;
+      terminalWindow.style.height = `${rect.height}px`;
+      terminalWindow.style.aspectRatio = 'auto';
+
+      if (wrapper) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        initialLeft = rect.left - wrapperRect.left;
+        initialTop = rect.top - wrapperRect.top;
+        terminalWindow.style.position = 'absolute';
+        terminalWindow.style.margin = '0';
+        terminalWindow.style.left = `${initialLeft}px`;
+        terminalWindow.style.top = `${initialTop}px`;
+      } else {
+        const pos = getTerminalPosition();
+        initialLeft = pos.left;
+        initialTop = pos.top;
+      }
+
       if (e.type === "touchstart") {
         dragStartX = e.touches[0].clientX;
         dragStartY = e.touches[0].clientY;
@@ -2179,10 +2227,20 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
       let newLeft = initialLeft + (currentClientX - dragStartX);
       let newTop = initialTop + (currentClientY - dragStartY);
-      const maxX = window.innerWidth - terminalWindow.offsetWidth;
-      const maxY = window.innerHeight - terminalWindow.offsetHeight;
-      newLeft = Math.max(0, Math.min(newLeft, maxX));
-      newTop = Math.max(TOP_BAR_HEIGHT, Math.min(newTop, maxY));
+
+      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      if (wrapper) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const maxX = wrapperRect.width - terminalWindow.offsetWidth;
+        const maxY = wrapperRect.height - terminalWindow.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, Math.max(0, maxX)));
+        newTop = Math.max(0, Math.min(newTop, Math.max(0, maxY)));
+      } else {
+        const maxX = window.innerWidth - terminalWindow.offsetWidth;
+        const maxY = window.innerHeight - terminalWindow.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, maxX));
+        newTop = Math.max(TOP_BAR_HEIGHT, Math.min(newTop, maxY));
+      }
       terminalWindow.style.left = `${newLeft}px`;
       terminalWindow.style.top = `${newTop}px`;
     }
@@ -2203,11 +2261,29 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       isResizing = true;
       terminalWindow.dataset.terminalInteracted = "true";
       document.body.style.userSelect = "none";
-      initialWidth = terminalWindow.offsetWidth;
-      initialHeight = terminalWindow.offsetHeight;
-      const pos = getTerminalPosition();
-      initialLeft = pos.left;
-      initialTop = pos.top;
+
+      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      const rect = terminalWindow.getBoundingClientRect();
+      initialWidth = rect.width;
+      initialHeight = rect.height;
+      terminalWindow.style.width = `${initialWidth}px`;
+      terminalWindow.style.height = `${initialHeight}px`;
+      terminalWindow.style.aspectRatio = 'auto';
+
+      if (wrapper) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        initialLeft = rect.left - wrapperRect.left;
+        initialTop = rect.top - wrapperRect.top;
+        terminalWindow.style.position = 'absolute';
+        terminalWindow.style.margin = '0';
+        terminalWindow.style.left = `${initialLeft}px`;
+        terminalWindow.style.top = `${initialTop}px`;
+      } else {
+        const pos = getTerminalPosition();
+        initialLeft = pos.left;
+        initialTop = pos.top;
+      }
+
       if (e.type === "touchstart") {
         resizeStartX = e.touches[0].clientX;
         resizeStartY = e.touches[0].clientY;
@@ -2239,10 +2315,20 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       let newHeight = initialHeight + deltaY;
       newWidth = Math.max(MIN_TERMINAL_WIDTH, newWidth);
       newHeight = Math.max(MIN_TERMINAL_HEIGHT, newHeight);
-      const maxW = window.innerWidth - initialLeft;
-      const maxH = window.innerHeight - initialTop;
-      newWidth = Math.min(newWidth, maxW - 5);
-      newHeight = Math.min(newHeight, maxH - 5);
+
+      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      if (wrapper) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const maxW = wrapperRect.width - initialLeft;
+        const maxH = wrapperRect.height - initialTop;
+        newWidth = Math.min(newWidth, Math.max(MIN_TERMINAL_WIDTH, maxW));
+        newHeight = Math.min(newHeight, Math.max(MIN_TERMINAL_HEIGHT, maxH));
+      } else {
+        const maxW = window.innerWidth - initialLeft;
+        const maxH = window.innerHeight - initialTop;
+        newWidth = Math.min(newWidth, maxW - 5);
+        newHeight = Math.min(newHeight, maxH - 5);
+      }
       terminalWindow.style.width = `${newWidth}px`;
       terminalWindow.style.height = `${newHeight}px`;
       scrollToBottom();
@@ -2373,6 +2459,39 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         try {
           isMobile = window.innerWidth <= 768;
         } catch (e) {}
+
+        const isHomepageContact = !!terminalWindow.closest(".contact-terminal-wrapper");
+        if (isHomepageContact) {
+          if (isMobile) {
+            terminalWindow.style.position = 'relative';
+            terminalWindow.style.top = '';
+            terminalWindow.style.left = '';
+            terminalWindow.style.width = '100%';
+            terminalWindow.style.height = '100%';
+            terminalWindow.style.aspectRatio = '';
+          } else if (terminalWindow.dataset.terminalInteracted === "true") {
+            const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+            if (wrapper) {
+              const wrapperRect = wrapper.getBoundingClientRect();
+              const curLeft = parseFloat(terminalWindow.style.left) || 0;
+              const curTop = parseFloat(terminalWindow.style.top) || 0;
+              const maxLeft = Math.max(0, wrapperRect.width - terminalWindow.offsetWidth);
+              const maxTop = Math.max(0, wrapperRect.height - terminalWindow.offsetHeight);
+              terminalWindow.style.left = `${Math.max(0, Math.min(curLeft, maxLeft))}px`;
+              terminalWindow.style.top = `${Math.max(0, Math.min(curTop, maxTop))}px`;
+            }
+          } else {
+            terminalWindow.style.position = 'relative';
+            terminalWindow.style.top = '';
+            terminalWindow.style.left = '';
+            terminalWindow.style.width = 'min(760px, calc((100vh - 180px) * 4 / 3), 85vw)';
+            terminalWindow.style.height = 'auto';
+            terminalWindow.style.aspectRatio = '4 / 3';
+            terminalWindow.style.maxHeight = 'calc(100% - 1rem)';
+          }
+          if (currentStep !== 3) updateCommandPrompt();
+          return;
+        }
 
         if (isMobile) {
           if (terminalWindow) {
