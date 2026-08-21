@@ -7,8 +7,10 @@ import BookArchive from "../../components/BookArchive.astro";
 const lang = Astro.currentLocale as Locale;
 const t = useTranslations(lang);
 
-const books = await getBooks();
-const settings = await getLibrarySettings();
+const [books, settings] = await Promise.all([
+  getBooks(),
+  getLibrarySettings(),
+]);
 
 const pageTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
 const pageSubtitle = lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn;

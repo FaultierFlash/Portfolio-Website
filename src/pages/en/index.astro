@@ -8,9 +8,12 @@ import TerminalContactForm from "../../components/TerminalContactForm.astro";
 import Footer from "../../components/Footer.astro";
 
 const lang = Astro.currentLocale as Locale;
-const overrides = await getTranslationOverrides(lang);
+const [overrides, homeData, allProjects] = await Promise.all([
+  getTranslationOverrides(lang),
+  getHomePageData(lang),
+  getProjects(lang),
+]);
 const t = useTranslations(lang, overrides);
-const homeData = await getHomePageData(lang);
 const featuredProjects = homeData?.featuredProjects || [];
 const timelineItems = (homeData?.timeline || []).map((item: any) => {
     if (item.milestoneEvents) {
@@ -24,9 +27,8 @@ const timelineItems = (homeData?.timeline || []).map((item: any) => {
     return item;
 });
 const showSpinWheel = homeData?.showSpinWheel !== false;
-const allProjects = await getProjects(lang);
 const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
-const nonFeaturedProjects = allProjects.filter((p: any) => !featuredSlugs.has(p.slug.current));
+const nonFeaturedProjects = (allProjects || []).filter((p: any) => !featuredSlugs.has(p.slug.current));
 
 // --- Timescale Math Logic ---
 // We lock the timeline container strictly to the user-defined bounds.

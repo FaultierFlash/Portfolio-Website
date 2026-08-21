@@ -54,21 +54,25 @@ const accentColorMap: Record<string, { main: string; bg: string; border: string 
 };
 const resolvedAccent = accentColorMap[accentColor] || accentColorMap.primary;
 
-// --- Data needed by Header ---
-// Project Pages Fetching (moved to Header, but BaseLayout needs to do it to pass to Header)
-// Alternatively, Header could fetch its own data if it doesn't need `currentLocale` or `t` from BaseLayout for this.
-// For now, keeping fetching logic here to pass down.
-// Fetch all available projects via Sanity CMS for the dropdown
-const allSanityProjects = await getProjects(currentLocale);
-let projectPages: { href: string; text: string }[] = allSanityProjects.map((p: any) => ({
+// Set Netlify Edge CDN caching: fresh for 10 mins, stale-while-revalidate for 24 hours
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=0, s-maxage=600, stale-while-revalidate=86400'
+);
+
+// --- Data needed by Header & Layout (Fetched in parallel) ---
+const [allSanityProjects, notesSettings, socials] = await Promise.all([
+  getProjects(currentLocale),
+  getNotesSettings(),
+  getSocialsSettings(),
+]);
+
+let projectPages: { href: string; text: string }[] = (allSanityProjects || []).map((p: any) => ({
   href: `/${currentLocale}/projects/${p.slug.current}`,
   text: p.title
 }));
 
-const notesSettings = await getNotesSettings();
 const showNotes = notesSettings?.enabled === true;
-
-const socials = await getSocialsSettings();
 
 const navLinks = [
   { href: `/${currentLocale}/library`, text: t("nav.library") },
