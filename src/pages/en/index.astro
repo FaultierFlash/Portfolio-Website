@@ -343,21 +343,21 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout hidePageScrollbar={true}>
+<BaseLayout hidePageScrollbar={true} showFooter={false}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
-    <section class="scroll-section hero-section relative flex flex-col items-center justify-center min-h-[100vh]">
+    <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
         config={homeData?.backgroundEffect === 'solar' ? homeData?.solarConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
       
-      <div class="z-10 text-center px-4 max-w-4xl">
-        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
+      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 md:py-0">
+        <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-1.5 md:mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-xl md:text-2xl mb-8 font-bold opacity-90">
+        <p class="text-base sm:text-lg md:text-2xl mb-3 md:mb-8 font-bold opacity-90">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
 
@@ -369,21 +369,21 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             height="224"
             fetchpriority="high"
             decoding="async"
-            class="mx-auto rounded-full w-40 h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-8 border-4 border-white dark:border-gray-800"
+            class="mx-auto rounded-full w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-3 md:mb-8 border-4 border-white dark:border-gray-800"
           />
         )}
 
         {homeData?.aboutText && (
-          <p class="text-lg max-w-2xl mx-auto mb-10 leading-relaxed font-black opacity-80">
+          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-semibold opacity-80 line-clamp-3 sm:line-clamp-4 md:line-clamp-none">
             {homeData.aboutText}
           </p>
         )}
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
+        <button id="scroll-down-btn" class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Scroll to projects">
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">Start Journey</span>
-           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       )}
     </section>
@@ -1036,9 +1036,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             <div id="future-line" class="absolute h-0 w-[100vw] border-t-[2px] border-dashed border-gray-500 dark:border-gray-400 opacity-50 z-0 transition-opacity duration-300 -translate-y-1/2" style="left: 100vw; top: 50%;"></div>
         </div>
 
-        <button id="mobile-next-btn" class="nav-down-btn absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20 max-md:opacity-0 max-md:pointer-events-none transition-opacity duration-500" aria-label="Next Section">
+        <button id="mobile-next-btn" class="nav-down-btn absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1.5 md:p-2 z-20 max-md:opacity-0 max-md:pointer-events-none transition-opacity duration-500" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Featured Projects</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
         <script>
             document.addEventListener("DOMContentLoaded", () => {
@@ -1067,29 +1067,45 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         const pc = colors[projectColor] || colors.primary;
         
         return (
-          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] w-full" data-project-slug={project.slug.current} data-accent-color={projectColor}>
+          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug.current} data-accent-color={projectColor}>
             <DynamicBackground 
               effect={project.backgroundEffect || "none"} 
               config={project.backgroundEffect === 'solar' ? project.solarConfig : project.topographyConfig}
               isAbsolute={true} 
             />
             
-            <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-8 gap-12">
-              <div class="flex-1 space-y-6">
-                <h2 class="text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
-                <div class="flex flex-wrap gap-2 mb-4">
+            <div class="z-10 flex flex-col md:flex-row items-center justify-center md:justify-between w-full max-w-7xl px-5 sm:px-6 md:px-8 gap-2 sm:gap-4 md:gap-12 pt-10 pb-12 md:py-0">
+              <div class="flex-1 space-y-1.5 sm:space-y-2.5 md:space-y-6 text-center md:text-left flex flex-col items-center md:items-start">
+                <h2 class="text-xl sm:text-2xl md:text-6xl font-black heading-font tracking-tight">{project.title}</h2>
+                <div class="flex flex-wrap gap-1 md:gap-2 mb-0.5 md:mb-4 justify-center md:justify-start">
                   {project.tags?.map((tag: string) => (
-                    <span class={`inline-block ${pc.tagBg} rounded-full px-3 py-1 text-sm font-black tracking-wide border border-current opacity-90`}>
+                    <span class={`inline-block ${pc.tagBg} rounded-full px-2 py-0.5 md:px-3 md:py-1 text-[10px] sm:text-xs md:text-sm font-black tracking-wide border border-current opacity-90`}>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <p class="text-xl leading-relaxed max-w-2xl font-medium opacity-90">
+                <p class="text-xs sm:text-sm md:text-xl leading-relaxed max-w-xl font-medium opacity-90 mx-auto md:mx-0 line-clamp-2 sm:line-clamp-3 md:line-clamp-none">
                   {project.description}
                 </p>
+
+                {/* Mobile Project Image */}
+                {project.mainImage && (
+                  <div class="w-full max-w-[240px] sm:max-w-xs md:hidden my-1">
+                    <img
+                      src={urlFor(project.mainImage).width(600).auto('format').quality(80).url()}
+                      alt={project.title}
+                      loading="lazy"
+                      decoding="async"
+                      width="600"
+                      height="360"
+                      class="w-full max-h-[125px] sm:max-h-[160px] object-cover rounded-lg shadow-md border border-white/10 glow-effect"
+                    />
+                  </div>
+                )}
+
                 <a 
                   href={`/${lang}/projects/${project.slug.current}`} 
-                  class={`inline-block mt-8 px-8 py-3 font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
+                  class={`inline-block mt-1 md:mt-8 px-4 py-1.5 sm:px-6 sm:py-2.5 md:px-8 md:py-3 text-xs sm:text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
                 >
                   Explore Project →
                 </a>
@@ -1110,15 +1126,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               )}
             </div>
 
-            <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Previous</span>
             </button>
-            <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
+            <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Slide">
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
                  {isLastSection ? (showSpinWheel ? 'View All Projects' : 'Contact') : 'Next Project'}
               </span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
             </button>
             {isLastSection && (
                 <div class="last-section-marker absolute bottom-0 h-10 w-full invisible"></div>
@@ -1129,23 +1145,28 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     {/* Section: Spin the Wheel (non-featured projects) */}
     {showSpinWheel && nonFeaturedProjects.length > 0 && (
-      <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
+      <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-accent-color="primary">
         <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
-        <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
         </button>
-        <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
+        <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Contact</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       </section>
     )}
 
-    {/* Section: Contact */}
-    <section class="scroll-section contact-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
-      {/* Wrapper clips the fixed-positioned terminal to this section */}
-      <div class="contact-terminal-wrapper">
+    {/* Section: Contact & Footer */}
+    <section class="scroll-section contact-section relative flex flex-col justify-between min-h-[100vh] min-h-[100dvh] h-[100vh] h-[100dvh] w-full overflow-hidden" data-accent-color="primary">
+      <button class="nav-up-btn hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 flex-col items-center gap-1 group cursor-pointer p-1.5 z-20" aria-label="Previous Slide">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
+      </button>
+
+      {/* Wrapper dynamically sizes terminal to remaining vertical height above footer */}
+      <div class="contact-terminal-wrapper flex-1 min-h-0 w-full flex items-center justify-center relative p-2 md:p-4">
         <TerminalContactForm 
           projects={allProjects}
           currentLocale={lang}
@@ -1177,16 +1198,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
           sendButton: t("terminal.sendButton"),
         }} />
       </div>
-      <button class="nav-up-btn hidden md:flex absolute top-24 left-1/2 -translate-x-1/2 flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-        <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
-      </button>
-    </section>
 
-    {/* Footer Section */}
-    <footer class="scroll-section footer-section shrink-0 w-full bg-slate-950 text-slate-400 border-t border-slate-900">
+      {/* Footer Section */}
+      <footer class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-20">
         <Footer />
-    </footer>
+      </footer>
+    </section>
   </div>
 </BaseLayout>
 
@@ -1196,7 +1213,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     position: relative;
     width: 100%;
     height: 100%;
-    min-height: 100vh;
+    min-height: 0;
+    flex: 1 1 0%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1208,28 +1226,45 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     position: relative;
     width: 100%;
     height: 100%;
+    min-height: 0;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .contact-terminal-wrapper #terminal {
-    --terminal-position: absolute;
-    /* Removed fixed width/height to allow JS resizing/dragging */
+    --terminal-position: relative;
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0 auto;
+    aspect-ratio: 4 / 3;
+    width: min(760px, calc((100vh - 180px) * 4 / 3), 85vw);
+    max-height: calc(100% - 1rem);
+    height: auto;
   }
 
   @media (max-width: 767px) {
     .contact-terminal-wrapper {
       min-height: 0 !important;
       height: 100% !important;
+      flex: 1 1 0% !important;
       max-height: 100% !important;
-      padding: 0.5rem !important;
+      padding: 0.25rem 0.5rem !important;
       box-sizing: border-box !important;
       align-items: stretch !important;
+      display: flex !important;
+      overflow: hidden !important;
     }
 
     .contact-terminal-wrapper .component-terminal-wrapper {
       height: 100% !important;
+      min-height: 0 !important;
+      flex: 1 1 0% !important;
       padding: 0 !important;
       align-items: stretch !important;
+      display: flex !important;
     }
 
     .contact-terminal-wrapper #terminal {
@@ -1244,6 +1279,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       top: auto !important;
       left: auto !important;
       margin: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+
+    .contact-terminal-wrapper #terminal .terminal-output-container {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
     }
   }
 </style>
@@ -2362,7 +2406,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
   .scroll-container {
-    height: 100vh;
+    height: calc(100vh - var(--header-height, 60px));
+    height: calc(100dvh - var(--header-height, 60px));
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
@@ -2386,36 +2431,72 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   .scroll-section {
     scroll-snap-align: start;
     scroll-snap-stop: always;
-    height: 100vh;
-    padding-top: var(--header-height, 60px); /* Account for fixed header */
+    height: calc(100vh - var(--header-height, 60px));
+    height: calc(100dvh - var(--header-height, 60px));
+    min-height: calc(100vh - var(--header-height, 60px));
+    min-height: calc(100dvh - var(--header-height, 60px));
+    padding-top: 0;
+    box-sizing: border-box;
   }
   
+  .scroll-section.contact-section {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    height: calc(100vh - var(--header-height, 60px)) !important;
+    height: calc(100dvh - var(--header-height, 60px)) !important;
+    min-height: calc(100vh - var(--header-height, 60px)) !important;
+    min-height: calc(100dvh - var(--header-height, 60px)) !important;
+    max-height: calc(100vh - var(--header-height, 60px)) !important;
+    max-height: calc(100dvh - var(--header-height, 60px)) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    scroll-snap-align: start !important;
+    scroll-snap-stop: always !important;
+  }
+
+  .footer-section {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   @media (max-width: 767px) {
       .scroll-container {
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
           scroll-snap-type: y proximity;
       }
-      .scroll-section.timeline-section {
-          height: auto;
-          min-height: auto;
-          scroll-snap-stop: normal;
-      }
-      .scroll-section.contact-section {
-          height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          min-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          max-height: calc(100dvh - var(--mobile-footer-height, 120px)) !important;
-          padding-top: var(--header-height, 60px) !important;
-          padding-bottom: 0 !important;
+      .scroll-section {
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          min-height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
+          padding-top: 0 !important;
           box-sizing: border-box !important;
-          scroll-snap-align: start !important;
-          scroll-snap-stop: always !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: stretch !important;
-          align-items: stretch !important;
       }
-      .footer-section {
+      .scroll-section.timeline-section {
+          height: auto !important;
+          min-height: auto !important;
+          max-height: none !important;
           scroll-snap-align: none !important;
           scroll-snap-stop: normal !important;
+      }
+      .scroll-section.contact-section {
+          height: calc(100dvh - var(--header-height, 60px)) !important;
+          min-height: calc(100dvh - var(--header-height, 60px)) !important;
+          max-height: calc(100dvh - var(--header-height, 60px)) !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          overflow: hidden !important;
+          scroll-snap-align: start !important;
+          scroll-snap-stop: always !important;
+      }
+      .footer-section {
           height: auto !important;
           min-height: auto !important;
       }

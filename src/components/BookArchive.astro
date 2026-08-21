@@ -51,6 +51,16 @@ const reading = groupBooks(books.filter(b => b.status === 'reading'));
 const finished = groupBooks(books.filter(b => b.status === 'finished'));
 const shortlist = groupBooks(books.filter(b => b.status === 'shortlist'));
 
+// Calculate reading statistics
+const finishedBooksRaw = books.filter(b => b.status === 'finished');
+const totalFinishedCount = finishedBooksRaw.length;
+const currentYear = new Date().getFullYear();
+const thisYearFinishedCount = finishedBooksRaw.filter(b => {
+    if (!b.dateFinished) return false;
+    const year = new Date(b.dateFinished).getFullYear();
+    return year === currentYear;
+}).length;
+
 const t = {
   en: {
     title: "Personal Library",
@@ -64,7 +74,9 @@ const t = {
     author: "by",
     rating: "Personal Rating",
     series: "Series",
-    physical: "Physical"
+    physical: "Physical",
+    totalRead: "Books Read",
+    thisYearRead: `Read in ${currentYear}`
   },
   de: {
     title: "Persönliche Bibliothek",
@@ -78,7 +90,9 @@ const t = {
     author: "von",
     rating: "Persönliche Bewertung",
     series: "Serie",
-    physical: "Physisch"
+    physical: "Physisch",
+    totalRead: "Gelesene Bücher",
+    thisYearRead: `In ${currentYear} gelesen`
   }
 }[locale] || {
     title: "Personal Library",
@@ -92,7 +106,9 @@ const t = {
     author: "by",
     rating: "Personal Rating",
     series: "Series",
-    physical: "Physical"
+    physical: "Physical",
+    totalRead: "Books Read",
+    thisYearRead: `Read in ${currentYear}`
 };
 
 ---
@@ -101,11 +117,30 @@ const t = {
     <div id="library-container" class="max-w-[1600px] mx-auto relative z-10 transition-all duration-700">
         <div class="mb-16 text-center">
             <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
-                {title || t.title}
+                {(title || t.title)?.replace(/Libary/g, 'Library').replace(/libary/g, 'library')}
             </h2>
             <p class="text-lg text-[var(--color-text-dim)] max-w-2xl mx-auto font-medium leading-relaxed">
                 {subtitle || t.subtitle}
             </p>
+
+            {/* --- Reading Stats Counters --- */}
+            {totalFinishedCount > 0 && (
+                <div class="flex items-center justify-center gap-3 mt-8 flex-wrap">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--color-project-accent-border)] bg-[var(--color-project-accent-bg)] shadow-sm backdrop-blur-sm">
+                        <span class="w-2 h-2 rounded-full bg-[var(--color-project-accent)] animate-pulse"></span>
+                        <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text)]">
+                            <strong class="text-sm font-black" style="color: var(--color-project-accent)">{totalFinishedCount}</strong> {t.totalRead}
+                        </span>
+                    </div>
+                    {thisYearFinishedCount > 0 && (
+                        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 shadow-sm backdrop-blur-sm">
+                            <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text-dim)]">
+                                <strong class="text-sm font-black text-[var(--color-text)]">{thisYearFinishedCount}</strong> {t.thisYearRead}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
 
         <div class="flex flex-col lg:flex-row gap-12 items-start relative">

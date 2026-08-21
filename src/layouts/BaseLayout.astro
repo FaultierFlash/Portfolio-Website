@@ -19,6 +19,7 @@ interface Props {
   topographyConfig?: any;
   solarConfig?: any;
   accentColor?: string;
+  showFooter?: boolean;
 }
 
 const {
@@ -30,6 +31,7 @@ const {
   topographyConfig = null,
   solarConfig = null,
   accentColor = "primary",
+  showFooter = true,
 } = Astro.props;
 
 const currentLocale = Astro.currentLocale as Locale;
@@ -199,7 +201,7 @@ const websiteSchema = {
       <slot />
     </main>
 
-    <Footer />
+    {showFooter && <Footer />}
 
     <CommandPalette
       currentLocale={currentLocale}
