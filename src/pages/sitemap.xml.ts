@@ -33,7 +33,8 @@ export const GET: APIRoute = async () => {
   // Generate static URLs
   locales.forEach((locale) => {
     staticPaths.forEach((path) => {
-      urls.push(`${domain}/${locale}${path}`);
+      const formattedPath = path === '' ? `/${locale}/` : `/${locale}${path}`;
+      urls.push(`${domain}${formattedPath}`);
     });
   });
 

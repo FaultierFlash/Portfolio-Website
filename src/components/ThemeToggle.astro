@@ -1,13 +1,18 @@
 ---
 // src/components/ThemeToggle.astro
+interface Props {
+  id?: string;
+  className?: string;
+}
+const { id = "theme-toggle", className = "" } = Astro.props;
 ---
 
-<button id="theme-toggle" aria-label="Switch theme">
+<button id={id} class={`theme-toggle-btn ${className}`} aria-label="Switch theme">
   <svg
     class="sun-icon"
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
+    width="20"
+    height="20"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -30,8 +35,8 @@
   <svg
     class="moon-icon"
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
+    width="20"
+    height="20"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -43,6 +48,7 @@
 </button>
 
 <style>
+  .theme-toggle-btn,
   #theme-toggle {
     display: flex;
     align-items: center;
@@ -54,11 +60,13 @@
     border-radius: 0.375rem;
     color: var(--color-text);
     position: relative;
-    z-index: 10000;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
+  .theme-toggle-btn:hover,
   #theme-toggle:hover {
-    background-color: var(--color-border);
+    background-color: var(--color-project-accent-bg, rgba(255, 125, 26, 0.08));
+    color: var(--color-project-accent, #FF7D1A);
   }
 
   .sun-icon,
@@ -97,23 +105,13 @@
 </style>
 
 <script>
-  console.log("ThemeToggle: Script loaded (View Transitions Version).");
-
   function setupThemeToggle() {
-    const themeToggle = document.getElementById(
-      "theme-toggle",
-    ) as HTMLButtonElement | null;
+    const themeButtons = document.querySelectorAll(
+      ".theme-toggle-btn, #theme-toggle",
+    );
     const themeStorageKey = "theme";
 
-    if (!themeToggle) return;
-
-    // cleanup old listener
-    if ((themeToggle as any)._themeClickHandler) {
-      themeToggle.removeEventListener(
-        "click",
-        (themeToggle as any)._themeClickHandler,
-      );
-    }
+    if (themeButtons.length === 0) return;
 
     const clickHandler = async () => {
       // Fallback for browsers without View Transitions
@@ -131,25 +129,20 @@
       await transition.ready;
 
       // Calculate radius to cover the screen from the center
-      const x = window.innerWidth / 2;
-      const y = window.innerHeight / 2;
-      const right = window.innerWidth - x;
-      const bottom = window.innerHeight - y;
-      const maxRadius = Math.hypot(Math.max(x, right), Math.max(y, bottom));
-
+      const maxRadius = Math.hypot(window.innerWidth / 2, window.innerHeight / 2);
       const pauseRadius = maxRadius * 0.3;
 
-      // Animate the circle clip-path with a pause in the middle
+      // Animate the circle clip-path from exact screen center (50% 50%)
       // 0% -> 30% (fast)
       // 30% -> 30% (pause)
       // 30% -> 100% (fast)
       document.documentElement.animate(
         {
           clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${pauseRadius}px at ${x}px ${y}px)`,
-            `circle(${pauseRadius}px at ${x}px ${y}px)`,
-            `circle(${maxRadius}px at ${x}px ${y}px)`,
+            `circle(0px at 50% 50%)`,
+            `circle(${pauseRadius}px at 50% 50%)`,
+            `circle(${pauseRadius}px at 50% 50%)`,
+            `circle(${maxRadius}px at 50% 50%)`,
           ],
           offset: [
             0,
@@ -174,10 +167,12 @@
       htmlElement.classList.toggle("dark", newTheme === "dark");
       localStorage.setItem(themeStorageKey, newTheme);
 
-      themeToggle?.setAttribute(
-        "aria-label",
-        `Switch to ${newTheme === "dark" ? "light" : "dark"} theme`,
-      );
+      themeButtons.forEach((btn) => {
+        btn.setAttribute(
+          "aria-label",
+          `Switch to ${newTheme === "dark" ? "light" : "dark"} theme`,
+        );
+      });
     }
 
     // Set initial aria-label
@@ -186,13 +181,18 @@
       (window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light");
-    themeToggle.setAttribute(
-      "aria-label",
-      `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`,
-    );
 
-    (themeToggle as any)._themeClickHandler = clickHandler;
-    themeToggle.addEventListener("click", clickHandler);
+    themeButtons.forEach((btn) => {
+      if ((btn as any)._themeClickHandler) {
+        btn.removeEventListener("click", (btn as any)._themeClickHandler);
+      }
+      btn.setAttribute(
+        "aria-label",
+        `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`,
+      );
+      (btn as any)._themeClickHandler = clickHandler;
+      btn.addEventListener("click", clickHandler);
+    });
   }
 
   // Lifecycle listeners
@@ -204,12 +204,14 @@
   document.addEventListener("astro:page-load", setupThemeToggle);
 
   document.addEventListener("astro:before-swap", () => {
-    const themeToggle = document.getElementById("theme-toggle");
-    if (themeToggle && (themeToggle as any)._themeClickHandler) {
-      themeToggle.removeEventListener(
-        "click",
-        (themeToggle as any)._themeClickHandler,
-      );
-    }
+    const themeButtons = document.querySelectorAll(
+      ".theme-toggle-btn, #theme-toggle",
+    );
+    themeButtons.forEach((btn) => {
+      if ((btn as any)._themeClickHandler) {
+        btn.removeEventListener("click", (btn as any)._themeClickHandler);
+      }
+    });
   });
 </script>
+
