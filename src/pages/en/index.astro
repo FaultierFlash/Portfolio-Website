@@ -1074,22 +1074,38 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               isAbsolute={true} 
             />
             
-            <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-6 md:px-8 gap-4 md:gap-12 pt-16 pb-20 md:py-0">
-              <div class="flex-1 space-y-3 md:space-y-6 text-center md:text-left">
-                <h2 class="text-2xl sm:text-3xl md:text-6xl font-black heading-font">{project.title}</h2>
-                <div class="flex flex-wrap gap-1.5 md:gap-2 mb-2 md:mb-4 justify-center md:justify-start">
+            <div class="z-10 flex flex-col md:flex-row items-center justify-center md:justify-between w-full max-w-7xl px-5 sm:px-6 md:px-8 gap-2 sm:gap-4 md:gap-12 pt-10 pb-12 md:py-0">
+              <div class="flex-1 space-y-1.5 sm:space-y-2.5 md:space-y-6 text-center md:text-left flex flex-col items-center md:items-start">
+                <h2 class="text-xl sm:text-2xl md:text-6xl font-black heading-font tracking-tight">{project.title}</h2>
+                <div class="flex flex-wrap gap-1 md:gap-2 mb-0.5 md:mb-4 justify-center md:justify-start">
                   {project.tags?.map((tag: string) => (
-                    <span class={`inline-block ${pc.tagBg} rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-xs md:text-sm font-black tracking-wide border border-current opacity-90`}>
+                    <span class={`inline-block ${pc.tagBg} rounded-full px-2 py-0.5 md:px-3 md:py-1 text-[10px] sm:text-xs md:text-sm font-black tracking-wide border border-current opacity-90`}>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <p class="text-xs sm:text-sm md:text-xl leading-relaxed max-w-2xl font-medium opacity-90 mx-auto md:mx-0 line-clamp-3 md:line-clamp-none">
+                <p class="text-xs sm:text-sm md:text-xl leading-relaxed max-w-xl font-medium opacity-90 mx-auto md:mx-0 line-clamp-2 sm:line-clamp-3 md:line-clamp-none">
                   {project.description}
                 </p>
+
+                {/* Mobile Project Image */}
+                {project.mainImage && (
+                  <div class="w-full max-w-[240px] sm:max-w-xs md:hidden my-1">
+                    <img
+                      src={urlFor(project.mainImage).width(600).auto('format').quality(80).url()}
+                      alt={project.title}
+                      loading="lazy"
+                      decoding="async"
+                      width="600"
+                      height="360"
+                      class="w-full max-h-[125px] sm:max-h-[160px] object-cover rounded-lg shadow-md border border-white/10 glow-effect"
+                    />
+                  </div>
+                )}
+
                 <a 
                   href={`/${lang}/projects/${project.slug.current}`} 
-                  class={`inline-block mt-2 md:mt-8 px-5 py-2 md:px-8 md:py-3 text-xs sm:text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
+                  class={`inline-block mt-1 md:mt-8 px-4 py-1.5 sm:px-6 sm:py-2.5 md:px-8 md:py-3 text-xs sm:text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
                 >
                   Explore Project →
                 </a>
