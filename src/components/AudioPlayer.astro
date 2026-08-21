@@ -328,11 +328,16 @@
       } else {
         document.addEventListener('touchmove', dragMove, { passive: false });
         document.addEventListener('touchend', dragEnd);
+        document.addEventListener('touchcancel', dragEnd);
       }
     }
 
     function dragMove(e: any) {
       if (!isDragging) return;
+
+      if (e.cancelable) {
+        e.preventDefault();
+      }
 
       const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
@@ -340,15 +345,11 @@
       const deltaX = clientX - startX;
       const deltaY = clientY - startY;
 
-      if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
         hasMovedWidget = true;
       }
 
       if (hasMovedWidget) {
-        if (e.cancelable) {
-          e.preventDefault();
-        }
-
         // Float the widget on the first drag movement if it was docked
         if (activeWidget.classList.contains("docked")) {
           activeWidget.classList.remove("docked");
@@ -411,6 +412,7 @@
       document.removeEventListener('mouseup', dragEnd);
       document.removeEventListener('touchmove', dragMove);
       document.removeEventListener('touchend', dragEnd);
+      document.removeEventListener('touchcancel', dragEnd);
 
       const placeholder = document.getElementById("audio-widget-placeholder");
       const placeholderRing = placeholder?.querySelector(".placeholder-ring");
@@ -437,7 +439,7 @@
 
     // Attach dragging listeners to toggle button
     toggleBtn.addEventListener('mousedown', dragStart);
-    toggleBtn.addEventListener('touchstart', dragStart, { passive: true });
+    toggleBtn.addEventListener('touchstart', dragStart, { passive: false });
 
     // Toggle expanded panel (prevented if dragged)
     toggleBtn.addEventListener("click", (e) => {
@@ -630,6 +632,7 @@
     height: 48px;
     z-index: 100;
     font-family: inherit;
+    touch-action: none;
   }
 
   /* Position when docked in placeholder */
@@ -662,6 +665,7 @@
     -webkit-backdrop-filter: blur(8px);
     user-select: none;
     -webkit-user-drag: none;
+    touch-action: none;
   }
 
   :global(.dark) .widget-toggle-btn {
