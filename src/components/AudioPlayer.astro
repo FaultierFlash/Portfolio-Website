@@ -237,10 +237,10 @@
 
     widget.classList.add("docked");
     widget.classList.remove("floating");
-    widget.style.left = "auto";
-    widget.style.top = "auto";
-    widget.style.right = "auto";
-    widget.style.bottom = "auto";
+    widget.style.left = "";
+    widget.style.top = "";
+    widget.style.right = "";
+    widget.style.bottom = "";
 
     widget.classList.add("expand-up");
     widget.classList.remove("expand-down");
@@ -372,13 +372,14 @@
         newTop = Math.max(minY, Math.min(maxY, newTop));
 
         // Check snapping distance to footer placeholder
+        // Check snapping distance to footer placeholder
         const placeholder = document.getElementById("audio-widget-placeholder");
         const placeholderRing = placeholder?.querySelector(".placeholder-ring");
         
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
           const distance = Math.hypot(newLeft - pRect.left, newTop - pRect.top);
-          if (distance < 40) {
+          if (distance < 55) {
             placeholderRing?.classList.add("snap-hover");
             // Visually snap
             newLeft = pRect.left;
@@ -416,6 +417,7 @@
 
       const placeholder = document.getElementById("audio-widget-placeholder");
       const placeholderRing = placeholder?.querySelector(".placeholder-ring");
+      const isSnapHovered = placeholderRing?.classList.contains("snap-hover");
       placeholderRing?.classList.remove("snap-hover");
 
       if (hasMovedWidget) {
@@ -424,7 +426,7 @@
           const pRect = placeholder.getBoundingClientRect();
           const widgetRect = activeWidget.getBoundingClientRect();
           const distance = Math.hypot(widgetRect.left - pRect.left, widgetRect.top - pRect.top);
-          if (distance < 10) {
+          if (distance < 55 || isSnapHovered) {
             snapped = true;
           }
         }

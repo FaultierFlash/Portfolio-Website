@@ -353,11 +353,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         isAbsolute={true} 
       />
       
-      <div class="z-10 text-center px-4 max-w-4xl">
-        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
+      <div class="z-10 text-center px-4 max-w-4xl pt-4 pb-24 md:py-0">
+        <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-3 md:mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-xl md:text-2xl mb-8 font-bold opacity-90">
+        <p class="text-base sm:text-lg md:text-2xl mb-4 md:mb-8 font-bold opacity-90">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
 
@@ -369,19 +369,19 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             height="224"
             fetchpriority="high"
             decoding="async"
-            class="mx-auto rounded-full w-40 h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-8 border-4 border-white dark:border-gray-800"
+            class="mx-auto rounded-full w-28 h-28 sm:w-36 sm:h-36 md:w-56 md:h-56 object-cover shadow-2xl mb-4 md:mb-8 border-4 border-white dark:border-gray-800"
           />
         )}
 
         {homeData?.aboutText && (
-          <p class="text-lg max-w-2xl mx-auto mb-10 leading-relaxed font-black opacity-80">
+          <p class="text-sm sm:text-base md:text-lg max-w-2xl mx-auto mb-4 md:mb-10 leading-relaxed font-black opacity-80">
             {homeData.aboutText}
           </p>
         )}
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Scroll to projects">
+        <button id="scroll-down-btn" class="absolute bottom-6 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1.5 md:p-2 z-20" aria-label="Scroll to projects">
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">Start Journey</span>
            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -1074,22 +1074,22 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               isAbsolute={true} 
             />
             
-            <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-8 gap-12">
-              <div class="flex-1 space-y-6">
-                <h2 class="text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
-                <div class="flex flex-wrap gap-2 mb-4">
+            <div class="z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-6 md:px-8 gap-6 md:gap-12 pt-28 pb-28 md:py-0">
+              <div class="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
+                <h2 class="text-3xl sm:text-4xl md:text-6xl font-black heading-font">{project.title}</h2>
+                <div class="flex flex-wrap gap-1.5 md:gap-2 mb-2 md:mb-4 justify-center md:justify-start">
                   {project.tags?.map((tag: string) => (
-                    <span class={`inline-block ${pc.tagBg} rounded-full px-3 py-1 text-sm font-black tracking-wide border border-current opacity-90`}>
+                    <span class={`inline-block ${pc.tagBg} rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-xs md:text-sm font-black tracking-wide border border-current opacity-90`}>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <p class="text-xl leading-relaxed max-w-2xl font-medium opacity-90">
+                <p class="text-sm sm:text-base md:text-xl leading-relaxed max-w-2xl font-medium opacity-90 mx-auto md:mx-0 line-clamp-3 sm:line-clamp-4 md:line-clamp-none">
                   {project.description}
                 </p>
                 <a 
                   href={`/${lang}/projects/${project.slug.current}`} 
-                  class={`inline-block mt-8 px-8 py-3 font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
+                  class={`inline-block mt-3 md:mt-8 px-6 py-2.5 md:px-8 md:py-3 text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
                 >
                   Explore Project →
                 </a>
@@ -1110,15 +1110,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               )}
             </div>
 
-            <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            <button class="nav-up-btn absolute top-16 md:top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Previous</span>
             </button>
-            <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Slide">
+            <button class="nav-down-btn absolute bottom-6 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Slide">
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
                  {isLastSection ? (showSpinWheel ? 'View All Projects' : 'Contact') : 'Next Project'}
               </span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
             </button>
             {isLastSection && (
                 <div class="last-section-marker absolute bottom-0 h-10 w-full invisible"></div>
@@ -1131,13 +1131,13 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     {showSpinWheel && nonFeaturedProjects.length > 0 && (
       <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] w-full" data-accent-color="primary">
         <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
-        <button class="nav-up-btn absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Previous Slide">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <button class="nav-up-btn absolute top-16 md:top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Back</span>
         </button>
-        <button class="nav-down-btn absolute max-md:bottom-24 bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group cursor-pointer p-2 z-20" aria-label="Next Section">
+        <button class="nav-down-btn absolute bottom-6 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">Contact</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
       </section>
     )}
