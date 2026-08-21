@@ -298,7 +298,7 @@
     audioEl.volume = userVolume;
     volumeSlider.value = userVolume.toString();
 
-    // Draggable Movability State
+    // Draggable Movability State with Pointer Events
     let hasMovedWidget = false;
     let isDragging = false;
     let startX = 0;
@@ -306,55 +306,44 @@
     let initialLeft = 0;
     let initialTop = 0;
 
-    function dragStart(e: any) {
-      if (e.type === 'mousedown' && e.button !== 0) return;
+    function onPointerDown(e: PointerEvent) {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
 
       isDragging = true;
       hasMovedWidget = false;
-
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-
-      startX = clientX;
-      startY = clientY;
+      startX = e.clientX;
+      startY = e.clientY;
 
       const rect = activeWidget.getBoundingClientRect();
       initialLeft = rect.left;
       initialTop = rect.top;
 
-      if (e.type === 'mousedown') {
-        document.addEventListener('mousemove', dragMove, { passive: false });
-        document.addEventListener('mouseup', dragEnd);
-      } else {
-        document.addEventListener('touchmove', dragMove, { passive: false });
-        document.addEventListener('touchend', dragEnd);
-        document.addEventListener('touchcancel', dragEnd);
-      }
+      try {
+        toggleBtn.setPointerCapture(e.pointerId);
+      } catch (err) {}
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
     }
 
-    function dragMove(e: any) {
+    function onPointerMove(e: PointerEvent) {
       if (!isDragging) return;
 
-      if (e.cancelable) {
-        e.preventDefault();
-      }
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
 
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-
-      const deltaX = clientX - startX;
-      const deltaY = clientY - startY;
-
-      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
         hasMovedWidget = true;
       }
 
       if (hasMovedWidget) {
-        // Float the widget on the first drag movement if it was docked
         if (activeWidget.classList.contains("docked")) {
           activeWidget.classList.remove("docked");
           activeWidget.classList.add("floating");
-          document.body.appendChild(activeWidget);
+          if (activeWidget.parentElement !== document.body) {
+            document.body.appendChild(activeWidget);
+          }
         }
 
         let newLeft = initialLeft + deltaX;
@@ -372,20 +361,20 @@
         newTop = Math.max(minY, Math.min(maxY, newTop));
 
         // Check snapping distance to footer placeholder
-        // Check snapping distance to footer placeholder
         const placeholder = document.getElementById("audio-widget-placeholder");
         const placeholderRing = placeholder?.querySelector(".placeholder-ring");
-        
+
         if (placeholder) {
           const pRect = placeholder.getBoundingClientRect();
+          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0;
           const distance = Math.hypot(newLeft - pRect.left, newTop - pRect.top);
-          if (distance < 55) {
+          
+          if (isPlaceholderVisible && distance < 65) {
             placeholderRing?.classList.add("snap-hover");
             // Visually snap
             newLeft = pRect.left;
             newTop = pRect.top;
             
-            // Visual expansion orientation
             activeWidget.classList.add("expand-up");
             activeWidget.classList.remove("expand-down");
             activeWidget.classList.add("align-right");
@@ -405,15 +394,17 @@
       }
     }
 
-    function dragEnd() {
+    function onPointerUp(e: PointerEvent) {
       if (!isDragging) return;
       isDragging = false;
 
-      document.removeEventListener('mousemove', dragMove);
-      document.removeEventListener('mouseup', dragEnd);
-      document.removeEventListener('touchmove', dragMove);
-      document.removeEventListener('touchend', dragEnd);
-      document.removeEventListener('touchcancel', dragEnd);
+      try {
+        toggleBtn.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
 
       const placeholder = document.getElementById("audio-widget-placeholder");
       const placeholderRing = placeholder?.querySelector(".placeholder-ring");
@@ -426,7 +417,8 @@
           const pRect = placeholder.getBoundingClientRect();
           const widgetRect = activeWidget.getBoundingClientRect();
           const distance = Math.hypot(widgetRect.left - pRect.left, widgetRect.top - pRect.top);
-          if (distance < 55 || isSnapHovered) {
+          const isPlaceholderVisible = pRect.top < window.innerHeight && pRect.bottom > 0;
+          if (isPlaceholderVisible && (distance < 65 || isSnapHovered)) {
             snapped = true;
           }
         }
@@ -440,8 +432,7 @@
     }
 
     // Attach dragging listeners to toggle button
-    toggleBtn.addEventListener('mousedown', dragStart);
-    toggleBtn.addEventListener('touchstart', dragStart, { passive: false });
+    toggleBtn.addEventListener('pointerdown', onPointerDown);
 
     // Toggle expanded panel (prevented if dragged)
     toggleBtn.addEventListener("click", (e) => {
@@ -639,13 +630,17 @@
 
   /* Position when docked in placeholder */
   .audio-widget-wrapper.docked {
-    position: relative;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
     z-index: 10;
   }
 
   /* Position when floating */
   .audio-widget-wrapper.floating {
-    position: fixed;
+    position: fixed !important;
     z-index: 100;
   }
 
