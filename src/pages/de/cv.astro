@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CvDocument from '../../components/CvDocument.astro';
+import { getCvData } from '../../lib/sanity';
+import { useTranslations } from '../../i18n/utils';
+
+const cvData = await getCvData('de');
+const t = useTranslations('de');
+const pageTitle = `${cvData.personalInfo.name} — Lebenslauf (CV)`;
+---
+
+<BaseLayout 
+  title={pageTitle} 
+  backgroundEffect="grid" 
+  accentColor="primary"
+  showFooter={true}
+>
+  <main class="min-h-screen pt-20 pb-16 flex justify-center">
+    <CvDocument cvData={cvData} locale="de" />
+  </main>
+</BaseLayout>
