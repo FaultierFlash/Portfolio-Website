@@ -11,7 +11,8 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "npm ci --legacy-peer-deps --prefix personal-website && npm run build --prefix personal-website && astro build",
+    "build": "npm ci --legacy-peer-deps --prefix personal-website && npm run build --prefix personal-website && astro build && node scripts/generate-cv-pdf.mjs",
+    "generate:pdf": "node scripts/generate-cv-pdf.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "lint": "eslint .",
@@ -42,6 +43,7 @@
     "jsdom": "^29.1.1",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
+    "puppeteer": "^25.8.0",
     "typescript": "^5.9.3"
   }
 }

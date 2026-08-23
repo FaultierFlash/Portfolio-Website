@@ -28,6 +28,14 @@ const items = [
     href: link.href,
     keywords: link.text.toLowerCase() + " page seite link navigation",
   })),
+  // CV Page
+  {
+    type: "page",
+    title: currentLocale === "de" ? "Lebenslauf (CV)" : "Curriculum Vitae (CV)",
+    subtitle: currentLocale === "de" ? "Lebenslauf ansehen & PDF drucken" : "View Curriculum Vitae & print PDF",
+    href: `/${currentLocale}/cv`,
+    keywords: "cv resume lebenslauf career erfahrung experience skills ausbildung pdf print",
+  },
   // Project Pages
   ...projectPages.map((proj) => ({
     type: "project",
