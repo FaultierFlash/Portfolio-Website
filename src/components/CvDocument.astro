@@ -73,14 +73,16 @@ const formatMd = (text: string) => {
     
     {/* Header Section */}
     <header class="border-b border-slate-200 dark:border-slate-800 pb-5 mb-5">
-      <div class="flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div class="space-y-1.5 flex-1">
-          <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="font-family: 'Raleway', sans-serif;">
-            {personalInfo.name}
-          </h1>
-          <p class="text-xs sm:text-sm font-bold text-[#FF7D1A] tracking-wide">
-            {personalInfo.title}
-          </p>
+      <div class="flex flex-col-reverse sm:flex-row items-start sm:items-stretch justify-between gap-4">
+        <div class="space-y-1.5 flex-1 flex flex-col justify-between">
+          <div>
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="font-family: 'Raleway', sans-serif;">
+              {personalInfo.name}
+            </h1>
+            <p class="text-xs sm:text-sm font-bold text-[#FF7D1A] tracking-wide mt-0.5">
+              {personalInfo.title}
+            </p>
+          </div>
           
           {/* Contact Metadata Bar */}
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
@@ -112,12 +114,12 @@ const formatMd = (text: string) => {
         {/* Profile Photo */}
         {(personalInfo.photoDataUri || personalInfo.photo) ? (
           <img 
-            src={personalInfo.photoDataUri || urlFor(personalInfo.photo).width(200).height(200).auto('format').quality(90).url()} 
+            src={personalInfo.photoDataUri || urlFor(personalInfo.photo).width(300).height(300).auto('format').quality(90).url()} 
             alt={personalInfo.name}
-            class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border-2 border-slate-300 dark:border-slate-700 shadow-md shrink-0"
+            class="w-24 h-24 sm:w-28 sm:h-28 md:w-[108px] md:h-[108px] rounded-xl object-cover border-2 border-slate-300 dark:border-slate-700 shadow-md shrink-0 self-center sm:self-auto aspect-square"
           />
         ) : (
-          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black text-xl shadow-md shrink-0">
+          <div class="w-24 h-24 sm:w-28 sm:h-28 md:w-[108px] md:h-[108px] rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black text-2xl shadow-md shrink-0 self-center sm:self-auto aspect-square">
             MM
           </div>
         )}
