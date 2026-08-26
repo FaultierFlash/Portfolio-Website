@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer';
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,7 +88,7 @@ async function main() {
 
   // 2. Launch Puppeteer
   console.log('🌐 Launching Headless Chromium...');
-  const browser = await puppeteer.launch({
+  const puppeteerOptions = {
     headless: true,
     args: [
       '--no-sandbox',
@@ -96,7 +96,22 @@ async function main() {
       '--disable-dev-shm-usage',
       '--disable-gpu',
     ],
-  });
+  };
+
+  let browser;
+  try {
+    browser = await puppeteer.launch(puppeteerOptions);
+  } catch (err) {
+    if (err.message && (err.message.includes('Could not find Chrome') || err.message.includes('BrowserFetcher') || err.message.includes('executablePath'))) {
+      console.log('📦 Chromium binary not found in cache. Installing Chrome for Puppeteer...');
+      const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+      execSync(`${cmd} puppeteer browsers install chrome`, { stdio: 'inherit', cwd: rootDir });
+      console.log('✅ Chrome installed successfully. Retrying browser launch...');
+      browser = await puppeteer.launch(puppeteerOptions);
+    } else {
+      throw err;
+    }
+  }
 
   const publicDir = path.join(rootDir, 'public');
   const distClientDir = path.join(rootDir, 'dist', 'client');
