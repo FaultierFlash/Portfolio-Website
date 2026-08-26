@@ -11,13 +11,13 @@ const rootDir = path.resolve(__dirname, '..');
 async function isServerRunning(url) {
   try {
     const res = await fetch(url);
-    return res.ok || res.status === 200 || res.status === 302 || res.status === 404;
+    return res.ok || res.status === 200 || res.status === 302;
   } catch {
     return false;
   }
 }
 
-async function waitForServer(url, timeoutMs = 30000) {
+async function waitForServer(url, timeoutMs = 35000) {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
     if (await isServerRunning(url)) {
@@ -31,28 +31,47 @@ async function waitForServer(url, timeoutMs = 30000) {
 async function main() {
   console.log('🚀 Starting Build-Time Vector PDF Generation...');
 
+  const host = process.env.HOST || '127.0.0.1';
   const port = process.env.PORT || 4321;
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://${host}:${port}`;
   let serverProcess = null;
+  let serverLogs = '';
 
-  // 1. Check if Astro dev/preview server is already running on port
+  // 1. Check if Astro dev server is already running on port
   const running = await isServerRunning(`${baseUrl}/en/cv`);
   if (!running) {
-    console.log(`📡 Starting local Astro server on ${baseUrl}...`);
-    // Determine whether to run dev or preview depending on whether dist exists
-    const hasDist = fs.existsSync(path.join(rootDir, 'dist'));
+    console.log(`📡 Starting local Astro dev server on ${baseUrl}...`);
     const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    const args = hasDist ? ['astro', 'preview', '--port', String(port)] : ['astro', 'dev', '--port', String(port)];
+    const args = ['astro', 'dev', '--host', host, '--port', String(port)];
 
     serverProcess = spawn(cmd, args, {
       cwd: rootDir,
-      stdio: 'pipe',
+      stdio: ['ignore', 'pipe', 'pipe'],
       shell: true,
     });
 
-    const isReady = await waitForServer(`${baseUrl}/en/cv`, 35000);
+    serverProcess.stdout?.on('data', (data) => {
+      const text = data.toString();
+      serverLogs += text;
+      if (process.env.DEBUG) process.stdout.write(`[astro] ${text}`);
+    });
+
+    serverProcess.stderr?.on('data', (data) => {
+      const text = data.toString();
+      serverLogs += text;
+      process.stderr.write(`[astro-err] ${text}`);
+    });
+
+    serverProcess.on('error', (err) => {
+      console.error('❌ Failed to spawn Astro server process:', err);
+    });
+
+    const isReady = await waitForServer(`${baseUrl}/en/cv`, 40000);
     if (!isReady) {
       if (serverProcess) serverProcess.kill();
+      console.error('--- Astro Server Logs ---');
+      console.error(serverLogs || '(No output recorded from server)');
+      console.error('-------------------------');
       throw new Error(`Failed to connect to Astro server on ${baseUrl} within timeout.`);
     }
     console.log('✅ Astro server is ready!');
@@ -64,7 +83,12 @@ async function main() {
   console.log('🌐 Launching Headless Chromium...');
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+    ],
   });
 
   const publicDir = path.join(rootDir, 'public');
@@ -93,11 +117,11 @@ async function main() {
       const page = await browser.newPage();
 
       await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 2 });
-      await page.goto(target.url, { waitUntil: 'networkidle0', timeout: 30000 });
+      await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       // Wait for fonts & DOM stability
       await page.evaluateHandle('document.fonts.ready');
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 800));
 
       // Emulate print media for pure vector CSS output
       await page.emulateMediaType('print');
@@ -113,7 +137,7 @@ async function main() {
 
       console.log(`✅ Saved: public/${target.filename}`);
 
-      // If dist/client exists (post-build), copy to dist/client as well
+      // If dist/client exists (e.g. if run post-build), copy to dist/client as well
       if (fs.existsSync(distClientDir)) {
         const outDistPath = path.join(distClientDir, target.filename);
         fs.copyFileSync(outPublicPath, outDistPath);
