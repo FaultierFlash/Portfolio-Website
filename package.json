@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "npm ci --legacy-peer-deps --prefix personal-website && npm run build --prefix personal-website && astro build && node scripts/generate-cv-pdf.mjs",
+    "build": "npm ci --legacy-peer-deps --prefix personal-website && npm run build --prefix personal-website && node scripts/generate-cv-pdf.mjs && astro build",
     "generate:pdf": "node scripts/generate-cv-pdf.mjs",
     "preview": "astro preview",
     "astro": "astro",
