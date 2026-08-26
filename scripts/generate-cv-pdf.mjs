@@ -48,6 +48,7 @@ async function main() {
       cwd: rootDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true,
+      detached: process.platform !== 'win32',
     });
 
     serverProcess.stdout?.on('data', (data) => {
@@ -147,14 +148,32 @@ async function main() {
       await page.close();
     }
   } finally {
-    await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {}
+    }
     if (serverProcess) {
       console.log('🛑 Stopping temporary Astro server...');
-      serverProcess.kill();
+      try {
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+        } else {
+          // Kill process group on Linux/macOS
+          try {
+            process.kill(-serverProcess.pid, 'SIGKILL');
+          } catch {
+            serverProcess.kill('SIGKILL');
+          }
+        }
+      } catch (e) {
+        console.warn('Warning when stopping Astro server:', e.message);
+      }
     }
   }
 
   console.log('🎉 Vector PDF generation complete!');
+  process.exit(0);
 }
 
 main().catch((err) => {
