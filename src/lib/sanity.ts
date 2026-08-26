@@ -281,7 +281,7 @@ export async function getCvData(locale: string = 'en') {
       photo: rawPhoto,
       photoDataUri: photoDataUri,
     },
-    experience: (data?.experience && data.experience.length > 0) ? data.experience.map((item: any) => ({
+    experience: (cv?.experience && cv.experience.length > 0) ? cv.experience.map((item: any) => ({
       role: isDe ? (item.roleDe || item.roleEn) : (item.roleEn || item.roleDe),
       company: item.company,
       period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),
@@ -334,7 +334,7 @@ export async function getCvData(locale: string = 'en') {
         ]
       }
     ],
-    education: (data?.education && data.education.length > 0) ? data.education.map((item: any) => ({
+    education: (cv?.education && cv.education.length > 0) ? cv.education.map((item: any) => ({
       degree: isDe ? (item.degreeDe || item.degreeEn) : (item.degreeEn || item.degreeDe),
       institution: item.institution,
       period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),
@@ -368,13 +368,13 @@ export async function getCvData(locale: string = 'en') {
       }
     ],
     skills: {
-      coding: data?.skills?.coding || ['C', 'Python', 'SQL', 'LaTeX'],
-      webDev: data?.skills?.webDev || ['Astro (JS/TS, CSS, HTML)', 'Git / GitHub', 'Netlify Client', 'Sanity CMS', 'Resend API'],
-      engineeringCad: data?.skills?.engineeringCad || ['SolidWorks', 'Autodesk Inventor & Fusion'],
-      languages: (isDe ? data?.skills?.languagesDe : data?.skills?.languagesEn) || 
+      coding: (cv?.skills?.coding && cv.skills.coding.length > 0) ? cv.skills.coding : ['C', 'Python', 'SQL', 'LaTeX'],
+      webDev: (cv?.skills?.webDev && cv.skills.webDev.length > 0) ? cv.skills.webDev : ['Astro (JS/TS, CSS, HTML)', 'Git / GitHub', 'Netlify Client', 'Sanity CMS', 'Resend API'],
+      engineeringCad: (cv?.skills?.engineeringCad && cv.skills.engineeringCad.length > 0) ? cv.skills.engineeringCad : ['SolidWorks', 'Autodesk Inventor & Fusion'],
+      languages: (isDe ? (cv?.skills?.languagesDe || cv?.skills?.languagesEn) : (cv?.skills?.languagesEn || cv?.skills?.languagesDe)) || 
                  (isDe ? ['Deutsch: Muttersprache', 'Englisch: C2', 'Mandarin Chinesisch: A2'] : ['German: Native', 'English: C2', 'Mandarin Chinese: A2']),
     },
-    volunteering: (data?.volunteering && data.volunteering.length > 0) ? data.volunteering.map((item: any) => ({
+    volunteering: (cv?.volunteering && cv.volunteering.length > 0) ? cv.volunteering.map((item: any) => ({
       role: isDe ? (item.roleDe || item.roleEn) : (item.roleEn || item.roleDe),
       organization: item.organization,
       period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),

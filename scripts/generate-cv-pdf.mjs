@@ -8,24 +8,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
-async function isServerRunning(url) {
+async function checkUrl(url) {
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
     return res.ok || res.status === 200 || res.status === 302;
   } catch {
     return false;
   }
 }
 
-async function waitForServer(url, timeoutMs = 35000) {
+async function findWorkingBaseUrl(port) {
+  if (await checkUrl(`http://127.0.0.1:${port}/en/cv`)) return `http://127.0.0.1:${port}`;
+  if (await checkUrl(`http://localhost:${port}/en/cv`)) return `http://localhost:${port}`;
+  return null;
+}
+
+async function waitForWorkingServer(port, timeoutMs = 35000) {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
-    if (await isServerRunning(url)) {
-      return true;
-    }
+    const working = await findWorkingBaseUrl(port);
+    if (working) return working;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return false;
+  return null;
 }
 
 async function main() {
@@ -33,14 +38,13 @@ async function main() {
 
   const host = process.env.HOST || '127.0.0.1';
   const port = process.env.PORT || 4321;
-  const baseUrl = `http://${host}:${port}`;
   let serverProcess = null;
   let serverLogs = '';
 
   // 1. Check if Astro dev server is already running on port
-  const running = await isServerRunning(`${baseUrl}/en/cv`);
-  if (!running) {
-    console.log(`📡 Starting local Astro dev server on ${baseUrl}...`);
+  let activeBaseUrl = await findWorkingBaseUrl(port);
+  if (!activeBaseUrl) {
+    console.log(`📡 Starting local Astro dev server on http://${host}:${port}...`);
     const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
     const args = ['astro', 'dev', '--host', host, '--port', String(port)];
 
@@ -67,18 +71,20 @@ async function main() {
       console.error('❌ Failed to spawn Astro server process:', err);
     });
 
-    const isReady = await waitForServer(`${baseUrl}/en/cv`, 40000);
-    if (!isReady) {
+    activeBaseUrl = await waitForWorkingServer(port, 40000);
+    if (!activeBaseUrl) {
       if (serverProcess) serverProcess.kill();
       console.error('--- Astro Server Logs ---');
       console.error(serverLogs || '(No output recorded from server)');
       console.error('-------------------------');
-      throw new Error(`Failed to connect to Astro server on ${baseUrl} within timeout.`);
+      throw new Error(`Failed to connect to Astro server on port ${port} within timeout.`);
     }
-    console.log('✅ Astro server is ready!');
+    console.log(`✅ Astro server is ready at ${activeBaseUrl}!`);
   } else {
-    console.log(`✅ Detected running server on ${baseUrl}`);
+    console.log(`✅ Detected running server on ${activeBaseUrl}`);
   }
+
+  const baseUrl = activeBaseUrl;
 
   // 2. Launch Puppeteer
   console.log('🌐 Launching Headless Chromium...');
