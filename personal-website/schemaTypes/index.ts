@@ -5,9 +5,10 @@ import { book } from './book'
 import librarySettings from './librarySettings'
 import notesSettings from './notesSettings'
 import socialsSettings from './socialsSettings'
+import cvSettings from './cvSettings'
 import { legalPage } from './legalPage'
 import { labEntry } from './labEntry'
 
-export const schemaTypes = [translationOverride, project, homePage, book, librarySettings, notesSettings, socialsSettings, legalPage, labEntry]
+export const schemaTypes = [translationOverride, project, homePage, book, librarySettings, notesSettings, socialsSettings, cvSettings, legalPage, labEntry]
 
 

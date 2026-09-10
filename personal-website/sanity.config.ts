@@ -50,10 +50,18 @@ export default defineConfig({
                   .schemaType('notesSettings')
                   .documentId('notesSettings')
               ),
+            S.listItem()
+              .title('CV & Resume Settings')
+              .id('cvSettings')
+              .child(
+                S.document()
+                  .schemaType('cvSettings')
+                  .documentId('cvSettings')
+              ),
             S.divider(),
             ...S.documentTypeListItems().filter(
               (listItem) =>
-                !['homePage', 'librarySettings', 'socialsSettings', 'notesSettings'].includes(listItem.getId() || '')
+                !['homePage', 'librarySettings', 'socialsSettings', 'notesSettings', 'cvSettings'].includes(listItem.getId() || '')
             ),
           ]),
     }),
