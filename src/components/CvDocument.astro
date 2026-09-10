@@ -1,0 +1,409 @@
+---
+import { marked } from 'marked';
+import { urlFor } from '../lib/sanity';
+
+interface Props {
+  cvData: any;
+  locale: 'en' | 'de';
+}
+
+const { cvData, locale } = Astro.props;
+const isDe = locale === 'de';
+const { personalInfo, experience, education, skills, volunteering, mode, manualPdfUrl } = cvData;
+
+const downloadUrl = (mode === 'manual' && manualPdfUrl) ? manualPdfUrl : null;
+
+// Markdown inline helper for bold, italic, code, links
+const formatMd = (text: string) => {
+  if (!text) return '';
+  return marked.parseInline(text);
+};
+---
+
+<div class="cv-wrapper w-full flex flex-col items-center py-6 sm:py-10 px-4 sm:px-6">
+  
+  {/* Action Bar */}
+  <div class="cv-action-bar w-full max-w-[210mm] flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <div>
+      <h2 class="text-lg sm:text-xl font-black heading-font text-slate-900 dark:text-white">
+        {isDe ? 'Lebenslauf Vorschau' : 'Curriculum Vitae Preview'}
+      </h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400">
+        {isDe ? 'Standard A4-Format · 100% Nativer Vektor-Export' : 'Standard A4 Format · 100% Native Vector Export'}
+      </p>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      {manualPdfUrl && (
+        <a 
+          href={manualPdfUrl} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          <span>{isDe ? 'Original-PDF (Sanity)' : 'Original PDF (Sanity)'}</span>
+        </a>
+      )}
+
+      <a 
+        id="cv-download-btn"
+        href={downloadUrl || (isDe ? '/Marlon_Hendrik_Mueller_Lebenslauf.pdf' : '/Marlon_Hendrik_Mueller_CV.pdf')}
+        download={isDe ? 'Marlon_Hendrik_Mueller_Lebenslauf.pdf' : 'Marlon_Hendrik_Mueller_CV.pdf'}
+        class="px-5 py-2.5 rounded-xl bg-[#FF7D1A] hover:bg-[#ff8f38] text-white text-xs sm:text-sm font-bold shadow-lg shadow-[#FF7D1A]/20 transition-all flex items-center gap-2 cursor-pointer transform hover:scale-[1.02] active:scale-95 no-underline"
+      >
+        <svg id="cv-download-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span id="cv-download-text">{isDe ? 'PDF herunterladen' : 'Download PDF'}</span>
+      </a>
+
+      <button
+        id="cv-print-btn"
+        type="button"
+        title={isDe ? 'Drucken' : 'Print'}
+        class="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center cursor-pointer shadow-sm"
+        onclick="window.print()"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      </button>
+    </div>
+  </div>
+
+  {/* A4 Sheet Container */}
+  <div id="cv-printable-sheet" class="cv-sheet w-full max-w-[210mm] min-h-[297mm] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl sm:rounded-2xl shadow-xl dark:shadow-2xl overflow-hidden p-6 sm:p-9 md:p-11 text-slate-900 dark:text-slate-100 transition-colors">
+    
+    {/* Header Section */}
+    <header class="border-b border-slate-200 dark:border-slate-800 pb-5 mb-5">
+      <div class="flex flex-col-reverse sm:flex-row items-start sm:items-stretch justify-between gap-4">
+        <div class="space-y-1.5 flex-1 flex flex-col justify-between">
+          <div>
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="font-family: 'Raleway', sans-serif;">
+              {personalInfo.name}
+            </h1>
+            <p class="text-xs sm:text-sm font-bold text-[#FF7D1A] tracking-wide mt-0.5">
+              {personalInfo.title}
+            </p>
+          </div>
+          
+          {/* Contact Metadata Bar */}
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
+            <span class="inline-flex items-center gap-1.5">
+              <svg width="14" height="14" class="text-slate-400 dark:text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              {personalInfo.location}
+            </span>
+            <a href={`mailto:${personalInfo.email}`} class="inline-flex items-center gap-1.5 hover:text-[#FF7D1A] transition-colors">
+              <svg width="14" height="14" class="text-slate-400 dark:text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+              {personalInfo.email}
+            </a>
+            <span class="inline-flex items-center gap-1.5">
+              <svg width="14" height="14" class="text-slate-400 dark:text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+              {personalInfo.phone}
+            </span>
+            <a href={`https://${personalInfo.website}`} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 hover:text-[#FF7D1A] transition-colors">
+              <svg width="14" height="14" class="text-slate-400 dark:text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              {personalInfo.website}
+            </a>
+            {personalInfo.linkedin && (
+              <a href={personalInfo.linkedin} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 hover:text-[#FF7D1A] transition-colors">
+                <svg width="14" height="14" class="text-slate-400 dark:text-slate-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                LinkedIn
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Profile Photo */}
+        {(personalInfo.photoDataUri || personalInfo.photo) ? (
+          <img 
+            src={personalInfo.photoDataUri || urlFor(personalInfo.photo).width(300).height(300).auto('format').quality(90).url()} 
+            alt={personalInfo.name}
+            class="w-24 h-24 sm:w-28 sm:h-28 md:w-[108px] md:h-[108px] rounded-xl object-cover border-2 border-slate-300 dark:border-slate-700 shadow-md shrink-0 self-center sm:self-auto aspect-square"
+          />
+        ) : (
+          <div class="w-24 h-24 sm:w-28 sm:h-28 md:w-[108px] md:h-[108px] rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black text-2xl shadow-md shrink-0 self-center sm:self-auto aspect-square">
+            MM
+          </div>
+        )}
+      </div>
+    </header>
+
+    {/* Main 2-Column Grid */}
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+      
+      {/* Left Column (Skills, Education, Languages) - 5 cols */}
+      <div class="md:col-span-5 space-y-5">
+        
+        {/* Skills & Toolchain */}
+        <section class="space-y-3">
+          <h2 class="text-xs font-black tracking-widest uppercase text-[#FF7D1A] flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+            <svg width="14" height="14" class="text-[#FF7D1A] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+            {isDe ? 'Fähigkeiten & Tools' : 'Skills & Toolchain'}
+          </h2>
+          
+          <div class="space-y-2.5 text-xs">
+            <div>
+              <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                {isDe ? 'Programmierung:' : 'Coding & Computation:'}
+              </span>
+              <div class="flex flex-wrap gap-1.5">
+                {skills.coding?.map((skill: string) => (
+                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-[10.5px] font-semibold whitespace-nowrap leading-tight">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                {isDe ? 'Web & Systems:' : 'Web & Systems:'}
+              </span>
+              <div class="flex flex-wrap gap-1.5">
+                {skills.webDev?.map((skill: string) => (
+                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-[10.5px] font-semibold whitespace-nowrap leading-tight">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                {isDe ? 'CAD & Engineering:' : 'CAD & Engineering:'}
+              </span>
+              <div class="flex flex-wrap gap-1.5">
+                {skills.engineeringCad?.map((skill: string) => (
+                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-[10.5px] font-semibold whitespace-nowrap leading-tight">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                {isDe ? 'Sprachen:' : 'Languages:'}
+              </span>
+              <div class="flex flex-wrap gap-1.5">
+                {skills.languages?.map((langItem: string) => (
+                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 text-[10px] whitespace-nowrap leading-tight">
+                    {langItem}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Education Section */}
+        <section class="space-y-3">
+          <h2 class="text-xs font-black tracking-widest uppercase text-[#FF7D1A] flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+            <svg width="14" height="14" class="text-[#FF7D1A] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+            {isDe ? 'Ausbildung' : 'Education'}
+          </h2>
+
+          <div class="space-y-3">
+            {education?.map((item: any) => (
+              <div class="space-y-1 text-xs">
+                <div class="flex items-baseline justify-between gap-1">
+                  <h3 class="font-bold text-slate-900 dark:text-slate-200">{item.degree}</h3>
+                  <span class="text-[10px] text-slate-500 font-medium whitespace-nowrap shrink-0">{item.period}</span>
+                </div>
+                <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">{item.institution}</p>
+                {item.details && item.details.length > 0 && (
+                  <ul class="list-disc list-outside ml-3.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {item.details.map((detail: string) => (
+                      <li><span set:html={formatMd(detail)} /></li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
+
+      {/* Right Column (Experience & Volunteering) - 7 cols */}
+      <div class="md:col-span-7 space-y-5">
+        
+        {/* Practical Experience Section */}
+        <section class="space-y-3">
+          <h2 class="text-xs font-black tracking-widest uppercase text-[#FF7D1A] flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+            <svg width="14" height="14" class="text-[#FF7D1A] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            {isDe ? 'Praktische Erfahrung' : 'Practical Experience'}
+          </h2>
+
+          <div class="space-y-3.5">
+            {experience?.map((item: any) => (
+              <div class="space-y-1 text-xs">
+                <div class="flex items-baseline justify-between gap-1">
+                  <h3 class="font-bold text-slate-900 dark:text-slate-200">
+                    {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.company}</span>
+                  </h3>
+                  <span class="text-[10px] text-slate-500 font-medium whitespace-nowrap shrink-0">{item.period}</span>
+                </div>
+                {item.highlights && item.highlights.length > 0 && (
+                  <ul class="list-disc list-outside ml-3.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {item.highlights.map((highlight: string) => (
+                      <li><span set:html={formatMd(highlight)} /></li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Volunteering Section */}
+        <section class="space-y-3">
+          <h2 class="text-xs font-black tracking-widest uppercase text-[#FF7D1A] flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+            <svg width="14" height="14" class="text-[#FF7D1A] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+            {isDe ? 'Engagement & Führung' : 'Volunteering & Leadership'}
+          </h2>
+
+          <div class="space-y-3">
+            {volunteering?.map((item: any) => (
+              <div class="space-y-1 text-xs">
+                <div class="flex items-baseline justify-between gap-1">
+                  <h3 class="font-bold text-slate-900 dark:text-slate-200">
+                    {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.organization}</span>
+                  </h3>
+                  <span class="text-[10px] text-slate-500 font-medium whitespace-nowrap shrink-0">{item.period}</span>
+                </div>
+                {item.details && item.details.length > 0 && (
+                  <ul class="list-disc list-outside ml-3.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {item.details.map((detail: string) => (
+                      <li><span set:html={formatMd(detail)} /></li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<style>
+  /* --- Native Browser Print & Vector PDF Export Rules --- */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    /* Suppress site header, footer, background canvases, and action bar */
+    :global(#main-header),
+    :global(.top-bar),
+    :global(footer),
+    :global(.site-footer),
+    :global(.dynamic-bg-container),
+    :global(.dynamic-bg-canvas),
+    :global(#command-palette-modal),
+    :global(#audio-player-widget),
+    .cv-action-bar {
+      display: none !important;
+    }
+
+    :global(html), :global(body) {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: visible !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    :global(main) {
+      padding: 0 !important;
+      margin: 0 !important;
+      display: block !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: visible !important;
+    }
+
+    .cv-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      max-width: 210mm !important;
+      overflow: visible !important;
+    }
+
+    .cv-sheet {
+      width: 210mm !important;
+      height: 297mm !important;
+      min-height: 297mm !important;
+      max-width: 210mm !important;
+      margin: 0 !important;
+      padding: 12mm 15mm 10mm 15mm !important;
+      box-sizing: border-box !important;
+      background: #ffffff !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      color: #0f172a !important;
+      overflow: visible !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      transform: none !important;
+    }
+
+    header {
+      border-bottom: 1.5px solid #e2e8f0 !important;
+      padding-bottom: 1rem !important;
+      margin-bottom: 1.25rem !important;
+    }
+
+    h1, h2, h3 {
+      color: #0f172a !important;
+      font-family: 'Raleway', sans-serif !important;
+    }
+
+    h2 {
+      color: #ea580c !important;
+      border-bottom: 1.5px solid #e2e8f0 !important;
+      padding-bottom: 0.25rem !important;
+    }
+
+    h2 svg {
+      color: #ea580c !important;
+    }
+
+    p, span, li, a {
+      color: #334155 !important;
+    }
+
+    a[href] {
+      color: #ea580c !important;
+      text-decoration: none !important;
+    }
+
+    span.bg-slate-100,
+    span.bg-slate-50 {
+      background-color: #f1f5f9 !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    strong {
+      color: #0f172a !important;
+      font-weight: 700 !important;
+    }
+  }
+</style>
