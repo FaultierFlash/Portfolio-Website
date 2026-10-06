@@ -39,10 +39,13 @@ const overrides = await getTranslationOverrides(currentLocale);
 const t = useTranslations(currentLocale, overrides);
 
 // Fallback values if not provided by the page
+const brandName = "Marlon Müller";
 const defaultTitle = t("site.title");
 const defaultDescription = t("site.description");
 
-const pageTitle = propTitle && propTitle !== defaultTitle ? `${propTitle} | ${defaultTitle}` : defaultTitle;
+const pageTitle = propTitle && propTitle !== defaultTitle && propTitle !== brandName
+  ? `${propTitle} | ${brandName}`
+  : defaultTitle;
 const pageDescription = propDescription || defaultDescription;
 
 // Color map for CSS custom property injection
@@ -107,6 +110,8 @@ const sameAsLinks = [
   socials?.github?.enabled ? socials.github.url : null,
   socials?.linkedin?.enabled ? socials.linkedin.url : null,
   socials?.instagram?.enabled ? socials.instagram.url : null,
+  "https://odonatum.com",
+  "https://odonatum.com/team/",
 ].filter(Boolean);
 
 const personSchema = {
@@ -114,7 +119,37 @@ const personSchema = {
   "@type": "Person",
   "name": "Marlon Müller",
   "url": "https://marlonmueller.eu",
-  "jobTitle": "Developer & Creator",
+  "image": ogImage,
+  "jobTitle": currentLocale === "de" ? "Student der Ingenieurwissenschaften" : "Engineering Science Student",
+  "description": currentLocale === "de"
+    ? "Student der Ingenieurwissenschaften an der Technischen Universität München (TUM) und Mitgründer von Odonatum e.V."
+    : "Engineering Science student at the Technical University of Munich (TUM) and co-founder of Odonatum e.V.",
+  "alumniOf": {
+    "@type": "CollegeOrUniversity",
+    "name": "Technical University of Munich",
+    "alternateName": "TUM",
+    "url": "https://www.tum.de"
+  },
+  "memberOf": [
+    {
+      "@type": "Organization",
+      "name": "Odonatum e.V.",
+      "url": "https://odonatum.com"
+    },
+    {
+      "@type": "Organization",
+      "name": "Studienstiftung des deutschen Volkes",
+      "url": "https://www.studienstiftung.de"
+    }
+  ],
+  "knowsAbout": [
+    "Engineering Science",
+    "Bio-inspired Robotics",
+    "UAV Design",
+    "Flight Dynamics",
+    "Hardware Prototyping",
+    "Embedded Systems"
+  ],
   "sameAs": sameAsLinks,
 };
 
@@ -125,6 +160,50 @@ const websiteSchema = {
   "url": "https://marlonmueller.eu",
   "inLanguage": ["en", "de"],
 };
+
+// Breadcrumb Schema
+const pathSegmentsClean = Astro.url.pathname.split("/").filter(Boolean);
+const breadcrumbItems = [
+  {
+    "@type": "ListItem",
+    "position": 1,
+    "name": currentLocale === "de" ? "Startseite" : "Home",
+    "item": `${siteUrl}/${currentLocale}/`,
+  }
+];
+
+if (pathSegmentsClean.length > 1) {
+  let accumulatedPath = `/${currentLocale}`;
+  for (let i = 1; i < pathSegmentsClean.length; i++) {
+    const seg = pathSegmentsClean[i];
+    accumulatedPath += `/${seg}`;
+    const isLast = i === pathSegmentsClean.length - 1;
+    let segName = seg.charAt(0).toUpperCase() + seg.slice(1);
+    if (isLast && propTitle) {
+      segName = propTitle;
+    } else if (seg === "projects") {
+      segName = currentLocale === "de" ? "Projekte" : "Projects";
+    } else if (seg === "library") {
+      segName = currentLocale === "de" ? "Bibliothek" : "Library";
+    } else if (seg === "contact") {
+      segName = currentLocale === "de" ? "Kontakt" : "Contact";
+    } else if (seg === "cv") {
+      segName = "CV";
+    }
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      "position": i + 1,
+      "name": segName,
+      "item": `${siteUrl}${accumulatedPath}`,
+    });
+  }
+}
+
+const breadcrumbSchema = breadcrumbItems.length > 1 ? {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbItems,
+} : null;
 ---
 
 <!doctype html>
@@ -146,6 +225,8 @@ const websiteSchema = {
     <title>{pageTitle}</title>
     <meta name="title" content={pageTitle} />
     <meta name="description" content={pageDescription} />
+    <meta name="author" content="Marlon Müller" />
+    <meta name="keywords" content="Marlon Müller, TUM, Technical University of Munich, Technische Universität München, Engineering Science, Ingenieurwissenschaften, Odonatum, Circon, Photeia, Student, Portfolio" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -173,6 +254,9 @@ const websiteSchema = {
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json" set:html={JSON.stringify(personSchema)} />
     <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
+    {breadcrumbSchema && (
+      <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    )}
     
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
@@ -235,29 +319,15 @@ const websiteSchema = {
             `Switch to ${currentTheme === "dark" ? "light" : "dark"} theme`,
           );
         }
-        console.log(
-          "BaseLayout: Applied theme consistency on page load/transition:",
-          currentTheme,
-        );
       }
 
       function reinitializeBaseLayoutForTheme() {
-        console.log(
-          "BaseLayout: astro:page-load triggered. Applying theme consistency.",
-        );
         applyBaseLayoutThemeConsistency();
       }
 
       document.addEventListener(
         "astro:page-load",
         reinitializeBaseLayoutForTheme,
-      );
-
-      // No astro:before-swap cleanup needed in BaseLayout for theme, as ThemeToggle handles its own listeners,
-      // and applyBaseLayoutThemeConsistency just reads state and sets attributes/classes.
-
-      console.log(
-        "BaseLayout Script: Initialized for theme consistency. Waiting for Astro lifecycle events.",
       );
     </script>
   </body>

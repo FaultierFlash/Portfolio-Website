@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Marlon Müller Portfolio",
+  "url": "https://marlonmueller.eu",
+  "description": "Personal portfolio and academic trajectory of Marlon Müller – Engineering Science student at the Technical University of Munich (TUM) and Co-Founder of Odonatum e.V.",
+  "author": {
+    "name": "Marlon Müller",
+    "role": "Engineering Science Student & UAV Researcher",
+    "affiliation": "Technical University of Munich (TUM)",
+    "email": "contact via https://marlonmueller.eu/en/contact"
+  },
+  "languages": ["en", "de"],
+  "categories": [
+    "Engineering Science",
+    "Robotics",
+    "Bio-inspired UAVs",
+    "Software & Prototyping",
+    "Student Portfolio"
+  ],
+  "pages": [
+    {
+      "url": "https://marlonmueller.eu/en/",
+      "title": "Home - Marlon Müller",
+      "description": "Main landing page with interactive timeline, academic milestones at TUM, and featured engineering projects.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/de/",
+      "title": "Startseite - Marlon Müller",
+      "description": "Startseite mit interaktivem Zeitstrahl, akademischen Meilensteinen an der TUM und Projekten.",
+      "language": "de"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/cv",
+      "title": "Curriculum Vitae",
+      "description": "Academic CV, education at TUM, honors, scholarships, and volunteer work.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/projects",
+      "title": "Projects",
+      "description": "Directory of engineering and research projects including Odonatum, Circon, and Photeia.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/projects/odonatum",
+      "title": "Odonatum UAV",
+      "description": "Bio-inspired flapping-wing unmanned aerial vehicle inspired by dragonfly kinematics, founded at TUM.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/projects/circon",
+      "title": "Circon - Smart Recycling",
+      "description": "Smart textile recycling platform built during TUM Think.Make.Start Batch #20.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/projects/photeia",
+      "title": "Photeia - Biochemical Photovoltaics",
+      "description": "Biochemical photovoltaic cell utilizing recycled LCD screen components (Jugend forscht 2024).",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/library",
+      "title": "Library",
+      "description": "Curated reading archive and reference materials.",
+      "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/en/contact",
+      "title": "Contact Terminal",
+      "description": "Interactive web terminal interface for direct inquiries.",
+      "language": "en"
+    }
+  ]
+}

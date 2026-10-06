@@ -1,4 +1,4 @@
 ---
 // src/pages/index.astro
-return Astro.redirect(`/${(Astro.request.headers.get('accept-language') || '').toLowerCase().includes('de') ? 'de' : 'en'}/`);
+return Astro.redirect(`/${(Astro.request.headers.get('accept-language') || '').toLowerCase().includes('de') ? 'de' : 'en'}/`, 301);
 ---
