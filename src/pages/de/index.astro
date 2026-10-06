@@ -242,7 +242,7 @@ timelineItems.forEach((item: any, itemIdx: number) => {
         item.milestoneEvents.forEach((evt: any, evtIdx: number) => {
             const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
             const subWidgetDesc = evt.description || evt.relatedProject?.description;
-            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
             const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
             const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
             
@@ -564,7 +564,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
                     const widgetTitle = item.title;
                     const widgetDesc = item.description || item.relatedProject?.description;
-                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? `${item.title} ansehen` : `View ${item.title}`) : '');
                     const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
 
                     const isTopHalf = item.verticalPosition === 'far-above' || item.verticalPosition === 'above' || (!item.verticalPosition && isDuration);
@@ -709,7 +709,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                             const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                             const subWidgetTitle = evt.title;
                             const subWidgetDesc = evt.description || evt.relatedProject?.description;
-                            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
                             const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                             const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
                             
@@ -939,7 +939,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
                     const widgetTitle = item.title;
                     const widgetDesc = item.description || item.relatedProject?.description;
-                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                    const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? `${item.title} ansehen` : `View ${item.title}`) : '');
                     const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
 
                     const mobileTimeframe = (() => {
@@ -953,7 +953,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                     return (
                         <div class={`mobile-timeline-card relative border-l-[3px] ${c.border} bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-lg transition-all flex flex-col gap-3`} data-timeline-idx={idx} data-title={item.title}>
-                            {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl"></a>}
+                            {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl" aria-label={lang === 'de' ? `Projekt ${item.title} ansehen` : `View ${item.title} project`}></a>}
                             
                             {widgetImage && (
                                 <img 
@@ -1001,7 +1001,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                         const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                                         const subWidgetDesc = evt.description || evt.relatedProject?.description;
-                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? 'Projekt ansehen' : 'View Project') : '');
+                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
                                         const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                                         
                                         const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
@@ -1009,7 +1009,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                                         return (
                                         <div class="mobile-milestone-card relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub" data-parent-idx={idx} data-milestone-idx={mIdx}>
-                                            {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl"></a>}
+                                            {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl" aria-label={lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`}></a>}
                                             {subWidgetImage && (
                                                 <img 
                                                     src={urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 
@@ -1154,6 +1154,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 <a 
                   href={`/${lang}/projects/${project.slug.current}`} 
                   class={`inline-block mt-1 md:mt-8 px-4 py-1.5 sm:px-6 sm:py-2.5 md:px-8 md:py-3 text-xs sm:text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
+                  aria-label={lang === 'de' ? `Projekt ${project.title} entdecken` : `Explore ${project.title} project`}
                 >
                   Projekt entdecken →
                 </a>
