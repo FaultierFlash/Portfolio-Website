@@ -1,40 +1,38 @@
 ---
-// projects.astro
 import Layout from "../../layouts/BaseLayout.astro";
 import ProjectWheel from "../../components/ProjectWheel/index.astro";
-
 import { getProjects, urlFor } from "../../lib/sanity";
 
-// Default/Fallback projects
 import projectImage1 from "../../assets/project3.jpg";
 import projectImage2 from "../../assets/project2.jpg";
 import projectImage3 from "../../assets/project1.jpg";
+
+const lang = Astro.currentLocale || "en";
 
 const defaultProjects = [
   {
     title: "Analytics Dashboard",
     description: "Real-time data visualization platform",
     image: projectImage1,
-    url: "/projects/analytics-dashboard",
+    url: `/${lang}/projects/analytics-dashboard`,
   },
   {
     title: "Blog Platform",
     description: "Modern content management system",
     image: projectImage2,
-    url: "/projects/blog-platform",
+    url: `/${lang}/projects/blog-platform`,
   },
   {
     title: "Community Forum",
     description: "Engagement-focused discussion board",
     image: projectImage3,
-    url: "/projects/community-forum",
+    url: `/${lang}/projects/community-forum`,
   },
 ];
 
-const lang = Astro.currentLocale || "en";
 const sanityProjectsData = await getProjects(lang);
 
-const sanityProjects = sanityProjectsData.map((p: any) => ({
+const sanityProjects = (sanityProjectsData || []).map((p: any) => ({
   title: p.title,
   description: p.description,
   image: { src: p.mainImage ? urlFor(p.mainImage).width(800).url() : "" },
@@ -56,7 +54,6 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
       </section>
     </div>
 
-    <!-- Project wheel component at the bottom -->
     <ProjectWheel projects={projects} />
   </div>
 </Layout>
@@ -83,8 +80,8 @@ const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
   }
 
   .content {
-    min-height: 20vh; /* Reduced from 100vh to show the wheel faster */
-    padding-bottom: 10vh; /* Reduced padding */
+    min-height: 20vh;
+    padding-bottom: 10vh;
   }
 
   section {

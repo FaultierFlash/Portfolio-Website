@@ -1,16 +1,17 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import { getBooks, getLibrarySettings } from "../../lib/sanity";
+import { getBooks, getLibrarySettings, getTranslationOverrides } from "../../lib/sanity";
 import BookArchive from "../../components/BookArchive.astro";
 
 const lang = Astro.currentLocale as Locale;
-const t = useTranslations(lang);
 
-const [books, settings] = await Promise.all([
+const [books, settings, overrides] = await Promise.all([
   getBooks(),
   getLibrarySettings(),
+  getTranslationOverrides(lang),
 ]);
+const t = useTranslations(lang, overrides);
 
 const rawTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
 const pageTitle = rawTitle ? rawTitle.replace(/Libary/g, 'Library').replace(/libary/g, 'library') : "Library";

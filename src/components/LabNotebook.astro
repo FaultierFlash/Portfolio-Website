@@ -157,7 +157,24 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 </script>
 
 <script>
+  import { escapeHtml } from "../lib/html";
+
+  let activeKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
+  let activeResizeHandler: (() => void) | null = null;
+
+  function cleanupLabNotebook() {
+    if (activeKeydownHandler) {
+      document.removeEventListener("keydown", activeKeydownHandler);
+      activeKeydownHandler = null;
+    }
+    if (activeResizeHandler) {
+      window.removeEventListener("resize", activeResizeHandler);
+      activeResizeHandler = null;
+    }
+  }
+
   function initLabNotebook() {
+    cleanupLabNotebook();
     const data = (window as any).__labNotebookData;
     if (!data || !data.entries.length) return;
 
@@ -167,12 +184,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
     const { entries, categoryConfig, labels } = data;
 
-    // Fisher-Yates shuffle
-    const shuffled = [...entries];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    // Preserve chronological order (newest first from Sanity)
+    const orderedEntries = [...entries];
 
     // DOM references
     const leftContent = document.getElementById("left-content")!;
@@ -238,7 +251,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       measureDiv.style.fontFamily = '"Georgia", serif';
       document.body.appendChild(measureDiv);
 
-      const paginatedEntries = shuffled.map((entry) => {
+      const paginatedEntries = orderedEntries.map((entry) => {
         // Collect images
         const imagesHTML = entry.processedImages && entry.processedImages.length > 0
           ? entry.processedImages
@@ -246,8 +259,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             .map(
               (img: any) => `
               <figure class="entry-figure">
-                <img src="${img.url}" alt="${img.alt}" loading="lazy" />
-                ${img.caption ? `<figcaption>${img.caption}</figcaption>` : ""}
+                <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt)}" loading="lazy" />
+                ${img.caption ? `<figcaption>${escapeHtml(img.caption)}</figcaption>` : ""}
               </figure>
             `
             )
@@ -284,17 +297,26 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             // Split paragraph by sentences if it exceeds the space
             if (elHeight > currentLimit) {
               if (el.tagName === "P") {
-                const sentences = el.innerHTML.split(/(?<=\. )/);
+                const tokens: Node[] = [];
+                el.childNodes.forEach((node) => {
+                  if (node.nodeType === Node.TEXT_NODE) {
+                    (node.textContent || "")
+                      .split(/(?<=\. )/)
+                      .filter(Boolean)
+                      .forEach((part) => tokens.push(document.createTextNode(part)));
+                  } else {
+                    tokens.push(node.cloneNode(true));
+                  }
+                });
                 let tempP = document.createElement("p");
                 measureDiv.innerHTML = "";
                 measureDiv.appendChild(tempP);
 
-                for (let sentence of sentences) {
-                  tempP.innerHTML += sentence;
-                  measureDiv.appendChild(tempP);
-                  if (tempP.offsetHeight > currentLimit - currentHeight) {
-                    tempP.innerHTML = tempP.innerHTML.substring(0, tempP.innerHTML.length - sentence.length);
-                    if (tempP.innerHTML.trim()) {
+                for (const token of tokens) {
+                  tempP.appendChild(token);
+                  if (tempP.offsetHeight > currentLimit - currentHeight && tempP.childNodes.length > 1) {
+                    tempP.removeChild(token);
+                    if (tempP.textContent?.trim() || tempP.children.length > 0) {
                       currentElements.push(tempP.cloneNode(true) as Element);
                     }
                     pages.push(currentElements.map((e) => e.outerHTML).join(""));
@@ -303,12 +325,12 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
                     currentLimit = normalMax;
 
                     tempP = document.createElement("p");
-                    tempP.innerHTML = sentence;
+                    tempP.appendChild(token);
                     measureDiv.innerHTML = "";
                     measureDiv.appendChild(tempP);
                   }
                 }
-                if (tempP.innerHTML.trim()) {
+                if (tempP.textContent?.trim() || tempP.children.length > 0) {
                   currentElements.push(tempP.cloneNode(true) as Element);
                   currentHeight = tempP.offsetHeight;
                 }
@@ -342,7 +364,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
       // TOC calculation
       const entriesPerPage = mobileMode ? 10 : 12;
-      const numTOCPages = Math.ceil(shuffled.length / entriesPerPage);
+      const numTOCPages = Math.ceil(orderedEntries.length / entriesPerPage);
       const tocPageCount = mobileMode ? numTOCPages : numTOCPages + (numTOCPages % 2 === 0 ? 0 : 1);
 
       let currentAbsolutePageNum = tocPageCount + 1;
@@ -390,7 +412,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       });
 
       // Build TOC entries map
-      const tocItems = shuffled.map((entry, idx) => ({
+      const tocItems = orderedEntries.map((entry, idx) => ({
         title: entry.title,
         date: formatTOCDate(entry.date),
         absolutePageNumber: entryStartPages[idx]
@@ -431,9 +453,9 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             (item: any) => `
             <li>
               <button class="toc-item-btn" data-page="${item.absolutePageNumber}">
-                <span class="toc-col-date">${item.date}</span>
-                <span class="toc-col-desc">${item.title}</span>
-                <span class="toc-col-page">${item.absolutePageNumber}</span>
+                <span class="toc-col-date">${escapeHtml(item.date)}</span>
+                <span class="toc-col-desc">${escapeHtml(item.title)}</span>
+                <span class="toc-col-page">${escapeHtml(item.absolutePageNumber)}</span>
               </button>
             </li>
           `
@@ -466,25 +488,25 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           : null;
 
         const tagsHTML = (entry.tags || [])
-          .map((tag: string) => `<span class="tag">#${tag}</span>`)
+          .map((tag: string) => `<span class="tag">#${escapeHtml(tag)}</span>`)
           .join("");
 
         const projectHTML = projectHref
           ? `
-          <a href="${projectHref}" class="project-link">
-            <span class="project-link-label">${labels.relatedProject}</span>
-            <span class="project-link-title">${entry.relatedProject.title} &rarr;</span>
+          <a href="${escapeHtml(projectHref)}" class="project-link">
+            <span class="project-link-label">${escapeHtml(labels.relatedProject)}</span>
+            <span class="project-link-title">${escapeHtml(entry.relatedProject.title)} &rarr;</span>
           </a>
         `
           : "";
 
         return `
           <div class="metadata-page">
-            <div class="entry-number">${labels.entryLabel} #${String(entry.entryNumber).padStart(3, "0")}</div>
-            <div class="entry-date">${formatDate(entry.date)}</div>
-            <div class="stamp" style="--stamp-color: ${cat.color}">
-              <span class="stamp-icon">${cat.icon}</span>
-              <span class="stamp-label">${cat.label}</span>
+            <div class="entry-number">${escapeHtml(labels.entryLabel)} #${escapeHtml(String(entry.entryNumber).padStart(3, "0"))}</div>
+            <div class="entry-date">${escapeHtml(formatDate(entry.date))}</div>
+            <div class="stamp" style="--stamp-color: ${escapeHtml(cat.color)}">
+              <span class="stamp-icon">${escapeHtml(cat.icon)}</span>
+              <span class="stamp-label">${escapeHtml(cat.label)}</span>
             </div>
             ${tagsHTML ? `<div class="entry-tags">${tagsHTML}</div>` : ""}
             ${projectHTML}
@@ -493,7 +515,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       }
 
       if (page.type === "content") {
-        const titleHTML = page.entryTitle ? `<h2 class="entry-title">${page.entryTitle}</h2>` : "";
+        const titleHTML = page.entryTitle ? `<h2 class="entry-title">${escapeHtml(page.entryTitle)}</h2>` : "";
         return `
           ${titleHTML}
           <div class="entry-body">${page.contentHTML}</div>
@@ -698,7 +720,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     });
 
     // Keyboard controls
-    document.addEventListener("keydown", (e) => {
+    activeKeydownHandler = (e: KeyboardEvent) => {
       const step = isMobile() ? 1 : 2;
       const maxIdx = isMobile() ? bookPages.length - 1 : bookPages.length - 2;
       if (e.key === "ArrowRight" && currentIndex < maxIdx) {
@@ -706,7 +728,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       } else if (e.key === "ArrowLeft" && currentIndex > 0) {
         flipToPageIndex(currentIndex - step);
       }
-    });
+    };
+    document.addEventListener("keydown", activeKeydownHandler);
 
     // Touch Swipe Gestures
     let touchStartX = 0;
@@ -746,14 +769,15 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
     // Resize Handler
     let wasMobile = isMobile();
-    window.addEventListener("resize", () => {
+    activeResizeHandler = () => {
       const currentlyMobile = isMobile();
       if (currentlyMobile !== wasMobile) {
         wasMobile = currentlyMobile;
         buildBook();
         renderView(currentIndex);
       }
-    });
+    };
+    window.addEventListener("resize", activeResizeHandler);
 
     // Initialize physical book
     buildBook();
@@ -761,6 +785,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   }
 
   document.addEventListener("astro:page-load", initLabNotebook);
+  document.addEventListener("astro:before-swap", cleanupLabNotebook);
 </script>
 
 <style>

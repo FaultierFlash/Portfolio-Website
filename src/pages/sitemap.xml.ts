@@ -5,14 +5,13 @@ export const prerender = false; // Run dynamically on request
 
 export const GET: APIRoute = async () => {
   const domain = 'https://marlonmueller.eu';
-  const todayIso = new Date().toISOString().split('T')[0];
 
   // Check if notes section is enabled in Sanity
   let showNotes = false;
   try {
     const notesSettings = await sanityClient.fetch(`*[_type == "notesSettings"][0]{ enabled }`);
     showNotes = notesSettings?.enabled === true;
-  } catch (e) {
+  } catch {
     showNotes = false;
   }
 
@@ -31,15 +30,16 @@ export const GET: APIRoute = async () => {
 
   interface SitemapEntry {
     loc: string;
-    lastmod: string;
-    enUrl: string;
-    deUrl: string;
+    lastmod?: string;
+    enUrl?: string;
+    deUrl?: string;
+    xDefaultUrl: string;
     priority: string;
   }
 
   const entries: SitemapEntry[] = [];
 
-  // Generate static URLs with bidirectional hreflang and lastmod
+  // Generate static URLs with bidirectional hreflang
   staticPaths.forEach((path) => {
     const enUrl = path === '' ? `${domain}/en/` : `${domain}/en${path}`;
     const deUrl = path === '' ? `${domain}/de/` : `${domain}/de${path}`;
@@ -47,17 +47,17 @@ export const GET: APIRoute = async () => {
 
     entries.push({
       loc: enUrl,
-      lastmod: todayIso,
       enUrl,
       deUrl,
+      xDefaultUrl: enUrl,
       priority: isHome ? '1.0' : '0.7',
     });
 
     entries.push({
       loc: deUrl,
-      lastmod: todayIso,
       enUrl,
       deUrl,
+      xDefaultUrl: enUrl,
       priority: isHome ? '1.0' : '0.7',
     });
   });
@@ -74,29 +74,38 @@ export const GET: APIRoute = async () => {
 
     projects.forEach((project: any) => {
       if (project.slug) {
-        const langs = project.languages || ['en', 'de'];
+        const langs: string[] = Array.isArray(project.languages) && project.languages.length > 0
+          ? project.languages
+          : ['en', 'de'];
         const projectDate = project._updatedAt
           ? new Date(project._updatedAt).toISOString().split('T')[0]
-          : todayIso;
+          : undefined;
 
-        const enUrl = `${domain}/en/projects/${project.slug}`;
-        const deUrl = `${domain}/de/projects/${project.slug}`;
+        const hasEn = langs.includes('en');
+        const hasDe = langs.includes('de');
+        const enUrl = hasEn ? `${domain}/en/projects/${project.slug}` : undefined;
+        const deUrl = hasDe ? `${domain}/de/projects/${project.slug}` : undefined;
+        const xDefaultUrl = enUrl || deUrl;
 
-        if (langs.includes('en')) {
+        if (!xDefaultUrl) return;
+
+        if (enUrl) {
           entries.push({
             loc: enUrl,
             lastmod: projectDate,
             enUrl,
             deUrl,
+            xDefaultUrl,
             priority: '0.8',
           });
         }
-        if (langs.includes('de')) {
+        if (deUrl) {
           entries.push({
             loc: deUrl,
             lastmod: projectDate,
             enUrl,
             deUrl,
+            xDefaultUrl,
             priority: '0.8',
           });
         }
@@ -111,16 +120,17 @@ export const GET: APIRoute = async () => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${entries
-  .map(
-    (e) => `  <url>
-    <loc>${e.loc}</loc>
-    <lastmod>${e.lastmod}</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="${e.enUrl}" />
-    <xhtml:link rel="alternate" hreflang="de" href="${e.deUrl}" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="${e.enUrl}" />
+  .map((e) => {
+    const links: string[] = [];
+    if (e.enUrl) links.push(`    <xhtml:link rel="alternate" hreflang="en" href="${e.enUrl}" />`);
+    if (e.deUrl) links.push(`    <xhtml:link rel="alternate" hreflang="de" href="${e.deUrl}" />`);
+    links.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${e.xDefaultUrl}" />`);
+    return `  <url>
+    <loc>${e.loc}</loc>${e.lastmod ? `\n    <lastmod>${e.lastmod}</lastmod>` : ''}
+${links.join('\n')}
     <priority>${e.priority}</priority>
-  </url>`
-  )
+  </url>`;
+  })
   .join('\n')}
 </urlset>`;
 

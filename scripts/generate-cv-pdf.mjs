@@ -45,13 +45,11 @@ async function main() {
   let activeBaseUrl = await findWorkingBaseUrl(port);
   if (!activeBaseUrl) {
     console.log(`📡 Starting local Astro dev server on http://${host}:${port}...`);
-    const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    const args = ['astro', 'dev', '--host', host, '--port', String(port)];
+    const astroCli = path.join(rootDir, 'node_modules', 'astro', 'bin', 'astro.mjs'); const devArgs = [astroCli, 'dev', '--host', host, '--port', String(port)];
 
-    serverProcess = spawn(cmd, args, {
+    serverProcess = spawn(process.execPath, devArgs, {
       cwd: rootDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true,
       detached: process.platform !== 'win32',
     });
 
@@ -89,7 +87,7 @@ async function main() {
   // 2. Launch Puppeteer
   console.log('🌐 Launching Headless Chromium...');
   const puppeteerOptions = {
-    headless: true,
+    ...(process.env.PUPPETEER_EXECUTABLE_PATH ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH } : {}), headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

@@ -1,59 +1,57 @@
-import type { APIRoute } from "astro";
-import jwt from "jsonwebtoken";
-import { sendVerificationEmail } from "../../../lib/email";
+import type { APIRoute } from 'astro';
+import jwt from 'jsonwebtoken';
+import { sendVerificationEmail } from '../../../lib/email';
+import { getJwtSecret } from '../../../lib/jwt';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const POST: APIRoute = async ({ request, site }) => {
-    try {
-        const data = await request.json();
-        const { name, email, message, locale } = data;
+  try {
+    const data = await request.json();
+    const rawName = typeof data?.name === 'string' ? data.name.trim() : '';
+    const rawEmail = typeof data?.email === 'string' ? data.email.trim() : '';
+    const rawMessage = typeof data?.message === 'string' ? data.message.trim() : '';
+    const targetLocale = data?.locale === 'de' ? 'de' : 'en';
 
-        if (!name || !email || !message) {
-            return new Response(
-                JSON.stringify({ message: "Missing required fields." }),
-                { status: 400 }
-            );
-        }
-
-        // Create a verification token
-        // Secret should be in env, using a fallback for dev if needed (but dangerous for prod)
-        const secret = import.meta.env.JWT_SECRET || (typeof process !== 'undefined' ? process.env.JWT_SECRET : undefined) || "dev-secret-do-not-use-in-prod";
-
-        // Token payload
-        const payload = {
-            name,
-            email,
-            message,
-            exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour expiration
-        };
-
-        const token = jwt.sign(payload, secret);
-
-        // Site URL for the verification link
-        let siteUrl = site?.toString() || request.url.split('/api')[0]; // Fallback if site not configured
-
-        // Remove trailing slash if present
-        if (siteUrl.endsWith('/')) {
-            siteUrl = siteUrl.slice(0, -1);
-        }
-
-        // Append the target locale prefix under prefixDefaultLocale i18n routing
-        const targetLocale = locale || 'en';
-        siteUrl = `${siteUrl}/${targetLocale}`;
-
-        // Send verification email
-        await sendVerificationEmail(name, email, token, siteUrl);
-
-        return new Response(
-            JSON.stringify({
-                message: "Verification email sent. Please check your inbox and click the link to send your message.",
-            }),
-            { status: 200 }
-        );
-    } catch (error) {
-        console.error("Contact API Error:", error);
-        return new Response(
-            JSON.stringify({ message: "Internal Server Error" }),
-            { status: 500 }
-        );
+    if (!rawName || !rawEmail || !rawMessage) {
+      return new Response(JSON.stringify({ message: 'Missing required fields.' }), {
+        status: 400,
+      });
     }
+
+    if (!EMAIL_REGEX.test(rawEmail) || rawEmail.length > 254 || rawName.length > 200 || rawMessage.length > 10000) {
+      return new Response(JSON.stringify({ message: 'Invalid input.' }), { status: 400 });
+    }
+
+    const secret = getJwtSecret();
+
+    const payload = {
+      name: rawName,
+      email: rawEmail,
+      message: rawMessage,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour expiration
+    };
+
+    const token = jwt.sign(payload, secret);
+
+    let siteUrl = site?.toString() || request.url.split('/api')[0];
+    if (siteUrl.endsWith('/')) {
+      siteUrl = siteUrl.slice(0, -1);
+    }
+
+    const localizedBaseUrl = `${siteUrl}/${targetLocale}`;
+
+    await sendVerificationEmail(rawName, rawEmail, token, localizedBaseUrl);
+
+    return new Response(
+      JSON.stringify({
+        message:
+          'Verification email sent. Please check your inbox and click the link to send your message.',
+      }),
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Contact API Error:', error);
+    return new Response(JSON.stringify({ message: 'Internal Server Error' }), { status: 500 });
+  }
 };

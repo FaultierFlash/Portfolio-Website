@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../layouts/BaseLayout.astro";
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../../../lib/jwt";
 
 export const prerender = false; // SSR required
 
@@ -9,11 +10,10 @@ let isValid = false;
 
 if (token) {
     try {
-        const secret =
-            import.meta.env.JWT_SECRET || (typeof process !== 'undefined' ? process.env.JWT_SECRET : undefined) || "dev-secret-do-not-use-in-prod";
+        const secret = getJwtSecret();
         const decoded = jwt.verify(token, secret) as any;
         isValid = !!decoded;
-    } catch (error) {
+    } catch {
         isValid = false;
     }
 }
@@ -50,12 +50,12 @@ if (token) {
                         id="confirm-btn"
                         class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded transition-colors shadow-lg cursor-pointer"
                     >
-                        Bestätigen & Nachricht senden
+                        Bestätigen &amp; Nachricht senden
                     </button>
                 )}
                 
                 <a
-                    href={`/${Astro.currentLocale || ""}`}
+                    href={`/${Astro.currentLocale || "de"}/`}
                     class="inline-block px-6 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors cursor-pointer"
                 >
                     Zur Startseite

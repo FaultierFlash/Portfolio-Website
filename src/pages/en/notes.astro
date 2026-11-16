@@ -1,20 +1,22 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import { getLabEntries, getNotesSettings } from "../../lib/sanity";
+import { getLabEntries, getNotesSettings, getTranslationOverrides } from "../../lib/sanity";
 import LabNotebook from "../../components/LabNotebook.astro";
 
 const lang = (Astro.currentLocale as Locale) || "en";
-const t = useTranslations(lang);
 
-const [entries, notesSettings] = await Promise.all([
-  getLabEntries(),
+const [entries, notesSettings, overrides] = await Promise.all([
+  getLabEntries(lang),
   getNotesSettings(),
+  getTranslationOverrides(lang),
 ]);
+const t = useTranslations(lang, overrides);
 
 const isPreview = Astro.url.searchParams.get("preview") === "true";
 const isEnabled = notesSettings?.enabled === true || isPreview;
 const pageTitle = notesSettings?.titleEn || t("nav.notes");
+const pageSubtitle = notesSettings?.subtitleEn || "";
 
 const dLabels = {
   badge: "Restricted Access",
@@ -35,6 +37,11 @@ const dLabels = {
             <span>⚠️ <strong>Preview Mode</strong> — Lab Notebook is currently disabled for regular visitors.</span>
             <a href={`/${lang}/notes`} class="underline hover:text-amber-500">Exit Preview</a>
           </div>
+        )}
+        {pageSubtitle && (
+          <p class="text-center text-sm text-[var(--color-text-dim)] mb-6 max-w-2xl mx-auto">
+            {pageSubtitle}
+          </p>
         )}
         <LabNotebook entries={entries} locale={lang} />
       </div>
@@ -82,7 +89,6 @@ const dLabels = {
     box-sizing: border-box;
   }
 
-  /* Vintage Under Construction Notebook Card */
   .under-construction-notebook {
     --paper-color: #faf6f0;
     --paper-line: rgba(165, 145, 120, 0.15);
@@ -146,9 +152,7 @@ const dLabels = {
     text-align: center;
   }
 
-  .stamp-container {
-    margin-bottom: 1.5rem;
-  }
+  .stamp-container { margin-bottom: 1.5rem; }
 
   .construction-stamp {
     display: inline-flex;
@@ -175,11 +179,7 @@ const dLabels = {
     opacity: 0.4;
   }
 
-  .stamp-icon {
-    font-size: 1.35rem;
-    line-height: 1;
-  }
-
+  .stamp-icon { font-size: 1.35rem; line-height: 1; }
   .stamp-text {
     font-size: 0.6rem;
     font-weight: 900;
@@ -254,7 +254,6 @@ const dLabels = {
     transform: translateY(-1px);
   }
 
-  /* Dark mode */
   :global(.dark) .under-construction-notebook {
     --paper-color: #1e1b17;
     --paper-line: rgba(100, 90, 75, 0.2);
@@ -270,4 +269,3 @@ const dLabels = {
     background: rgba(255,255,255,0.04);
   }
 </style>
-

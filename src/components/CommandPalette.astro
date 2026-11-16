@@ -120,9 +120,36 @@ const items = [
 </div>
 
 <script>
+  import { escapeHtml } from "../lib/html";
+
   let isOpen = false;
   let activeIndex = 0;
   let filteredItems: any[] = [];
+  let activeKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  function showSoundToast(message: string) {
+    const existing = document.getElementById("palette-status-toast");
+    if (existing) existing.remove();
+    const toast = document.createElement("div");
+    toast.id = "palette-status-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.textContent = message;
+    toast.style.cssText =
+      "position:fixed;bottom:1.5rem;right:1.5rem;z-index:130;padding:0.65rem 1rem;border-radius:0.75rem;background:rgba(15,23,42,0.92);color:#f8fafc;border:1px solid rgba(255,255,255,0.14);font-size:0.8rem;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,0.3);backdrop-filter:blur(8px);pointer-events:none;transition:opacity 0.25s ease;";
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 260);
+    }, 2200);
+  }
+
+  function cleanupKeydown() {
+    if (activeKeydownHandler) {
+      window.removeEventListener("keydown", activeKeydownHandler);
+      activeKeydownHandler = null;
+    }
+  }
 
   const groupSortOrder: Record<string, number> = {
     page: 1,
@@ -139,6 +166,8 @@ const items = [
     const triggerBtn = document.getElementById("search-palette-trigger");
 
     if (!modal || !resultsContainer || !input) return;
+    if (modal.dataset.paletteInitialized === "true") return;
+    modal.dataset.paletteInitialized = "true";
 
     const currentLang = modal.getAttribute("data-locale") || "en";
 
@@ -211,7 +240,8 @@ const items = [
     });
 
     // Keyboard handlers
-    window.addEventListener("keydown", (e) => {
+    cleanupKeydown();
+    activeKeydownHandler = (e: KeyboardEvent) => {
       // Toggle palette: Cmd+K or Ctrl+K or / (when not typing in inputs)
       const isSearchShortcut = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
       const isSlashShortcut = e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA";
@@ -243,7 +273,8 @@ const items = [
           triggerItem(filteredItems[activeIndex]);
         }
       }
-    });
+    };
+    window.addEventListener("keydown", activeKeydownHandler);
 
     function scrollActiveIntoView() {
       const activeEl = resultsContainer?.querySelector(".palette-item.active");
@@ -270,8 +301,16 @@ const items = [
           // Dispatch a custom event to notify components (like TerminalContactForm)
           window.dispatchEvent(new CustomEvent("sound-fx-toggled", { detail: !soundEnabled }));
           
-          // Show temporary feedback toast/alert
-          alert(soundEnabled ? "Keyboard Sound FX disabled" : "Keyboard Sound FX enabled");
+          // Show temporary non-blocking toast
+          const msg =
+            currentLang === "de"
+              ? soundEnabled
+                ? "Tastentöne deaktiviert"
+                : "Tastentöne aktiviert"
+              : soundEnabled
+              ? "Keyboard Sound FX disabled"
+              : "Keyboard Sound FX enabled";
+          showSoundToast(msg);
         } else if (item.actionId === "switch-language") {
           const currentPath = window.location.pathname;
           // Determine language swap
@@ -334,8 +373,8 @@ const items = [
               ${iconSvg}
             </div>
             <div class="item-content">
-              <span class="item-title">${item.title}</span>
-              <span class="item-subtitle">${item.subtitle}</span>
+              <span class="item-title">${escapeHtml(item.title)}</span>
+              <span class="item-subtitle">${escapeHtml(item.subtitle)}</span>
             </div>
           </div>
         `;
@@ -358,6 +397,7 @@ const items = [
 
   // Re-run setup on View Transitions page load
   document.addEventListener("astro:page-load", initCommandPalette);
+  document.addEventListener("astro:before-swap", cleanupKeydown);
 </script>
 
 <style is:global>

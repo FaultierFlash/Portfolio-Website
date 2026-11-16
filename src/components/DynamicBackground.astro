@@ -3,14 +3,15 @@ import TopographicRipple from './TopographicRipple.astro';
 import SolarSystemBackground from './SolarSystemBackground.astro';
 
 interface Props {
-  effect?: 'none' | 'grid' | 'dots' | 'topography' | 'solar' | string | null;
+  effect?: 'none' | 'grid' | 'dots' | 'topography' | 'solar' | 'stars' | string | null;
   isAbsolute?: boolean;
   config?: {
-    source: any;
+    source?: any;
     latitude?: number;
     longitude?: number;
     intensity?: number;
     scale?: number;
+    color?: string;
     speed?: number;
     cursorGravity?: number;
     startZoom?: number;
@@ -22,20 +23,22 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
 
 {effect === 'topography' ? (
   <div class={`dynamic-background topography-wrapper ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}>
-    <TopographicRipple 
+    <TopographicRipple
       source={config?.source}
       lat={config?.latitude}
       lng={config?.longitude}
       intensity={config?.intensity}
       scale={config?.scale}
+      color={config?.color}
     />
   </div>
-) : effect === 'solar' ? (
+) : effect === 'solar' || effect === 'stars' ? (
   <div class={`dynamic-background solar-wrapper ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}>
-    <SolarSystemBackground 
-      speed={config?.speed} 
+    <SolarSystemBackground
+      speed={config?.speed}
       cursorGravity={config?.cursorGravity}
       zoom={config?.startZoom}
+      color={config?.color}
     />
   </div>
 ) : (
@@ -64,7 +67,7 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
 
   .dynamic-background.grid {
     background-size: 40px 40px;
-    background-image: 
+    background-image:
       linear-gradient(to right, var(--color-border) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
     opacity: 0.2;
@@ -73,7 +76,7 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
   }
 
   :global(.dark) .dynamic-background.grid {
-    opacity: 0.4; 
+    opacity: 0.4;
   }
 
   .dynamic-background.dots {

@@ -57,7 +57,7 @@ const totalFinishedCount = finishedBooksRaw.length;
 const currentYear = new Date().getFullYear();
 const thisYearFinishedCount = finishedBooksRaw.filter(b => {
     if (!b.dateFinished) return false;
-    const year = new Date(b.dateFinished).getFullYear();
+    const year = parseInt(String(b.dateFinished).slice(0, 4), 10);
     return year === currentYear;
 }).length;
 
@@ -76,7 +76,7 @@ const t = {
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
   },
   de: {
     title: "Persönliche Bibliothek",
@@ -92,7 +92,7 @@ const t = {
     series: "Serie",
     physical: "Physisch",
     totalRead: "Gelesene Bücher",
-    thisYearRead: `In ${currentYear} gelesen`
+    thisYearRead: `In ${currentYear} gelesen`, books: "Bücher", expandSeries: "Reihe öffnen", back: "Zurück", noThoughts: "Noch keine Notizen vorhanden.", vol: "Bd.", noCover: "Kein Cover", seriesBooks: "Bücher der Reihe"
   }
 }[locale] || {
     title: "Personal Library",
@@ -108,7 +108,7 @@ const t = {
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
 };
 
 ---
@@ -163,7 +163,7 @@ const t = {
                                         {item.cover ? (
                                             <img src={urlFor(item.cover).width(200).url()} alt={item.title} class="w-full h-full object-cover" />
                                         ) : (
-                                            <div class="w-full h-full flex items-center justify-center text-xs opacity-20 uppercase font-black">No Cover</div>
+                                            <div class="w-full h-full flex items-center justify-center text-xs opacity-20 uppercase font-black">{t.noCover}</div>
                                         )}
                                     </div>
                                     <div class="flex-1">
@@ -216,8 +216,8 @@ const t = {
                                                 )}
                                             </div>
                                             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden" style="background-color: var(--color-project-accent-bg); border: 1px solid var(--color-project-accent-border)">
-                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} Books</span>
-                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full">Expand Series</span>
+                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} {t.books}</span>
+                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full">{t.expandSeries}</span>
                                             </div>
                                         </button>
                                         <h4 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h4>
@@ -233,7 +233,7 @@ const t = {
                                                         {item.seriesName}
                                                     </h3>
                                                     <p class="text-[10px] font-black uppercase tracking-[0.3em] mt-1" style="color: var(--color-project-accent)">
-                                                        {item.books.length} {t.series} Books
+                                                        {item.books.length} {t.seriesBooks}
                                                     </p>
                                                 </div>
                                                 <button class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
@@ -259,7 +259,7 @@ const t = {
                                                                     <span class="text-[10px] font-black uppercase tracking-widest px-3 py-2 border border-[var(--color-project-accent-border)] rounded-full text-[var(--color-text)]">{t.readReview}</span>
                                                                 </div>
                                                             </button>
-                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. {book.seriesOrder}</h4>
+                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">{t.vol} {book.seriesOrder}</h4>
                                                             <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{book.title}</h4>
                                                         </div>
                                                     );
@@ -322,8 +322,8 @@ const t = {
                                                 )}
                                             </div>
                                             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden" style="background-color: var(--color-project-accent-bg); border: 1px solid var(--color-project-accent-border)">
-                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} Books</span>
-                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full text-center mx-2">Expand Series</span>
+                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} {t.books}</span>
+                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full text-center mx-2">{t.expandSeries}</span>
                                             </div>
                                         </button>
                                         <h4 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h4>
@@ -339,7 +339,7 @@ const t = {
                                                         {item.seriesName}
                                                     </h3>
                                                     <p class="text-[10px] font-black uppercase tracking-[0.3em] mt-1" style="color: var(--color-project-accent)">
-                                                        {item.books.length} {t.series} Books
+                                                        {item.books.length} {t.seriesBooks}
                                                     </p>
                                                 </div>
                                                 <button class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
@@ -365,7 +365,7 @@ const t = {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. {book.seriesOrder}</h4>
+                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">{t.vol} {book.seriesOrder}</h4>
                                                             <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{book.title}</h4>
                                                         </div>
                                                     );
@@ -404,7 +404,7 @@ const t = {
 </div> {/* end library-container (100) */}
 
 {/* --- Side Detail Panel --- */}
-<aside id="review-panel" class="fixed top-[var(--header-height,60px)] right-0 h-[calc(100vh-var(--header-height,60px))] w-full lg:w-[450px] xl:w-[500px] z-[100] translate-x-full opacity-0 pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] bg-[var(--color-bg)]/98 backdrop-blur-2xl border-l border-black/10 dark:border-white/20 flex flex-col" style="box-shadow: var(--panel-shadow)">
+<aside id="review-panel" data-locale={locale} data-no-thoughts={t.noThoughts} class="fixed top-[var(--header-height,60px)] right-0 h-[calc(100vh-var(--header-height,60px))] w-full lg:w-[450px] xl:w-[500px] z-[100] translate-x-full opacity-0 pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] bg-[var(--color-bg)]/98 backdrop-blur-2xl border-l border-black/10 dark:border-white/20 flex flex-col" style="box-shadow: var(--panel-shadow)">
     <div class="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-10 relative">
         <div id="panel-content">
             <div id="single-book-view" class="flex flex-col gap-10">
@@ -428,26 +428,26 @@ const t = {
             <div id="series-books-view" class="hidden">
                 <h3 id="modal-series-name" class="text-3xl font-black text-[var(--color-text)] mb-4 italic uppercase"></h3>
                 <p class="text-[10px] font-black uppercase tracking-widest mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
-                    <span>{t.series} Books</span>
+                    <span>{t.seriesBooks}</span>
                     <span class="h-[1px] flex-1 bg-black/5 dark:bg-white/5"></span>
                 </p>
                 <div id="series-grid" class="flex flex-col gap-4"></div>
             </div>
         </div>
 
-        <button class="absolute top-8 right-8 p-3 rounded-full bg-[var(--color-text)]/10 hover:bg-[var(--color-text)]/20 transition-all close-panel-btn hover:rotate-90 group z-20 border border-[var(--color-text)]/10">
+        <button class="absolute top-8 right-8 p-3 rounded-full bg-[var(--color-text)]/10 hover:bg-[var(--color-text)]/20 transition-all close-panel-btn hover:rotate-90 group z-20 border border-[var(--color-text)]/10" aria-label={t.close}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--color-text)] opacity-70 group-hover:opacity-100 transition-opacity"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
         <button id="modal-back-btn" class="hidden absolute top-6 left-6 flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all border border-[var(--color-text)]/10 z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--color-text)]"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)]">Back</span>
+                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)]">{t.back}</span>
         </button>
     </div>
 </aside>
 </section>
 
 <script>
-    function initLibrary() {
+    let activeEscapeHandler: ((e: KeyboardEvent) => void) | null = null; function initLibrary() {
         const panel = document.getElementById('review-panel');
         if (!panel) return;
 
@@ -482,8 +482,8 @@ const t = {
 
             if (modalTitle) modalTitle.textContent = book.title;
             if (modalAuthor) modalAuthor.textContent = book.author;
-            const review = document.documentElement.lang === 'de' ? book.reviewDe : book.reviewEn;
-            if (modalReview) modalReview.textContent = review || 'No thoughts recorded yet.';
+            const activeLocale = panel?.dataset.locale || document.documentElement.lang; const review = activeLocale === 'de' ? book.reviewDe : book.reviewEn;
+            if (modalReview) modalReview.textContent = review || panel?.dataset.noThoughts || 'No thoughts recorded yet.';
             
             if (modalRating) {
                 modalRating.innerHTML = '';
@@ -611,14 +611,14 @@ const t = {
         });
 
         closeBtns.forEach(btn => btn.addEventListener('click', closePanel));
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+        if (activeEscapeHandler) document.removeEventListener('keydown', activeEscapeHandler); activeEscapeHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel(); }; document.addEventListener('keydown', activeEscapeHandler);
     }
 
     // Initialize on load and on swap
     document.addEventListener('astro:page-load', initLibrary);
     // Cleanup on navigation to prevent duplicate panels in body
     document.addEventListener('astro:before-swap', () => {
-        const panel = document.body.querySelector('#review-panel');
+        if (activeEscapeHandler) { document.removeEventListener('keydown', activeEscapeHandler); activeEscapeHandler = null; } const panel = document.body.querySelector('#review-panel');
         if (panel) panel.remove();
     });
 </script>

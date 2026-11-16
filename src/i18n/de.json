@@ -5,11 +5,11 @@
     "description": "Portfolio von Marlon Müller – Student der Ingenieurwissenschaften an der Technischen Universität München (TUM) & Odonatum Mitgründer."
   },
   "page": {
-    "home":{
+    "home": {
       "title": "Willkommen!",
       "description": "Dies ist die Startseite."
     },
-    "about":{
+    "about": {
       "title": "Über Uns"
     }
   },
@@ -56,30 +56,29 @@
     "mainNavigation": "Hauptnavigation",
     "logo": {
       "ariaLabel": "Startseite"
-    }},
-  
-  "routes": {
-    "contact":"Kontakt",
-    "projects":"Projekte"
+    }
   },
-  
+  "routes": {
+    "contact": "Kontakt",
+    "projects": "Projekte"
+  },
   "dropdown": {
-    "projects":{
+    "projects": {
       "label": "Projekt auswählen"
     }
   },
   "paths": {
     "home": {
-      "_title_": "Home" 
+      "_title_": "Home"
     },
     "projects": {
-      "_title_": "Projekt-Übersicht", 
-      "circon": "Circon", 
+      "_title_": "Projekt-Übersicht",
+      "circon": "Circon",
       "photeia": "Photeia",
-      "another-project-slug": "Translated Another Project Name" 
+      "another-project-slug": "Translated Another Project Name"
     },
     "contact": {
-      "_title_": "Kontakt" 
+      "_title_": "Kontakt"
     },
     "projekte": {
       "_title_": "Projekte"
@@ -92,6 +91,18 @@
     },
     "about": {
       "_title_": "Über-Uns"
+    },
+    "cv": {
+      "_title_": "Lebenslauf"
+    },
+    "impressum": {
+      "_title_": "Impressum"
+    },
+    "privacy-policy": {
+      "_title_": "Datenschutzerklärung"
+    },
+    "terms-of-service": {
+      "_title_": "Nutzungsbedingungen"
     }
   },
   "footer": {

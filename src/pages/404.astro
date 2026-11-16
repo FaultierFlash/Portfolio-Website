@@ -1,12 +1,12 @@
 ---
 // src/pages/404.astro
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { useTranslations, type Locale } from "../i18n/utils";
+import { type Locale } from "../i18n/utils";
 
 const rawPath = Astro.url.pathname;
 const isDe = rawPath.startsWith("/de");
 const lang: Locale = isDe ? "de" : "en";
-const t = useTranslations(lang);
+
 
 const homeHref = `/${lang}/`;
 const projectsHref = `/${lang}/projects`;
@@ -35,7 +35,7 @@ const content = {
   backgroundEffect="grid"
   accentColor="primary"
 >
-  <main class="min-h-[80vh] flex items-center justify-center px-6 py-20">
+  <div class="min-h-[80vh] flex items-center justify-center px-6 py-20">
     <div class="max-w-xl w-full text-center space-y-8">
       
       {/* Visual Terminal / Radar Box */}
@@ -82,5 +82,5 @@ const content = {
         SYS_STATUS: 404_TARGET_UNREACHABLE // PORTFOLIO_V2
       </div>
     </div>
-  </main>
+  </div>
 </BaseLayout>

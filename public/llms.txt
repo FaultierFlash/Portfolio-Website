@@ -14,14 +14,15 @@
 ## Primary Links
 - [Homepage (English)](https://marlonmueller.eu/en/): Overview of background, academic milestones, and featured projects.
 - [Homepage (German)](https://marlonmueller.eu/de/): Übersicht über akademischen Werdegang, Meilensteine und Projekte.
-- [Curriculum Vitae](https://marlonmueller.eu/en/cv): Complete academic CV and professional trajectory.
-- [Projects Overview](https://marlonmueller.eu/en/projects): Comprehensive list of engineering, research, and hackathon projects.
+- [Curriculum Vitae (English)](https://marlonmueller.eu/en/cv): Complete academic CV and professional trajectory.
+- [Lebenslauf (German)](https://marlonmueller.eu/de/cv): Vollständiger akademischer Lebenslauf.
+- [Projects Overview (EN / DE)](https://marlonmueller.eu/en/projects) | [DE](https://marlonmueller.eu/de/projects): Comprehensive list of engineering, research, and hackathon projects.
 - [Odonatum Project](https://marlonmueller.eu/en/projects/odonatum): Bio-inspired unmanned aerial vehicle (UAV) based on dragonfly flight dynamics, founded at TUM with 30+ student members.
 - [Circon Project](https://marlonmueller.eu/en/projects/circon): Smart recycling prototype created during TUM Think.Make.Start Batch #20.
 - [Photeia Project](https://marlonmueller.eu/en/projects/photeia): Biochemical photovoltaic cell built from recycled LCD components (Jugend forscht 2024).
 - [EuroTech x HKTE Hackathon](https://marlonmueller.eu/en/projects/Eurotech-x-HKTE-Hackathon): GDPR data pipeline converting user health telemetry into personal wellbeing insights.
-- [Library](https://marlonmueller.eu/en/library): Curated reading list and reference books.
-- [Contact](https://marlonmueller.eu/en/contact): Interactive terminal contact interface.
+- [Library (EN / DE)](https://marlonmueller.eu/en/library) | [DE](https://marlonmueller.eu/de/library): Curated reading list and reference books.
+- [Contact (EN / DE)](https://marlonmueller.eu/en/contact) | [DE](https://marlonmueller.eu/de/contact): Interactive terminal contact interface.
 
 ## Contact & Socials
 - **Website:** https://marlonmueller.eu

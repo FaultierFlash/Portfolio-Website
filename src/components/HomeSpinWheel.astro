@@ -21,6 +21,34 @@ const projects = rawProjects.map((p) => ({
   image: p.mainImage ? urlFor(p.mainImage).width(1200).height(1200).url() : null,
 }));
 const count = projects.length;
+const isDe = lang === 'de';
+const copy = isDe ? {
+  eyebrow: "Mehr entdecken",
+  title: "Projekt-Roulette",
+  subtitle: "Dein nächstes Projekt ist nur einen Dreh entfernt.",
+  spin: "DREHEN",
+  landed: "GEZOGENES PROJEKT",
+  viewProject: "Projekt ansehen →",
+  tryAgain: "Nochmal drehen",
+  emptyEyebrow: "Alles gesehen",
+  emptyTitle: "Alle Projekte vorgestellt",
+  emptySubtitle: "Schau später vorbei für weitere Projekte.",
+  fallbackDesc: "Erfahre mehr über dieses Projekt.",
+  defaultTag: "Projekt",
+} : {
+  eyebrow: "Discover more",
+  title: "Project Roulette",
+  subtitle: "Your next masterpiece is one spin away.",
+  spin: "SPIN",
+  landed: "YOU LANDED ON",
+  viewProject: "View Project →",
+  tryAgain: "Try again",
+  emptyEyebrow: "All caught up",
+  emptyTitle: "Everything is Featured",
+  emptySubtitle: "Check back later for more hidden gems.",
+  fallbackDesc: "Discover more about this project.",
+  defaultTag: "Project",
+};
 ---
 
 {count > 0 && (
@@ -55,14 +83,14 @@ const count = projects.length;
     <div class="hsw-content">
       <div class="hsw-content-inner">
         <div class="hsw-header">
-          <p class="hsw-eyebrow">Discover more</p>
-          <h2 class="hsw-title">Project Roulette</h2>
-          <p class="hsw-subtitle">Your next masterpiece is one spin away.</p>
+          <p class="hsw-eyebrow">{copy.eyebrow}</p>
+          <h2 class="hsw-title">{copy.title}</h2>
+          <p class="hsw-subtitle">{copy.subtitle}</p>
         </div>
 
         <div class="hsw-controls">
           <button id="hsw-spin-btn" class="hsw-spin-btn">
-            <span class="btn-text">SPIN</span>
+            <span class="btn-text">{copy.spin}</span>
             <span class="btn-icon">🎰</span>
           </button>
         </div>
@@ -70,13 +98,13 @@ const count = projects.length;
         <!-- Result Card -->
         <div id="hsw-result" class="hsw-result-card" hidden>
            <div class="hsw-result-header">
-             <span class="hsw-result-label">YOU LANDED ON</span>
-             <h3 id="hsw-result-title" class="hsw-result-title">Project Name</h3>
+             <span class="hsw-result-label">{copy.landed}</span>
+             <h3 id="hsw-result-title" class="hsw-result-title"></h3>
            </div>
-           <p id="hsw-result-desc" class="hsw-result-desc">Short project description goes here...</p>
+           <p id="hsw-result-desc" class="hsw-result-desc"></p>
            <div class="hsw-result-actions">
-             <a id="hsw-result-link" href="#" class="hsw-result-link">View Project →</a>
-             <button id="hsw-respin-btn" class="hsw-respin-btn">Try again</button>
+             <a id="hsw-result-link" href="#" class="hsw-result-link">{copy.viewProject}</a>
+             <button id="hsw-respin-btn" class="hsw-respin-btn">{copy.tryAgain}</button>
            </div>
         </div>
       </div>
@@ -88,15 +116,23 @@ const count = projects.length;
 {count === 0 && (
 <div class="hsw-root empty-state scroll-section">
   <div class="empty-content">
-    <p class="hsw-eyebrow">All caught up</p>
-    <h2 class="hsw-title">Everything is Featured</h2>
-    <p class="hsw-subtitle">Check back later for more hidden gems.</p>
+    <p class="hsw-eyebrow">{copy.emptyEyebrow}</p>
+    <h2 class="hsw-title">{copy.emptyTitle}</h2>
+    <p class="hsw-subtitle">{copy.emptySubtitle}</p>
   </div>
 </div>
 )}
 
-<script is:inline define:vars={{ projects, lang }}>
+<script is:inline define:vars={{ projects, lang, fallbackDesc: copy.fallbackDesc, defaultTag: copy.defaultTag }}>
 (function() {
+  function esc(val) {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
   const COLOR_MAP = {
     primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.1)', border: 'rgba(255,125,26,0.3)' },
     blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
@@ -126,22 +162,22 @@ const count = projects.length;
       <div class="slice-inner" style="--accent: ${colors.main}; --accent-bg: ${colors.bg}; --accent-border: ${colors.border}">
         <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
           <defs>
-            <clipPath id="clip-${project.slug.current}">
+            <clipPath id="clip-${esc(project.slug.current)}">
               <path d="M 50,50 L 50,0 A 50,50 0 0,1 50,100 Z" />
             </clipPath>
           </defs>
           <image 
-            href="${project.image || ''}" 
+            href="${esc(project.image || '')}" 
             x="0" y="0" width="100" height="100" 
             preserveAspectRatio="xMidYMid slice"
-            clip-path="url(#clip-${project.slug.current})"
+            clip-path="url(#clip-${esc(project.slug.current)})"
             class="slice-image"
           />
           <path d="M 50,0 A 50,50 0 0,1 50,100" class="slice-border" fill="none" stroke="${colors.main}" stroke-width="0.5" />
         </svg>
         <div class="slice-content">
-          <h4 class="slice-title">${project.title}</h4>
-          <span class="slice-tag">${project.tags?.[0] || 'Project'}</span>
+          <h4 class="slice-title">${esc(project.title)}</h4>
+          <span class="slice-tag">${esc(project.tags?.[0] || defaultTag)}</span>
         </div>
       </div>
     `;
@@ -155,6 +191,8 @@ const count = projects.length;
     const slices = [document.getElementById('hsw-slice-0'), document.getElementById('hsw-slice-1')];
 
     if (!wheel || !spinBtn) return;
+    if (spinBtn.dataset.hswInit === 'true') return;
+    spinBtn.dataset.hswInit = 'true';
 
     let lastBaseIndex = -1;
 
@@ -244,7 +282,7 @@ const count = projects.length;
       const colors = COLOR_MAP[p.accentColor] || COLOR_MAP.primary;
 
       document.getElementById('hsw-result-title').textContent = p.title;
-      document.getElementById('hsw-result-desc').textContent = p.description || 'Discover more about this project.';
+      document.getElementById('hsw-result-desc').textContent = p.description || fallbackDesc;
       const link = document.getElementById('hsw-result-link');
       link.href = `/${lang}/projects/${p.slug.current}`;
       link.style.backgroundColor = colors.main;

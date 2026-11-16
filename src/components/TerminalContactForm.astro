@@ -122,7 +122,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 <style is:global>
   /* Apply Fira Code font specifically to the terminal wrapper */
   .component-terminal-wrapper {
-    font-family: "Fira Code", monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
   /* Styles for the floating terminal window */
@@ -1208,7 +1208,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       if (mode === "editor") {
         inputLine.style.display = "none";
         messageEditorContainer.style.display = "flex";
-        messageInput.value = formData.message;
+        messageInput.value = formData._edTarget ? (formData._edBuffer ?? "") : formData.message;
         messageInput.disabled = false;
         commandInput.disabled = true;
         if (shouldFocus && !isMobile) {
@@ -1256,7 +1256,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           file.content = messageInput.value;
           addOutputLine(`Saved ${formData._edTarget.at(-1)}.`, "success");
         }
-        delete formData._edTarget;
+        delete formData._edTarget; delete formData._edBuffer;
         setInputMode("command");
         return;
       }
@@ -1394,11 +1394,17 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     // --- Typewriter Sound FX Engine ---
+    let sharedAudioCtx = null;
     function playTypewriterSound(isEnter = false) {
       if (localStorage.getItem("terminal_sound_fx") === "false") return;
       try {
-        const AudioContextClass = window.AudioContext || window["webkitAudioContext"];
-        const ctx = new AudioContextClass();
+        if (!sharedAudioCtx) {
+          const AudioContextClass = window.AudioContext || window["webkitAudioContext"];
+          if (!AudioContextClass) return;
+          sharedAudioCtx = new AudioContextClass();
+        }
+        const ctx = sharedAudioCtx;
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const filter = ctx.createBiquadFilter();
@@ -1636,10 +1642,9 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         case "cd":
           if (!args[0] || args[0] === "/" || args[0] === "~") {
             currentVfsPath = [];
-          } else if (args[0] === "..") {
-            currentVfsPath.pop();
           } else {
-            const newPath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const newPath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const target = getVfsItem(newPath);
             if (target && target.type === "dir") {
               currentVfsPath = newPath;
@@ -1653,7 +1658,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           if (!args[0]) {
             addOutputLine("usage: cat <filename>", "error");
           } else {
-            const filePath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const filePath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const file = getVfsItem(filePath);
             if (file && file.type === "file") {
               addOutputLine(file.content, "info-no-prefix", false);
@@ -1668,13 +1674,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           if (!args[0]) {
             addOutputLine("usage: ed <filename>", "error");
           } else {
-            const targetPath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const targetPath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const targetItem = getVfsItem(targetPath);
             if (targetItem && targetItem.type === "file") {
               addOutputLine(`Opening editor for ${args[0]}...`, "info");
               // Temporarily hijack message editor for VFS editing
               formData._edTarget = targetPath;
-              formData.message = targetItem.content;
+              formData._edBuffer = targetItem.content;
               setInputMode("editor");
             } else {
               addOutputLine(`ed: file not found or is a directory`, "error");
@@ -1690,9 +1697,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           addOutputLine(formData.name || "subject_test_portal", "success");
           break;
 
-        case "neofetch":
+        case "neofetch": {
+          const safeUser = String(formData.name || "Subject")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
           const info = `
-  <span style="color:var(--color-primary)">USER:</span> ${formData.name || "Subject"}
+  <span style="color:var(--color-primary)">USER:</span> ${safeUser}
   <span style="color:var(--color-primary)">OS:</span> CakeOS 4.11.88
   <span style="color:var(--color-primary)">HOST:</span> Aperture-Science-Lab
   <span style="color:var(--color-primary)">KERNEL:</span> GLaDOS-v3.0.1
@@ -1703,6 +1715,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 `;
           addOutputLine(info, "html", false);
           break;
+        }
 
         case "projects":
           if (!projects || projects.length === 0) {

@@ -20,6 +20,7 @@ interface Props {
   solarConfig?: any;
   accentColor?: string;
   showFooter?: boolean;
+  overrides?: Record<string, any>;
 }
 
 const {
@@ -32,10 +33,11 @@ const {
   solarConfig = null,
   accentColor = "primary",
   showFooter = true,
+  overrides: propOverrides,
 } = Astro.props;
 
 const currentLocale = Astro.currentLocale as Locale;
-const overrides = await getTranslationOverrides(currentLocale);
+const overrides = propOverrides ?? (await getTranslationOverrides(currentLocale));
 const t = useTranslations(currentLocale, overrides);
 
 // Fallback values if not provided by the page
@@ -98,7 +100,9 @@ let alternatePathname = Astro.url.pathname;
 if (alternatePathname.startsWith(`/${currentLocale}/`)) {
   alternatePathname = alternatePathname.replace(`/${currentLocale}/`, `/${alternateLocale}/`);
 } else if (alternatePathname === `/${currentLocale}`) {
-  alternatePathname = `/${alternateLocale}`;
+  alternatePathname = `/${alternateLocale}/`;
+} else {
+  alternatePathname = `/${alternateLocale}/`;
 }
 const alternateURL = `${siteUrl}${alternatePathname}`;
 
@@ -188,7 +192,15 @@ if (pathSegmentsClean.length > 1) {
     } else if (seg === "contact") {
       segName = currentLocale === "de" ? "Kontakt" : "Contact";
     } else if (seg === "cv") {
-      segName = "CV";
+      segName = currentLocale === "de" ? "Lebenslauf" : "CV";
+    } else if (seg === "notes") {
+      segName = currentLocale === "de" ? "Notizen" : "Notes";
+    } else if (seg === "impressum") {
+      segName = "Impressum";
+    } else if (seg === "privacy-policy") {
+      segName = currentLocale === "de" ? "Datenschutzerklärung" : "Privacy Policy";
+    } else if (seg === "terms-of-service") {
+      segName = currentLocale === "de" ? "Nutzungsbedingungen" : "Terms of Service";
     }
     breadcrumbItems.push({
       "@type": "ListItem",
