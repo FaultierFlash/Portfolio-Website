@@ -304,24 +304,27 @@ const {
       const rNorm = 1 - cl.dist / barrierR;
       const weight = rNorm * rNorm * (3 - 2 * rNorm);
 
-      // Attenuate any inward normal velocity component smoothly
+      // Only attenuate velocity pointing INTO the wall (never block leeward suction away from or parallel to it)
       const uDotN = u * cl.nx + v * cl.ny;
       if (uDotN < 0) {
         u -= uDotN * weight * cl.nx;
         v -= uDotN * weight * cl.ny;
       }
 
-      // Smooth stagnation splitting along wing tangent toward LE (s -> 0) and TE (s -> 1)
-      const interiorFactor = cl.s > 0.04 && cl.s < 0.96 ? 1 : 0.25;
-      const splitOffset = cl.s - phase.stagS;
-      const splitSign = splitOffset >= 0 ? 1 : -1;
-      const splitMag = (0.35 + Math.min(0.65, Math.abs(splitOffset) * 1.6)) * weight * interiorFactor * phase.uSpeed;
-      u += cl.tx * splitSign * splitMag * 0.45;
-      v += cl.ty * splitSign * splitMag * 0.45;
+      // Smooth stagnation splitting along wing tangent toward LE (s -> 0) and TE (s -> 1) on windward approach
+      const approachingWindward = (cl.nx * phase.inflowDir < 0);
+      if (approachingWindward) {
+        const interiorFactor = cl.s > 0.04 && cl.s < 0.96 ? 1 : 0.25;
+        const splitOffset = cl.s - phase.stagS;
+        const splitSign = splitOffset >= 0 ? 1 : -1;
+        const splitMag = (0.38 + Math.min(0.62, Math.abs(splitOffset) * 1.6)) * weight * interiorFactor * phase.uSpeed;
+        u += cl.tx * splitSign * splitMag * 0.45;
+        v += cl.ty * splitSign * splitMag * 0.45;
+      }
 
-      // Subtle outward repulsion only when very close to skin (prevents numerical stagnation trapping)
-      if (cl.dist < 0.085) {
-        const push = Math.pow(1 - cl.dist / 0.085, 2) * 0.38;
+      // Skin-thickness guard only right against the physical blade
+      if (cl.dist < 0.055) {
+        const push = Math.pow(1 - cl.dist / 0.055, 2) * 0.32;
         u += cl.nx * push;
         v += cl.ny * push;
       }
@@ -355,8 +358,8 @@ const {
         const dlx = px - levX;
         const dly = py - levY;
         const rlSq = dlx * dlx + dly * dly + 0.065;
-        u += (-dly / rlSq) * phase.levOffset.gamma * 0.22;
-        v += (dlx / rlSq) * phase.levOffset.gamma * 0.22;
+        u += (-dly / rlSq) * phase.levOffset.gamma * 0.24;
+        v += (dlx / rlSq) * phase.levOffset.gamma * 0.24;
 
         // Downstream wake vortex
         const dwx = px - wakeX;
@@ -364,6 +367,14 @@ const {
         const rwSq = dwx * dwx + dwy * dwy + 0.095;
         u += (-dwy / rwSq) * phase.wakeOffset.gamma * 0.20;
         v += (dwx / rwSq) * phase.wakeOffset.gamma * 0.20;
+
+        // Subtle Coanda / low-pressure wake entrainment downstream so continuous boundary streamlines close behind the wing
+        const distBehind = (px - phase.leX) * phase.inflowDir;
+        if (distBehind > 0.04) {
+          const wakeYCenter = (phase.leY + phase.te.y) * 0.5 + 0.14 * Math.min(1, distBehind * 0.8);
+          const pullEnvelope = Math.exp(-Math.pow(distBehind - 0.55, 2) / 0.45) * Math.exp(-Math.pow(py - wakeYCenter, 2) / 0.65);
+          v += (wakeYCenter - py) * 0.85 * pullEnvelope;
+        }
 
         const bounded = applyWingBoundary(u, v, px, py, phase);
         u = bounded.u;
@@ -532,14 +543,13 @@ const {
         ctx.clip();
 
         const seedX = (phase.inflowDir < 0 ? 1 : -1) * Math.min(DOM_X * 0.96, halfPhysW * 0.98);
-        const numSideLines = isSmall ? 20 : 30;
+        const numSideLines = isSmall ? 24 : 36;
         const numTopLines = isSmall ? 6 : 10;
-        const numWakeLines = isSmall ? 6 : 9;
-        const totalLines = numSideLines + numTopLines + numWakeLines;
+        const totalLines = numSideLines + numTopLines;
         // Smaller ds (< minWallDist) prevents tunneling through thin curved membranes
         const ds = 0.026;
-        const baseSteps = Math.min(260, Math.max(120, Math.ceil((halfPhysW * 2.5) / ds)));
-        const minWallDist = 0.048;
+        const baseSteps = Math.min(280, Math.max(130, Math.ceil((halfPhysW * 2.7) / ds)));
+        const minWallDist = 0.044;
 
         const lowPath = new Path2D();
         const highPath = new Path2D();
@@ -556,32 +566,16 @@ const {
         for (let r = 0; r < totalLines; r++) {
           let px: number;
           let py: number;
-          let lineSteps = baseSteps;
-          const isWakeSeed = r >= numSideLines + numTopLines;
+          const lineSteps = baseSteps;
           if (r < numSideLines) {
             const frac = (r + 0.5) / numSideLines;
             px = seedX;
             py = (frac * 2 - 1) * Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
-          } else if (r < numSideLines + numTopLines) {
+          } else {
             // Seed hover-suction streamlines along top boundary so downstream upper quadrant flows smoothly down
             const topFrac = (r - numSideLines + 0.5) / numTopLines;
             px = (seedX > 0 ? 1 : -1) * halfPhysW * (0.85 - topFrac * 1.7);
             py = -Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
-          } else {
-            // Seed subtle separated wake & LEV shear-layer streamlines behind the leeward surface
-            const wIdx = r - (numSideLines + numTopLines);
-            const wFrac = (wIdx + 0.5) / numWakeLines;
-            const chordSpanY = phase.te.y - phase.leY;
-            const chordSpanX = phase.te.x - phase.leX;
-            // Offset just downstream of the curved blade outside minWallDist
-            px = phase.leX + chordSpanX * (0.18 + wFrac * 0.78) + phase.inflowDir * (0.08 + 0.04 * Math.sin(wFrac * Math.PI));
-            py = phase.leY + chordSpanY * (0.12 + wFrac * 0.86) + 0.02;
-            const clSeed = closestToWing(px, py, phase.pts);
-            if (clSeed.dist < minWallDist * 1.15) {
-              px = clSeed.cx + clSeed.nx * (minWallDist * 1.2);
-              py = clSeed.cy + clSeed.ny * (minWallDist * 1.2);
-            }
-            lineSteps = baseSteps;
           }
           const seedPhase = r * 1.37;
 
@@ -702,7 +696,7 @@ const {
             const sx1 = i + 1 < tracedPts.length ? pPrev.sx * 0.2 + pCurr.sx * 0.6 + pNext.sx * 0.2 : pCurr.sx;
             const sy1 = i + 1 < tracedPts.length ? pPrev.sy * 0.2 + pCurr.sy * 0.6 + pNext.sy * 0.2 : pCurr.sy;
 
-            const isDownstreamWake = isWakeSeed || ((pCurr.px - phase.leX) * phase.inflowDir > 0.12 && pCurr.turb > 0.24);
+            const isDownstreamWake = (pCurr.px - phase.leX) * phase.inflowDir > 0.12 && pCurr.turb > 0.24;
             const isHighSpeed = pCurr.speed > 1.24 || (pCurr.dist < 0.22 && pCurr.speed > 1.0);
             const target = isDownstreamWake ? wakePath : isHighSpeed ? highPath : lowPath;
             target.moveTo(sx0, sy0);
@@ -723,15 +717,15 @@ const {
         ctx.stroke(haloPath);
 
         ctx.lineWidth = 0.95;
-        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.60, 0.32 * scaleAlpha)})`;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.60, 0.36 * scaleAlpha)})`;
         ctx.stroke(lowPath);
 
-        ctx.lineWidth = 1.35;
-        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.82, 0.58 * scaleAlpha)})`;
+        ctx.lineWidth = 1.25;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.75, 0.50 * scaleAlpha)})`;
         ctx.stroke(highPath);
 
-        ctx.lineWidth = 1.05;
-        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.68, 0.42 * scaleAlpha)})`;
+        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.65, 0.40 * scaleAlpha)})`;
         ctx.stroke(wakePath);
 
         // Horizontal stroke-plane reference line & sweep vector
