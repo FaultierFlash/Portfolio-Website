@@ -23,7 +23,8 @@ const projectData = await sanityClient.fetch(
       "originalFilename": asset->originalFilename
     },
     topographyConfig,
-    solarConfig
+    solarConfig,
+    airflowConfig
   }`,
   { slug, lang }
 );
@@ -69,6 +70,7 @@ const projectOgImage = projectData.mainImage
   backgroundEffect={projectData.backgroundEffect}
   topographyConfig={projectData.topographyConfig}
   solarConfig={projectData.solarConfig}
+  airflowConfig={projectData.airflowConfig}
   accentColor={projectData.accentColor || "primary"}
 >
   <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">

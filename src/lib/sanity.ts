@@ -39,6 +39,7 @@ export async function getHomePageData(locale: string) {
     backgroundEffect,
     topographyConfig,
     solarConfig,
+    airflowConfig,
     featuredProjects[]->{
       "title": title,
       slug,
@@ -48,6 +49,7 @@ export async function getHomePageData(locale: string) {
       backgroundEffect,
       topographyConfig,
       solarConfig,
+      airflowConfig,
       accentColor
     },
     showSpinWheel,
@@ -109,6 +111,7 @@ export async function getProjects(locale: string) {
     backgroundEffect,
     topographyConfig,
     solarConfig,
+    airflowConfig,
     accentColor
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -142,7 +145,8 @@ export async function getLibrarySettings() {
     backgroundEffect,
     accentColor,
     topographyConfig,
-    solarConfig
+    solarConfig,
+    airflowConfig
   }`;
   return await sanityClient.fetch(query);
 }

@@ -18,6 +18,7 @@ interface Props {
   backgroundEffect?: string | null;
   topographyConfig?: any;
   solarConfig?: any;
+  airflowConfig?: any;
   accentColor?: string;
   showFooter?: boolean;
   overrides?: Record<string, any>;
@@ -31,6 +32,7 @@ const {
   backgroundEffect = "none",
   topographyConfig = null,
   solarConfig = null,
+  airflowConfig = null,
   accentColor = "primary",
   showFooter = true,
   overrides: propOverrides,
@@ -281,7 +283,7 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   <body>
     <DynamicBackground 
       effect={backgroundEffect} 
-      config={backgroundEffect === 'solar' ? solarConfig : topographyConfig} 
+      config={backgroundEffect === 'solar' ? solarConfig : backgroundEffect === 'airflow' ? airflowConfig : topographyConfig} 
     />
     <Header
       currentLocale={currentLocale}

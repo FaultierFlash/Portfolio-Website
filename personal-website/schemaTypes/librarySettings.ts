@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { airflowConfigField, backgroundEffectList } from './airflowConfigField'
 
 export default defineType({
   name: 'librarySettings',
@@ -30,13 +31,7 @@ export default defineType({
       title: 'Background Effect',
       type: 'string',
       options: {
-        list: [
-          { title: 'None', value: 'none' },
-          { title: 'Subtle Grid', value: 'grid' },
-          { title: 'Subtle Dots', value: 'dots' },
-          { title: 'Topography', value: 'topography' },
-          { title: 'Solar System', value: 'solar' },
-        ],
+        list: backgroundEffectList,
       },
     }),
     defineField({
@@ -83,6 +78,7 @@ export default defineType({
         }),
       ],
     }),
+    airflowConfigField,
     defineField({
       name: 'topographyConfig',
       title: 'Topography Configuration',

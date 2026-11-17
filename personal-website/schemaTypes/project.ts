@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { airflowConfigField, backgroundEffectList } from './airflowConfigField'
 
 export const project = defineType({
     name: 'project',
@@ -161,13 +162,7 @@ export const project = defineType({
             type: 'string',
             description: 'Choose a background visual effect for this project page.',
             options: {
-                list: [
-                    { title: 'None', value: 'none' },
-                    { title: 'Subtle Grid', value: 'grid' },
-                    { title: 'Subtle Dots', value: 'dots' },
-                    { title: 'Topography', value: 'topography' },
-                    { title: 'Solar System', value: 'solar' },
-                ],
+                list: backgroundEffectList,
             },
             initialValue: 'none',
         }),
@@ -202,6 +197,7 @@ export const project = defineType({
                 }),
             ],
         }),
+        airflowConfigField,
         defineField({
             name: 'accentColor',
             title: 'Project Accent Color',

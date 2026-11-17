@@ -353,7 +353,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
-        config={homeData?.backgroundEffect === 'solar' ? homeData?.solarConfig : homeData?.topographyConfig}
+        config={homeData?.backgroundEffect === 'solar' ? homeData?.solarConfig : homeData?.backgroundEffect === 'airflow' ? homeData?.airflowConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
       
@@ -1131,7 +1131,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
           <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug.current} data-accent-color={projectColor}>
             <DynamicBackground 
               effect={project.backgroundEffect || "none"} 
-              config={project.backgroundEffect === 'solar' ? project.solarConfig : project.topographyConfig}
+              config={project.backgroundEffect === 'solar' ? project.solarConfig : project.backgroundEffect === 'airflow' ? project.airflowConfig : project.topographyConfig}
               isAbsolute={true} 
             />
             
