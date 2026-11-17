@@ -1,10 +1,12 @@
 ---
 /**
  * WingAirflowBackground.astro
- * Full-viewport monochrome aerodynamic flow background modeling a 20 Hz horizontal
- * flapping-wing stroke plane (270 mm span, 64 mm constant-arc elastic chord, 120° sweep)
- * with passive aeroelastic pitching (~30° effective AoA at mid-stroke) and subtle
- * black-and-white streamlines disturbed by cursor motion.
+ * Monochrome 20 Hz horizontal flapping-wing background (270 mm span, 64 mm constant-arc elastic chord,
+ * 120° sweep) with passive aeroelastic pitching (~30° AoA at mid-stroke).
+ *
+ * - On scrollable full pages (`isAbsolute={false}`, `phase="scroll"`): stacks all 4 stroke phases vertically
+ *   so scrolling glides smoothly through the wing positions in sequence.
+ * - On showcase/home slides (`isAbsolute={true}`): renders only Frame 1 (Mid-Forward Stroke, ~30° bend).
  */
 interface Props {
   phase?: 'scroll' | '01' | '02' | '03' | '04';
@@ -20,7 +22,7 @@ const {
   intensity = 1.0,
   flutter = 1.0,
   cursorTurbulence = 1.0,
-  showGhosts = true,
+  showGhosts = false,
   isAbsolute = false,
 } = Astro.props;
 ---
@@ -69,23 +71,29 @@ const {
 </style>
 
 <script>
+  interface WingPoint {
+    x: number;
+    y: number;
+  }
+
   interface WingPhase {
     id: string;
     name: string;
     tRatio: string;
     phiLabel: string;
-    badge: string;
     leX: number;
     leY: number;
     inflowDir: number;
     uSpeed: number;
     downwash: number;
+    stagS: number;
     thetaFn: (s: number) => number;
     levOffset: { dx: number; dy: number; gamma: number };
     wakeOffset: { dx: number; dy: number; gamma: number };
     baseTurb: number;
-    pts: { x: number; y: number }[];
-    te: { x: number; y: number };
+    pts: WingPoint[];
+    te: WingPoint;
+    bbox: { minX: number; minY: number; maxX: number; maxY: number };
   }
 
   interface BakedField {
@@ -98,98 +106,115 @@ const {
   const CHORD_UNIT = 1.0; // Constant physical arc length (represents 64 mm chord)
   const DOM_X = 1.65;
   const DOM_Y = 0.96;
-  const GRID_W = 88;
-  const GRID_H = 54;
+  const GRID_W = 96;
+  const GRID_H = 60;
 
   function buildPhases(): WingPhase[] {
+    // Sequence starts on peak Mid-Forward stroke (Frame 1) so showcase / hero immediately show ~30° bend,
+    // then scrolling down steps through Supination -> Mid-Return -> Pronation cleanly.
     const defs = [
       {
         id: '01',
-        name: 'PRONATION',
-        tRatio: 't/T = 0.00',
-        phiLabel: 'φ = -60° · α ≈ 78°',
-        badge: 'REVERSAL',
-        leX: -0.34,
-        leY: -0.35,
-        inflowDir: -1,
-        uSpeed: 0.56,
-        downwash: 0.28,
-        thetaFn: (s: number) => Math.PI * 0.5 + 0.14 * s - 0.18 * Math.sin(Math.PI * s),
-        levOffset: { dx: -0.22, dy: 0.30, gamma: 0.45 },
-        wakeOffset: { dx: -0.45, dy: 0.70, gamma: -0.42 },
-        baseTurb: 1.15,
-      },
-      {
-        id: '02',
         name: 'MID-FORWARD',
         tRatio: 't/T = 0.25',
         phiLabel: 'φ = 0° · α ≈ 30°',
-        badge: 'PEAK BEND + LEV',
         leX: 0.35,
-        leY: -0.33,
-        inflowDir: -1,
-        uSpeed: 1.25,
-        downwash: 0.55,
+        leY: -0.32,
+        inflowDir: -1, // moving RIGHT -> relative wind from RIGHT
+        uSpeed: 1.26,
+        downwash: 0.56,
+        stagS: 0.42,
         thetaFn: (s: number) => Math.PI * 0.65 + Math.PI * 0.31 * Math.pow(s, 0.75),
-        levOffset: { dx: -0.38, dy: 0.12, gamma: 1.05 },
-        wakeOffset: { dx: -0.88, dy: 0.56, gamma: -0.48 },
-        baseTurb: 0.78,
+        levOffset: { dx: -0.38, dy: 0.14, gamma: 1.05 },
+        wakeOffset: { dx: -0.88, dy: 0.56, gamma: -0.45 },
+        baseTurb: 0.75,
       },
       {
-        id: '03',
+        id: '02',
         name: 'SUPINATION',
         tRatio: 't/T = 0.50',
         phiLabel: 'φ = +60° · α ≈ 80°',
-        badge: 'RECOIL + SHED',
-        leX: 0.34,
+        leX: 0.30,
         leY: -0.35,
-        inflowDir: 1,
-        uSpeed: 0.56,
+        inflowDir: 1, // reversing LEFT -> wind starts from LEFT
+        uSpeed: 0.58,
         downwash: 0.30,
-        thetaFn: (s: number) => Math.PI * 0.5 - 0.14 * s + 0.18 * Math.sin(Math.PI * s),
-        levOffset: { dx: 0.22, dy: 0.30, gamma: -0.48 },
-        wakeOffset: { dx: 0.18, dy: 0.72, gamma: 0.45 },
-        baseTurb: 1.22,
+        stagS: 0.48,
+        thetaFn: (s: number) => Math.PI * 0.5 - 0.14 * s + 0.16 * Math.sin(Math.PI * s),
+        levOffset: { dx: 0.24, dy: 0.30, gamma: -0.45 },
+        wakeOffset: { dx: 0.22, dy: 0.72, gamma: 0.42 },
+        baseTurb: 1.12,
       },
       {
-        id: '04',
+        id: '03',
         name: 'MID-RETURN',
         tRatio: 't/T = 0.75',
         phiLabel: 'φ = 0° · α ≈ 30°',
-        badge: 'MIRROR LIFT',
         leX: -0.35,
-        leY: -0.33,
-        inflowDir: 1,
-        uSpeed: 1.25,
-        downwash: 0.55,
+        leY: -0.32,
+        inflowDir: 1, // moving LEFT -> relative wind from LEFT
+        uSpeed: 1.26,
+        downwash: 0.56,
+        stagS: 0.42,
         thetaFn: (s: number) => Math.PI * 0.35 - Math.PI * 0.31 * Math.pow(s, 0.75),
-        levOffset: { dx: 0.38, dy: 0.12, gamma: -1.05 },
-        wakeOffset: { dx: 0.88, dy: 0.56, gamma: 0.48 },
-        baseTurb: 0.78,
+        levOffset: { dx: 0.38, dy: 0.14, gamma: -1.05 },
+        wakeOffset: { dx: 0.88, dy: 0.56, gamma: 0.45 },
+        baseTurb: 0.75,
+      },
+      {
+        id: '04',
+        name: 'PRONATION',
+        tRatio: 't/T = 0.00',
+        phiLabel: 'φ = -60° · α ≈ 78°',
+        leX: -0.30,
+        leY: -0.35,
+        inflowDir: -1, // reversing RIGHT -> wind starts from RIGHT
+        uSpeed: 0.58,
+        downwash: 0.30,
+        stagS: 0.48,
+        thetaFn: (s: number) => Math.PI * 0.5 + 0.14 * s - 0.16 * Math.sin(Math.PI * s),
+        levOffset: { dx: -0.24, dy: 0.30, gamma: 0.45 },
+        wakeOffset: { dx: -0.42, dy: 0.70, gamma: -0.42 },
+        baseTurb: 1.08,
       },
     ];
 
     const ds = CHORD_UNIT / CHORD_SEGS;
     return defs.map((d) => {
-      const pts: { x: number; y: number }[] = [{ x: d.leX, y: d.leY }];
+      const pts: WingPoint[] = [{ x: d.leX, y: d.leY }];
       let x = d.leX;
       let y = d.leY;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
       for (let i = 0; i < CHORD_SEGS; i++) {
         const th = d.thetaFn((i + 0.5) / CHORD_SEGS);
         x += Math.cos(th) * ds;
         y += Math.sin(th) * ds;
         pts.push({ x, y });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
       }
-      return { ...d, pts, te: pts[pts.length - 1] };
+      return {
+        ...d,
+        pts,
+        te: pts[pts.length - 1],
+        bbox: { minX, minY, maxX, maxY },
+      };
     });
   }
 
-  function closestToWing(px: number, py: number, pts: { x: number; y: number }[]) {
+  function closestToWing(px: number, py: number, pts: WingPoint[]) {
     let minSq = Infinity;
     let cx = 0;
     let cy = 0;
     let tx = 1;
     let ty = 0;
+    let sBest = 0;
+
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i];
       const b = pts[i + 1];
@@ -207,12 +232,102 @@ const {
         const l = Math.sqrt(lenSq);
         tx = abx / l;
         ty = aby / l;
+        sBest = (i + t) / (pts.length - 1);
       }
     }
+
     const dist = Math.sqrt(minSq);
     const nx = dist > 1e-6 ? (px - cx) / dist : -ty;
     const ny = dist > 1e-6 ? (py - cy) / dist : tx;
-    return { dist, cx, cy, nx, ny, tx, ty };
+    return { dist, cx, cy, nx, ny, tx, ty, s: sBest };
+  }
+
+  // Fast 2D segment-vs-segment intersection test to guarantee zero line-through-wing artifacts
+  function orient(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  }
+
+  function segmentsIntersect(
+    ax: number, ay: number, bx: number, by: number,
+    cx: number, cy: number, dx: number, dy: number
+  ): boolean {
+    const o1 = orient(ax, ay, bx, by, cx, cy);
+    const o2 = orient(ax, ay, bx, by, dx, dy);
+    const o3 = orient(cx, cy, dx, dy, ax, ay);
+    const o4 = orient(cx, cy, dx, dy, bx, by);
+    return (o1 * o2 <= 0) && (o3 * o4 <= 0);
+  }
+
+  function crossesWing(x0: number, y0: number, x1: number, y1: number, phase: WingPhase): boolean {
+    const pad = 0.06;
+    const sMinX = Math.min(x0, x1);
+    const sMaxX = Math.max(x0, x1);
+    const sMinY = Math.min(y0, y1);
+    const sMaxY = Math.max(y0, y1);
+    if (
+      sMaxX < phase.bbox.minX - pad ||
+      sMinX > phase.bbox.maxX + pad ||
+      sMaxY < phase.bbox.minY - pad ||
+      sMinY > phase.bbox.maxY + pad
+    ) {
+      return false;
+    }
+    const pts = phase.pts;
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (segmentsIntersect(x0, y0, x1, y1, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Constrain any velocity vector (u, v) cleanly around the curved wing boundary:
+   * - Smoothly removes inward normal velocity component (preventing penetration without sawtooth bounces).
+   * - Splits windward stagnation smoothly toward the Leading Edge (up) and Trailing Edge (down).
+   */
+  function applyWingBoundary(u: number, v: number, px: number, py: number, phase: WingPhase) {
+    const pad = 0.30;
+    if (
+      px < phase.bbox.minX - pad ||
+      px > phase.bbox.maxX + pad ||
+      py < phase.bbox.minY - pad ||
+      py > phase.bbox.maxY + pad
+    ) {
+      return { u, v, dist: 1.0, s: 0.5, nx: 0, ny: 0, tx: 1, ty: 0 };
+    }
+
+    const cl = closestToWing(px, py, phase.pts);
+    const barrierR = 0.28;
+    if (cl.dist < barrierR) {
+      // Quintic smoothstep weight: 1 near wing surface -> 0 at barrierR
+      const rNorm = 1 - cl.dist / barrierR;
+      const weight = rNorm * rNorm * (3 - 2 * rNorm);
+
+      // Attenuate any inward normal velocity component smoothly
+      const uDotN = u * cl.nx + v * cl.ny;
+      if (uDotN < 0) {
+        u -= uDotN * weight * cl.nx;
+        v -= uDotN * weight * cl.ny;
+      }
+
+      // Smooth stagnation splitting along wing tangent toward LE (s -> 0) and TE (s -> 1)
+      const interiorFactor = cl.s > 0.04 && cl.s < 0.96 ? 1 : 0.25;
+      const splitOffset = cl.s - phase.stagS;
+      const splitSign = splitOffset >= 0 ? 1 : -1;
+      const splitMag = (0.35 + Math.min(0.65, Math.abs(splitOffset) * 1.6)) * weight * interiorFactor * phase.uSpeed;
+      u += cl.tx * splitSign * splitMag * 0.45;
+      v += cl.ty * splitSign * splitMag * 0.45;
+
+      // Subtle outward repulsion only when very close to skin (prevents numerical stagnation trapping)
+      if (cl.dist < 0.085) {
+        const push = Math.pow(1 - cl.dist / 0.085, 2) * 0.38;
+        u += cl.nx * push;
+        v += cl.ny * push;
+      }
+    }
+
+    return { u, v, dist: cl.dist, s: cl.s, nx: cl.nx, ny: cl.ny, tx: cl.tx, ty: cl.ty };
   }
 
   function bakeField(phase: WingPhase): BakedField {
@@ -232,49 +347,37 @@ const {
         const idx = gy * GRID_W + gx;
 
         let u = phase.inflowDir * phase.uSpeed;
-        let v = phase.downwash * 0.36;
+        // Upstream enters cleanly horizontal; downward momentum deflection develops around & downstream of the wing
+        const wakeMix = Math.min(1, Math.max(0, 0.5 + ((px - phase.leX) * phase.inflowDir) * 0.9));
+        let v = phase.downwash * (0.10 + 0.42 * wakeMix);
 
+        // Bound Leading-Edge Vortex
         const dlx = px - levX;
         const dly = py - levY;
-        const rlSq = dlx * dlx + dly * dly + 0.055;
+        const rlSq = dlx * dlx + dly * dly + 0.065;
         u += (-dly / rlSq) * phase.levOffset.gamma * 0.22;
         v += (dlx / rlSq) * phase.levOffset.gamma * 0.22;
 
+        // Downstream wake vortex
         const dwx = px - wakeX;
         const dwy = py - wakeY;
-        const rwSq = dwx * dwx + dwy * dwy + 0.085;
+        const rwSq = dwx * dwx + dwy * dwy + 0.095;
         u += (-dwy / rwSq) * phase.wakeOffset.gamma * 0.20;
         v += (dwx / rwSq) * phase.wakeOffset.gamma * 0.20;
 
-        // Solid-wall tangential boundary enforcement on curved membrane
-        const cl = closestToWing(px, py, phase.pts);
-        const barrierR = 0.24;
-        if (cl.dist < barrierR) {
-          const weight = Math.pow(1 - cl.dist / barrierR, 1.5);
-          const uDotN = u * cl.nx + v * cl.ny;
-          if (uDotN < 0 || cl.dist < 0.09) {
-            u -= uDotN * weight * cl.nx;
-            v -= uDotN * weight * cl.ny;
-          }
-          if (cl.dist < 0.08) {
-            const push = (1 - cl.dist / 0.08) * 0.65;
-            u += cl.nx * push;
-            v += cl.ny * push;
-          }
-          const uDotT = u * cl.tx + v * cl.ty;
-          u += cl.tx * uDotT * 0.22 * weight;
-          v += cl.ty * uDotT * 0.22 * weight;
-        }
+        const bounded = applyWingBoundary(u, v, px, py, phase);
+        u = bounded.u;
+        v = bounded.v;
 
-        const isDownstream = (px - phase.leX) * phase.inflowDir > 0.02;
-        const wallFade = Math.min(1, Math.max(0, (cl.dist - 0.05) / 0.14));
-        const levEnv = Math.exp(-((px - levX) ** 2 + (py - levY) ** 2) / 0.20);
-        const teEnv = Math.exp(-((px - phase.te.x) ** 2 + (py - phase.te.y) ** 2) / 0.22);
-        const wakeEnv = isDownstream ? Math.exp(-((py - 0.15) ** 2) / 0.35) * 0.7 : 0.06;
+        const isDownstream = (px - phase.leX) * phase.inflowDir > 0.04;
+        const wallFade = Math.min(1, Math.max(0, (bounded.dist - 0.08) / 0.16));
+        const levEnv = Math.exp(-((px - levX) ** 2 + (py - levY) ** 2) / 0.22);
+        const teEnv = Math.exp(-((px - phase.te.x) ** 2 + (py - phase.te.y) ** 2) / 0.24);
+        const wakeEnv = isDownstream ? Math.exp(-((py - 0.15) ** 2) / 0.38) * 0.65 : 0.05;
 
         uArr[idx] = u;
         vArr[idx] = v;
-        turbArr[idx] = phase.baseTurb * wallFade * (0.04 + 0.95 * levEnv + 0.85 * teEnv + wakeEnv);
+        turbArr[idx] = phase.baseTurb * wallFade * (0.04 + 0.90 * levEnv + 0.80 * teEnv + wakeEnv);
       }
     }
     return { uArr, vArr, turbArr };
@@ -341,7 +444,6 @@ const {
       const intensity = Math.max(0.15, Math.min(3.0, parseFloat(container.dataset.intensity || '1.0') || 1.0));
       const flutterGain = Math.max(0, Math.min(3.0, parseFloat(container.dataset.flutter || '1.0') || 1.0));
       const cursorTurbulence = Math.max(0, Math.min(3.0, parseFloat(container.dataset.cursorTurbulence || '1.0') || 1.0));
-      const showGhosts = container.dataset.showGhosts !== 'false';
       const isAbsolute = container.classList.contains('is-absolute');
 
       let width = 0;
@@ -399,91 +501,113 @@ const {
         pointer.active = false;
       };
 
-      function getActivePhaseIdx(): number {
-        if (phasePref === '01') return 0;
-        if (phasePref === '02') return 1;
-        if (phasePref === '03') return 2;
-        if (phasePref === '04') return 3;
-        if (isAbsolute) return 1; // Hero/slide absolute cards default to peak mid-forward bend
-
-        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-        if (maxScroll < 120) return 1;
-        const progress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
-        // Sequence across page height: Mid-Forward -> Supination -> Mid-Return -> Pronation
-        if (progress < 0.28) return 1;
-        if (progress < 0.56) return 2;
-        if (progress < 0.84) return 3;
-        return 0;
-      }
-
-      function renderFrame(timeSec: number) {
-        if (!ctx || !width || !height) return;
-
-        const isDark = document.documentElement.classList.contains('dark');
-        // Monochrome grayscale ink: near-black in light mode, crisp white in dark mode
-        const ink = isDark ? '248, 250, 252' : '15, 23, 42';
-        const subInk = isDark ? '203, 213, 225' : '51, 65, 85';
-
-        ctx.clearRect(0, 0, width, height);
-
-        pointer.energy *= 0.94;
-        pointer.vx *= 0.88;
-        pointer.vy *= 0.88;
-
-        const scale = Math.min(width / (DOM_X * 1.95), height / (DOM_Y * 1.95));
+      /**
+       * Render a single positional snippet band centered at screenY = centerY.
+       */
+      function renderPhaseBand(
+        phaseIdx: number,
+        centerY: number,
+        bandH: number,
+        timeSec: number,
+        ink: string,
+        subInk: string,
+        scaleAlpha: number
+      ) {
+        if (!ctx) return;
+        const phase = phases[phaseIdx];
+        const isSmall = width < 768;
+        const scale = Math.min(width / (DOM_X * 1.95), bandH / (DOM_Y * 1.95));
         const cx = width * 0.5;
-        const cy = height * 0.5;
         const halfPhysW = (width * 0.5) / scale;
-        const halfPhysH = (height * 0.5) / scale;
+        const halfPhysH = (bandH * 0.5) / scale;
 
         const toScreen = (px: number, py: number) => ({
           x: cx + px * scale,
-          y: cy + py * scale,
+          y: centerY + py * scale,
         });
 
-        const phaseIdx = getActivePhaseIdx();
-        const phase = phases[phaseIdx];
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, centerY - bandH * 0.5, width, bandH);
+        ctx.clip();
 
-        // 1. Streamlines (Black & White / Monochrome CFD Ribbon Bands)
         const seedX = (phase.inflowDir < 0 ? 1 : -1) * Math.min(DOM_X * 0.96, halfPhysW * 0.98);
-        const isSmall = width < 768;
-        const numLines = isSmall ? 22 : 34;
-        const steps = isSmall ? 44 : 58;
-        const ds = 0.052;
-        const minWallDist = 0.036;
+        const numSideLines = isSmall ? 20 : 30;
+        const numTopLines = isSmall ? 6 : 10;
+        const numWakeLines = isSmall ? 6 : 9;
+        const totalLines = numSideLines + numTopLines + numWakeLines;
+        // Smaller ds (< minWallDist) prevents tunneling through thin curved membranes
+        const ds = 0.026;
+        const baseSteps = Math.min(260, Math.max(120, Math.ceil((halfPhysW * 2.5) / ds)));
+        const minWallDist = 0.048;
 
         const lowPath = new Path2D();
         const highPath = new Path2D();
         const wakePath = new Path2D();
         const haloPath = new Path2D();
 
-        const cursorPx = pointer.active ? { px: (pointer.x - cx) / scale, py: (pointer.y - cy) / scale } : null;
+        const cursorLocal =
+          pointer.active &&
+          pointer.y >= centerY - bandH * 0.5 &&
+          pointer.y <= centerY + bandH * 0.5
+            ? { px: (pointer.x - cx) / scale, py: (pointer.y - centerY) / scale }
+            : null;
 
-        for (let r = 0; r < numLines; r++) {
-          const frac = (r + 0.5) / numLines;
-          let px = seedX;
-          let py = (frac * 2 - 1) * Math.min(DOM_Y * 0.94, halfPhysH * 0.94);
+        for (let r = 0; r < totalLines; r++) {
+          let px: number;
+          let py: number;
+          let lineSteps = baseSteps;
+          const isWakeSeed = r >= numSideLines + numTopLines;
+          if (r < numSideLines) {
+            const frac = (r + 0.5) / numSideLines;
+            px = seedX;
+            py = (frac * 2 - 1) * Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
+          } else if (r < numSideLines + numTopLines) {
+            // Seed hover-suction streamlines along top boundary so downstream upper quadrant flows smoothly down
+            const topFrac = (r - numSideLines + 0.5) / numTopLines;
+            px = (seedX > 0 ? 1 : -1) * halfPhysW * (0.85 - topFrac * 1.7);
+            py = -Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
+          } else {
+            // Seed subtle separated wake & LEV shear-layer streamlines behind the leeward surface
+            const wIdx = r - (numSideLines + numTopLines);
+            const wFrac = (wIdx + 0.5) / numWakeLines;
+            const chordSpanY = phase.te.y - phase.leY;
+            const chordSpanX = phase.te.x - phase.leX;
+            // Offset just downstream of the curved blade outside minWallDist
+            px = phase.leX + chordSpanX * (0.18 + wFrac * 0.78) + phase.inflowDir * (0.08 + 0.04 * Math.sin(wFrac * Math.PI));
+            py = phase.leY + chordSpanY * (0.12 + wFrac * 0.86) + 0.02;
+            const clSeed = closestToWing(px, py, phase.pts);
+            if (clSeed.dist < minWallDist * 1.15) {
+              px = clSeed.cx + clSeed.nx * (minWallDist * 1.2);
+              py = clSeed.cy + clSeed.ny * (minWallDist * 1.2);
+            }
+            lineSteps = baseSteps;
+          }
           const seedPhase = r * 1.37;
-          let prevSx = 0;
-          let prevSy = 0;
 
-          for (let s = 0; s < steps; s++) {
+          const tracedPts: { sx: number; sy: number; px: number; speed: number; turb: number; dist: number }[] = [];
+
+          for (let s = 0; s < lineSteps; s++) {
             const sample = sampleField(phaseIdx, px, py);
             let u = sample.u;
             let v = sample.v;
             let turb = sample.turb * flutterGain;
 
-            if (cursorPx && cursorTurbulence > 0) {
-              const dx = px - cursorPx.px;
-              const dy = py - cursorPx.py;
+            // Cursor perturbation (vortex + wake), ALSO passed through boundary constraint so cursor NEVER pushes flow through wing!
+            if (cursorLocal && cursorTurbulence > 0) {
+              const dx = px - cursorLocal.px;
+              const dy = py - cursorLocal.py;
               const rSq = dx * dx + dy * dy;
-              const radSq = 0.34;
+              const radSq = 0.36;
               if (rSq < radSq) {
                 const falloff = Math.exp(-rSq / (radSq * 0.42));
                 const d = Math.sqrt(rSq) + 0.08;
-                u += ((-dy / d) * 0.72 * falloff + (pointer.vx / scale) * 0.025 * falloff) * cursorTurbulence;
-                v += ((dx / d) * 0.72 * falloff + (pointer.vy / scale) * 0.025 * falloff) * cursorTurbulence;
-                turb += (1.1 + pointer.energy * 0.9) * falloff * cursorTurbulence;
+                const cu = ((-dy / d) * 0.68 * falloff + (pointer.vx / scale) * 0.022 * falloff) * cursorTurbulence;
+                const cv = ((dx / d) * 0.68 * falloff + (pointer.vy / scale) * 0.022 * falloff) * cursorTurbulence;
+                const boundedCursor = applyWingBoundary(u + cu, v + cv, px, py, phase);
+                u = boundedCursor.u;
+                v = boundedCursor.v;
+                turb += (0.95 + pointer.energy * 0.85) * falloff * cursorTurbulence;
               }
             }
 
@@ -494,167 +618,231 @@ const {
             const normY = dirX;
 
             const cl = closestToWing(px, py, phase.pts);
-            const wallSafety = Math.min(1, Math.max(0, (cl.dist - minWallDist * 1.4) / 0.14));
+            // Zero flutter near the wing boundary so wave flutter cannot push curves through skin
+            const wallSafety = Math.min(1, Math.max(0, (cl.dist - 0.09) / 0.18));
 
             const wave =
-              Math.sin(s * 0.42 - timeSec * 9.5 + seedPhase) +
-              0.45 * Math.cos(s * 0.78 - timeSec * 15.0 + seedPhase * 1.6);
-            const disp = wave * turb * wallSafety * 0.022;
+              Math.sin(s * 0.22 - timeSec * 9.5 + seedPhase) +
+              0.45 * Math.cos(s * 0.42 - timeSec * 15.0 + seedPhase * 1.6);
+            const disp = wave * turb * wallSafety * 0.020;
 
             let plotX = px + normX * disp;
             let plotY = py + normY * disp;
 
+            // Keep plotted point outside wall margin AND verify no segment crosses wing
             const clPlot = closestToWing(plotX, plotY, phase.pts);
             if (clPlot.dist < minWallDist) {
               plotX = clPlot.cx + clPlot.nx * minWallDist;
               plotY = clPlot.cy + clPlot.ny * minWallDist;
             }
+            if (crossesWing(px, py, plotX, plotY, phase)) {
+              plotX = px;
+              plotY = py;
+            }
 
             const scr = toScreen(plotX, plotY);
-            if (s > 0) {
-              const isDownstreamWake = (px - phase.leX) * phase.inflowDir > 0.12 && turb > 0.25;
-              const isHighSpeed = speed > 1.24 || (cl.dist < 0.22 && speed > 1.0);
-              const target = isDownstreamWake ? wakePath : isHighSpeed ? highPath : lowPath;
-              target.moveTo(prevSx, prevSy);
-              target.lineTo(scr.x, scr.y);
-              if (r % 2 === 0) {
-                haloPath.moveTo(prevSx, prevSy);
-                haloPath.lineTo(scr.x, scr.y);
+            tracedPts.push({ sx: scr.x, sy: scr.y, px, speed, turb, dist: cl.dist });
+
+            // Advance using midpoint RK2 + crossing guard
+            const midX = px + dirX * (ds * 0.5);
+            const midY = py + dirY * (ds * 0.5);
+            const midSample = sampleField(phaseIdx, midX, midY);
+            const midSpeed = Math.hypot(midSample.u, midSample.v) || 1e-4;
+            let stepDirX = midSample.u / midSpeed;
+            let stepDirY = midSample.v / midSpeed;
+
+            // Blend current & midpoint if cursor active near here
+            if (cursorLocal) {
+              stepDirX = (dirX + stepDirX) * 0.5;
+              stepDirY = (dirY + stepDirY) * 0.5;
+              const sl = Math.hypot(stepDirX, stepDirY) || 1e-4;
+              stepDirX /= sl;
+              stepDirY /= sl;
+            }
+
+            let nextX = px + stepDirX * ds;
+            let nextY = py + stepDirY * ds;
+
+            const clNext = closestToWing(nextX, nextY, phase.pts);
+            if (clNext.dist < minWallDist) {
+              // Slide purely along wing tangent on current side
+              const nDotPrev = (px - clNext.cx) * clNext.nx + (py - clNext.cy) * clNext.ny;
+              const sideSign = nDotPrev >= 0 ? 1 : -1;
+              nextX = clNext.cx + clNext.nx * sideSign * minWallDist;
+              nextY = clNext.cy + clNext.ny * sideSign * minWallDist;
+            }
+
+            // Hard crossing check: if segment (px,py)->(nextX,nextY) still intersects wing polyline, steer purely tangential
+            if (crossesWing(px, py, nextX, nextY, phase)) {
+              const tDot = stepDirX * cl.tx + stepDirY * cl.ty;
+              const tSign = tDot >= 0 ? 1 : -1;
+              nextX = px + cl.tx * tSign * ds;
+              nextY = py + cl.ty * tSign * ds;
+              const clGuard = closestToWing(nextX, nextY, phase.pts);
+              if (clGuard.dist < minWallDist) {
+                nextX = clGuard.cx + cl.nx * minWallDist;
+                nextY = clGuard.cy + cl.ny * minWallDist;
               }
             }
-            prevSx = scr.x;
-            prevSy = scr.y;
 
-            px += dirX * ds;
-            py += dirY * ds;
-            const clNext = closestToWing(px, py, phase.pts);
-            if (clNext.dist < minWallDist) {
-              px = clNext.cx + clNext.nx * minWallDist;
-              py = clNext.cy + clNext.ny * minWallDist;
+            px = nextX;
+            py = nextY;
+
+            if (Math.abs(px) > halfPhysW * 1.06 || Math.abs(py) > halfPhysH * 1.02) break;
+          }
+
+          // Light 3-tap spatial smoothing on screen coordinates before batching into Path2D (eliminates micro-kinks)
+          for (let i = 1; i < tracedPts.length; i++) {
+            const pPrev = tracedPts[i - 1];
+            const pCurr = tracedPts[i];
+            const pNext = i + 1 < tracedPts.length ? tracedPts[i + 1] : pCurr;
+
+            const sx0 = pPrev.sx;
+            const sy0 = pPrev.sy;
+            const sx1 = i + 1 < tracedPts.length ? pPrev.sx * 0.2 + pCurr.sx * 0.6 + pNext.sx * 0.2 : pCurr.sx;
+            const sy1 = i + 1 < tracedPts.length ? pPrev.sy * 0.2 + pCurr.sy * 0.6 + pNext.sy * 0.2 : pCurr.sy;
+
+            const isDownstreamWake = isWakeSeed || ((pCurr.px - phase.leX) * phase.inflowDir > 0.12 && pCurr.turb > 0.24);
+            const isHighSpeed = pCurr.speed > 1.24 || (pCurr.dist < 0.22 && pCurr.speed > 1.0);
+            const target = isDownstreamWake ? wakePath : isHighSpeed ? highPath : lowPath;
+            target.moveTo(sx0, sy0);
+            target.lineTo(sx1, sy1);
+
+            if (r % 2 === 0) {
+              haloPath.moveTo(sx0, sy0);
+              haloPath.lineTo(sx1, sy1);
             }
-            if (Math.abs(px) > halfPhysW * 1.06 || Math.abs(py) > halfPhysH * 1.06) break;
           }
         }
 
-        const scaleAlpha = Math.min(1.4, Math.max(0.3, intensity));
-        ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Soft monochrome stream-sheet halo
-        ctx.lineWidth = isSmall ? 3.5 : 5.5;
-        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.18, 0.09 * scaleAlpha)})`;
+        ctx.lineWidth = isSmall ? 3.5 : 5.2;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.16, 0.08 * scaleAlpha)})`;
         ctx.stroke(haloPath);
 
-        // Upstream laminar streamlines
         ctx.lineWidth = 0.95;
-        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.65, 0.34 * scaleAlpha)})`;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.60, 0.32 * scaleAlpha)})`;
         ctx.stroke(lowPath);
 
-        // High-shear / accelerated over-wing streamlines
         ctx.lineWidth = 1.35;
-        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.85, 0.62 * scaleAlpha)})`;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.82, 0.58 * scaleAlpha)})`;
         ctx.stroke(highPath);
 
-        // Trailing turbulent wake streamlines
         ctx.lineWidth = 1.05;
-        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.70, 0.44 * scaleAlpha)})`;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.68, 0.42 * scaleAlpha)})`;
         ctx.stroke(wakePath);
-        ctx.restore();
 
-        // 2. Ghost Sweep Silhouettes along the Horizontal Stroke Plane
-        const drawWingMesh = (wp: WingPhase, isGhost: boolean) => {
-          const alpha = isGhost
-            ? Math.min(0.35, 0.16 * scaleAlpha)
-            : Math.min(0.95, 0.78 * scaleAlpha);
+        // Horizontal stroke-plane reference line & sweep vector
+        const yPlane = toScreen(0, phase.leY).y;
+        ctx.beginPath();
+        ctx.setLineDash([4, 5]);
+        ctx.moveTo(width * 0.08, yPlane);
+        ctx.lineTo(width * 0.92, yPlane);
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.32, 0.20 * scaleAlpha)})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-          if (!isGhost) {
-            const yPlane = toScreen(0, wp.leY).y;
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([4, 5]);
-            ctx.moveTo(width * 0.08, yPlane);
-            ctx.lineTo(width * 0.92, yPlane);
-            ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.35, 0.22 * scaleAlpha)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
+        const le = toScreen(phase.leX, phase.leY);
+        const dir = -phase.inflowDir;
+        const aLen = Math.min(34, scale * 0.40);
+        ctx.beginPath();
+        ctx.moveTo(le.x, le.y - 10);
+        ctx.lineTo(le.x + dir * aLen, le.y - 10);
+        ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 13);
+        ctx.moveTo(le.x + dir * aLen, le.y - 10);
+        ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 7);
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.82, 0.62 * scaleAlpha)})`;
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
 
-            // Leading-edge sweep velocity vector arrow
-            const le = toScreen(wp.leX, wp.leY);
-            const dir = -wp.inflowDir;
-            const aLen = Math.min(34, scale * 0.40);
-            ctx.beginPath();
-            ctx.moveTo(le.x, le.y - 10);
-            ctx.lineTo(le.x + dir * aLen, le.y - 10);
-            ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 13);
-            ctx.moveTo(le.x + dir * aLen, le.y - 10);
-            ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 7);
-            ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.85, 0.65 * scaleAlpha)})`;
-            ctx.lineWidth = 1.3;
-            ctx.stroke();
-            ctx.restore();
-          }
+        // Elastic wing membrane (constant 64 mm arc length)
+        ctx.beginPath();
+        phase.pts.forEach((pt, idx) => {
+          const s = toScreen(pt.x, pt.y);
+          if (idx === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
+        });
+        ctx.lineWidth = 3.0;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.95, 0.78 * scaleAlpha)})`;
+        ctx.stroke();
 
-          // Flexible 64 mm elastic wing blade polyline
-          ctx.save();
+        // Effective chord vector for mid-stroke (~30° AoA)
+        if (phaseIdx === 0 || phaseIdx === 2) {
+          const leS = toScreen(phase.leX, phase.leY);
+          const teS = toScreen(phase.te.x, phase.te.y);
           ctx.beginPath();
-          wp.pts.forEach((pt, idx) => {
-            const s = toScreen(pt.x, pt.y);
-            if (idx === 0) ctx.moveTo(s.x, s.y);
-            else ctx.lineTo(s.x, s.y);
-          });
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.lineWidth = isGhost ? 1.5 : 3.0;
-          ctx.strokeStyle = `rgba(${ink}, ${alpha})`;
+          ctx.setLineDash([2, 4]);
+          ctx.moveTo(leS.x, leS.y);
+          ctx.lineTo(teS.x, teS.y);
+          ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.45, 0.30 * scaleAlpha)})`;
+          ctx.lineWidth = 1;
           ctx.stroke();
-
-          // Effective chord dashed line for mid-stroke (~30° AoA)
-          if (!isGhost && (wp.id === '02' || wp.id === '04')) {
-            const leS = toScreen(wp.leX, wp.leY);
-            const teS = toScreen(wp.te.x, wp.te.y);
-            ctx.beginPath();
-            ctx.setLineDash([2, 4]);
-            ctx.moveTo(leS.x, leS.y);
-            ctx.lineTo(teS.x, teS.y);
-            ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.45, 0.32 * scaleAlpha)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-
-          // Carbon leading-edge pivot spar node
-          const leP = toScreen(wp.leX, wp.leY);
-          ctx.beginPath();
-          ctx.arc(leP.x, leP.y, isGhost ? 2.2 : 3.8, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${ink}, ${alpha})`;
-          ctx.fill();
-          ctx.restore();
-        };
-
-        if (showGhosts) {
-          phases.forEach((gp, gIdx) => {
-            if (gIdx !== phaseIdx) drawWingMesh(gp, true);
-          });
+          ctx.setLineDash([]);
         }
-        drawWingMesh(phase, false);
 
-        // 3. Minimal Monochrome Corner Annotations (away from foreground center text)
-        const hudAlpha = Math.min(0.72, 0.45 * scaleAlpha);
-        ctx.save();
+        // Carbon leading-edge pivot node
+        ctx.beginPath();
+        ctx.arc(le.x, le.y, 3.8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${ink}, ${Math.min(0.95, 0.78 * scaleAlpha)})`;
+        ctx.fill();
+
+        // Subtle monochrome frame label in bottom corner of band
+        const hudAlpha = Math.min(0.65, 0.42 * scaleAlpha);
         ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
         ctx.fillStyle = `rgba(${ink}, ${hudAlpha})`;
         ctx.textAlign = 'left';
         const padX = isSmall ? 14 : 24;
-        const bottomY = height - (isSmall ? 14 : 18);
-        ctx.fillText(`${phase.id} ${phase.name} · ${phase.phiLabel}`, padX, bottomY);
+        const labelY = Math.min(height - 16, centerY + bandH * 0.5 - 16);
+        ctx.fillText(`${phase.id} ${phase.name} · ${phase.phiLabel}`, padX, labelY);
 
         if (!isSmall) {
           ctx.textAlign = 'right';
-          ctx.fillText(`b = 270 mm · c = 64 mm · Δφ = 120° · f = 20 Hz · ${phase.tRatio}`, width - padX, bottomY);
+          ctx.fillText(`b = 270 mm · c = 64 mm · Δφ = 120° · f = 20 Hz · ${phase.tRatio}`, width - padX, labelY);
         }
+
         ctx.restore();
+      }
+
+      function renderFrame(timeSec: number) {
+        if (!ctx || !width || !height) return;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const ink = isDark ? '248, 250, 252' : '15, 23, 42';
+        const subInk = isDark ? '203, 213, 225' : '51, 65, 85';
+        const scaleAlpha = Math.min(1.4, Math.max(0.3, intensity));
+
+        ctx.clearRect(0, 0, width, height);
+
+        pointer.energy *= 0.94;
+        pointer.vx *= 0.88;
+        pointer.vy *= 0.88;
+
+        // 1. Showcase / locked single-frame modes -> render ONLY the requested single frame (default Frame 0 = Mid-Forward ~30°)
+        if (isAbsolute || phasePref !== 'scroll') {
+          const singleIdx =
+            phasePref === '02' ? 1 : phasePref === '03' ? 2 : phasePref === '04' ? 3 : 0;
+          renderPhaseBand(singleIdx, height * 0.5, height, timeSec, ink, subInk, scaleAlpha);
+          return;
+        }
+
+        // 2. Scrollable full project page -> physically stack the 4 stroke frames vertically along the document!
+        const docHeight = Math.max(height * 2.5, document.documentElement.scrollHeight);
+        const scrollY = window.scrollY;
+        const bandH = height;
+        const firstCenter = height * 0.5;
+        const lastCenter = Math.max(firstCenter, docHeight - height * 0.5);
+        const stepY = (lastCenter - firstCenter) / (phases.length - 1);
+
+        for (let k = 0; k < phases.length; k++) {
+          const screenCenterY = firstCenter + k * stepY - scrollY;
+          // Draw only if vertically intersecting viewport
+          if (screenCenterY + bandH * 0.5 >= -20 && screenCenterY - bandH * 0.5 <= height + 20) {
+            renderPhaseBand(k, screenCenterY, bandH, timeSec, ink, subInk, scaleAlpha);
+          }
+        }
       }
 
       const animate = (now: number) => {
