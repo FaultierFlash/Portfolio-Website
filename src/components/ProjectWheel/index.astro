@@ -109,9 +109,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   {/* 1. Sticky Scroll-Driven Wheel Runway */}
   <div id="pw-runway" class="pw-runway">
     <div class="pw-sticky-stage">
-      {/* Subtle Ambient Accent Glow */}
-      <div class="pw-ambient-glow" aria-hidden="true"></div>
-
       <div class="pw-stage-grid">
         {/* LEFT COLUMN: Rotary Mechanical Project Drum */}
         <div class="pw-wheel-column">
@@ -595,6 +592,11 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 </script>
 
 <style>
+  :global(main) {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
   .pw-root {
     width: 100%;
     position: relative;
@@ -616,18 +618,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     display: flex;
     flex-direction: column;
     justify-content: center;
-  }
-
-  .pw-ambient-glow {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      circle at 18% 50%,
-      var(--pw-accent-bg, rgba(255, 125, 26, 0.14)) 0%,
-      transparent 62%
-    );
-    pointer-events: none;
-    transition: background 0.4s ease;
   }
 
   .pw-stage-grid {

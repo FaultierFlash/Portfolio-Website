@@ -359,9 +359,8 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   }
   main {
     flex-grow: 1;
+    /* Sticky header already occupies flow height above main */
     padding: 2rem;
-    /* Calculate top padding based on a CSS variable for header height, defined in global.css or Header.astro */
-    padding-top: calc(var(--header-height, 60px) + 1rem);
   }
   body.no-scroll-mobile {
     /* Used by JS in Header.astro to prevent body scroll */
