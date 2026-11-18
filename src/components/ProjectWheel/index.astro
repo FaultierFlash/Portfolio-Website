@@ -1089,10 +1089,11 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     line-height: 1.6;
     color: var(--color-text-dim);
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    max-height: 8.5rem;
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
   }
 
   .pw-card-actions {
@@ -1230,7 +1231,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-directory-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
     gap: 1.5rem;
   }
 
@@ -1253,7 +1254,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-dir-media {
     position: relative;
-    height: 175px;
+    height: 200px;
     background: #0f172a;
     overflow: hidden;
   }
@@ -1325,14 +1326,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   }
 
   .pw-dir-card-desc {
-    font-size: 0.85rem;
-    line-height: 1.55;
+    font-size: 0.88rem;
+    line-height: 1.6;
     color: var(--color-text-dim);
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
     flex: 1;
   }
 
@@ -1385,7 +1382,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     }
 
     .pw-card-desc {
-      -webkit-line-clamp: 2;
+      max-height: 5.2rem;
       font-size: 0.84rem;
     }
 
