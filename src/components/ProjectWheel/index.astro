@@ -9,6 +9,11 @@ export interface WheelProjectItem {
   tags?: string[];
   accentColor?: string;
   slug?: string;
+  date?: string | null;
+  isOngoing?: boolean;
+  documentCount?: number;
+  galleryCount?: number;
+  backgroundEffect?: string;
 }
 
 interface Props {
@@ -23,7 +28,7 @@ const copy = isDe
   ? {
       eyebrow: "Interaktives Projekt-Archiv",
       heading: "Projekt-Rad",
-      scrollHint: "Scrollen, Sektor wählen oder Pfeiltasten ↑↓ nutzen",
+      scrollHint: "Scrollen, Rad drehen, Sektor wählen oder ↑↓ nutzen",
       exploreBtn: "Projekt entdecken",
       externalBtn: "Externe Seite",
       prevLabel: "Vorheriges Projekt",
@@ -31,14 +36,19 @@ const copy = isDe
       allProjectsEyebrow: "Komplettübersicht",
       allProjectsTitle: "Alle Projekte im Überblick",
       projectLabel: "PROJEKT",
-      ofLabel: "VON",
+      activeLabel: "Aktiv",
+      sincePrefix: "Seit ",
+      docSingular: "Dokument",
+      docPlural: "Dokumente",
+      photoSingular: "Foto",
+      photoPlural: "Fotos",
       defaultTag: "Projekt",
       defaultDesc: "Entdecke die technischen Details, Hintergründe und Ergebnisse dieses Projekts.",
     }
   : {
       eyebrow: "Interactive Project Archive",
       heading: "Project Wheel",
-      scrollHint: "Scroll, click any slice, or use ↑↓ arrow keys",
+      scrollHint: "Scroll, drag the dial, click a sector, or use ↑↓ keys",
       exploreBtn: "Explore Project",
       externalBtn: "External Site",
       prevLabel: "Previous Project",
@@ -46,10 +56,44 @@ const copy = isDe
       allProjectsEyebrow: "Full Directory",
       allProjectsTitle: "All Projects at a Glance",
       projectLabel: "PROJECT",
-      ofLabel: "OF",
+      activeLabel: "Active",
+      sincePrefix: "",
+      docSingular: "Doc",
+      docPlural: "Docs",
+      photoSingular: "Photo",
+      photoPlural: "Photos",
       defaultTag: "Project",
       defaultDesc: "Explore the engineering architecture, background, and results of this project.",
     };
+
+const simLabels: Record<string, string> = isDe
+  ? {
+      airflow: "20Hz Strömungs-Sim",
+      topography: "3D-Topografie",
+      solar: "Orbital-Sim",
+    }
+  : {
+      airflow: "20Hz Airflow Sim",
+      topography: "3D Topography",
+      solar: "Orbital Sim",
+    };
+
+function formatYearLabel(dateStr?: string | null, isOngoing?: boolean): string {
+  let year: number | null = null;
+  if (dateStr) {
+    const parsed = new Date(dateStr);
+    if (!Number.isNaN(parsed.getTime())) {
+      year = parsed.getFullYear();
+    }
+  }
+  if (isOngoing) {
+    if (year) {
+      return isDe ? `${copy.sincePrefix}${year}` : `${year} – Present`;
+    }
+    return copy.activeLabel;
+  }
+  return year ? String(year) : "";
+}
 
 const accentMap: Record<string, { main: string; bg: string; border: string }> = {
   primary: { main: "#FF7D1A", bg: "rgba(255, 125, 26, 0.14)", border: "rgba(255, 125, 26, 0.42)" },
@@ -63,6 +107,14 @@ const accentMap: Record<string, { main: string; bg: string; border: string }> = 
 const enrichedProjects = projects.map((p, index) => {
   const colorKey = p.accentColor && accentMap[p.accentColor] ? p.accentColor : "primary";
   const palette = accentMap[colorKey];
+  const docCount = typeof p.documentCount === "number" ? p.documentCount : 0;
+  const galleryCount = typeof p.galleryCount === "number" ? p.galleryCount : 0;
+  const yearLabel = formatYearLabel(p.date, p.isOngoing);
+  const simLabel = p.backgroundEffect && simLabels[p.backgroundEffect] ? simLabels[p.backgroundEffect] : "";
+  const docLabel = docCount > 0 ? `${docCount} ${docCount === 1 ? copy.docSingular : copy.docPlural}` : "";
+  const galleryLabel = galleryCount > 0 ? `${galleryCount} ${galleryCount === 1 ? copy.photoSingular : copy.photoPlural}` : "";
+  const tags = Array.isArray(p.tags) && p.tags.length > 0 ? p.tags : [copy.defaultTag];
+
   return {
     ...p,
     index,
@@ -71,19 +123,23 @@ const enrichedProjects = projects.map((p, index) => {
     accentMain: palette.main,
     accentBg: palette.bg,
     accentBorder: palette.border,
-    tags: Array.isArray(p.tags) && p.tags.length > 0 ? p.tags : [copy.defaultTag],
+    tags,
     description: p.description || copy.defaultDesc,
+    yearLabel,
+    simLabel,
+    docCount,
+    galleryCount,
+    docLabel,
+    galleryLabel,
   };
 });
 
 const count = enrichedProjects.length;
-// Angular spacing between consecutive project slices on the wheel (never overlaps)
-const stepAngle = count > 0 ? Math.min(55, 360 / Math.max(count, 6)) : 55;
-const sliceWedgeDeg = Math.min(48, stepAngle - 4);
+const stepAngle = count > 0 ? Math.min(38, 220 / Math.max(count, 4)) : 38;
+const sliceWedgeDeg = Math.min(33, stepAngle - 4);
 
-// Precompute SVG wedge geometry centered around +X axis (0 deg = 3 o'clock focal pointer)
 const halfRad = ((sliceWedgeDeg * 0.5) * Math.PI) / 180;
-const rOuter = 48.5;
+const rOuter = 48.2;
 const rInner = 16.5;
 const x0Out = (50 + rOuter * Math.cos(-halfRad)).toFixed(3);
 const y0Out = (50 + rOuter * Math.sin(-halfRad)).toFixed(3);
@@ -95,7 +151,30 @@ const x0In = (50 + rInner * Math.cos(-halfRad)).toFixed(3);
 const y0In = (50 + rInner * Math.sin(-halfRad)).toFixed(3);
 
 const annularWedgePath = `M ${x0In},${y0In} L ${x0Out},${y0Out} A ${rOuter},${rOuter} 0 0,1 ${x1Out},${y1Out} L ${x1In},${y1In} A ${rInner},${rInner} 0 0,0 ${x0In},${y0In} Z`;
-const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "rgba(255,125,26,0.14)", accentBorder: "rgba(255,125,26,0.42)" };
+const outerArcPath = `M ${x0Out},${y0Out} A ${rOuter},${rOuter} 0 0,1 ${x1Out},${y1Out}`;
+
+const compassTicks = Array.from({ length: 72 }, (_, i) => {
+  const deg = i * 5;
+  const rad = (deg * Math.PI) / 180;
+  const isMajor = deg % 15 === 0;
+  const r1 = isMajor ? 48.6 : 48.9;
+  const r2 = isMajor ? 49.7 : 49.5;
+  return {
+    deg,
+    isMajor,
+    x1: (50 + r1 * Math.cos(rad)).toFixed(2),
+    y1: (50 + r1 * Math.sin(rad)).toFixed(2),
+    x2: (50 + r2 * Math.cos(rad)).toFixed(2),
+    y2: (50 + r2 * Math.sin(rad)).toFixed(2),
+  };
+});
+
+const firstProj = enrichedProjects[0];
+const firstAccent = firstProj || {
+  accentMain: "#FF7D1A",
+  accentBg: "rgba(255,125,26,0.14)",
+  accentBorder: "rgba(255,125,26,0.42)",
+};
 ---
 
 <div
@@ -106,25 +185,34 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   data-projects={JSON.stringify(enrichedProjects)}
   style={`--pw-accent: ${firstAccent.accentMain}; --pw-accent-bg: ${firstAccent.accentBg}; --pw-accent-border: ${firstAccent.accentBorder}; --pw-count: ${Math.max(1, count)};`}
 >
-  {/* 1. Sticky Scroll-Driven Wheel Runway */}
+  {/* 1. Sticky Scroll-Driven CAD Wheel + Open Editorial Stage */}
   <div id="pw-runway" class="pw-runway">
     <div class="pw-sticky-stage">
       <div class="pw-stage-grid">
-        {/* LEFT COLUMN: Rotary Mechanical Project Drum */}
+        {/* LEFT COLUMN: Rotary CAD Engineering Dial (1A + 2B) */}
         <div class="pw-wheel-column">
           <div class="pw-wheel-viewport">
             <div class="pw-drum-wrapper">
-              {/* Outer Technical Compass Ring */}
+              {/* Outer Precision Compass & Azimuth Ticks */}
               <svg viewBox="0 0 100 100" class="pw-compass-svg" aria-hidden="true">
                 <circle cx="50" cy="50" r="49.2" class="pw-compass-outer" />
+                <circle cx="50" cy="50" r="32.4" class="pw-compass-mid" />
                 <circle cx="50" cy="50" r="15.8" class="pw-compass-inner" />
+                {compassTicks.map((tick) => (
+                  <line
+                    x1={tick.x1}
+                    y1={tick.y1}
+                    x2={tick.x2}
+                    y2={tick.y2}
+                    class={tick.isMajor ? "pw-tick-major" : "pw-tick-minor"}
+                  />
+                ))}
               </svg>
 
-              {/* Rotating Wheel Surface */}
+              {/* Rotating CAD Instrument Surface (supports scroll + direct drag) */}
               <div id="pw-rotating-drum" class="pw-rotating-drum">
                 {enrichedProjects.map((proj, idx) => {
                   const baseAngle = idx * stepAngle;
-                  const clipId = `pw-clip-${idx}`;
                   return (
                     <div
                       class={`pw-slice ${idx === 0 ? "is-active" : ""}`}
@@ -133,33 +221,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
                       style={`transform: rotate(${baseAngle}deg); --slice-accent: ${proj.accentMain};`}
                     >
                       <svg viewBox="0 0 100 100" class="pw-slice-svg">
-                        <defs>
-                          <clipPath id={clipId}>
-                            <path d={annularWedgePath} />
-                          </clipPath>
-                        </defs>
-
-                        {/* Clipped Project Image */}
-                        <g clip-path={`url(#${clipId})`}>
-                          <path d={annularWedgePath} class="pw-slice-backdrop" />
-                          {proj.image?.src && (
-                            <image
-                              href={proj.image.src}
-                              x="15"
-                              y="8"
-                              width="85"
-                              height="84"
-                              preserveAspectRatio="xMidYMid slice"
-                              class="pw-slice-img"
-                            />
-                          )}
-                          <path d={annularWedgePath} class="pw-slice-scrim" />
-                        </g>
-
-                        {/* Wedge Outline */}
+                        <path d={annularWedgePath} class="pw-slice-backdrop" />
+                        <line x1={rInner + 1} y1="50" x2={rOuter - 1} y2="50" class="pw-slice-guide" />
                         <path d={annularWedgePath} class="pw-slice-border" />
-
-                        {/* Hit Area */}
+                        <path d={outerArcPath} class="pw-slice-rim-accent" />
                         <path
                           d={annularWedgePath}
                           class="pw-slice-hit"
@@ -170,11 +235,16 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
                         />
                       </svg>
 
-                      {/* Radial Spoke Label (sits along 0 deg horizontal axis of the slice) */}
-                      <div class="pw-slice-label">
+                      {/* Radial Spoke Label (clean engineering badge, zero photo duplication) */}
+                      <div class="pw-slice-label" data-index={idx}>
                         <div class="pw-slice-pill">
                           <span class="pw-slice-num">{proj.numStr}</span>
-                          <span class="pw-slice-title">{proj.title}</span>
+                          <div class="pw-slice-text">
+                            <span class="pw-slice-title">{proj.title}</span>
+                            {(proj.yearLabel || proj.tags[0]) && (
+                              <span class="pw-slice-sub">{proj.yearLabel || `#${proj.tags[0]}`}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -204,11 +274,11 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Synchronized Active Project Showcase Card */}
+        {/* RIGHT COLUMN: Open Editorial Project Showcase (1B + 3B) */}
         <div class="pw-detail-column">
           <div class="pw-detail-inner">
-            {/* Top Header & Quick-Jump Pills */}
-            <div class="pw-header-block">
+            {/* Top Bar: Archive Eyebrow, Quick-Jump Pills & Stepper Controls */}
+            <div class="pw-top-bar">
               <div class="pw-eyebrow-row">
                 <span class="pw-eyebrow-badge">
                   <span class="pw-pulse-dot"></span>
@@ -217,105 +287,134 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
                 <span class="pw-scroll-hint">{copy.scrollHint}</span>
               </div>
 
-              {/* Quick-Jump Project Selector Pills */}
-              <div class="pw-pills-nav" role="tablist" aria-label={copy.heading}>
-                {enrichedProjects.map((proj, idx) => (
+              <div class="pw-nav-row">
+                <div class="pw-pills-nav" role="tablist" aria-label={copy.heading}>
+                  {enrichedProjects.map((proj, idx) => (
+                    <button
+                      type="button"
+                      class={`pw-nav-pill ${idx === 0 ? "is-active" : ""}`}
+                      data-target-index={idx}
+                      role="tab"
+                      aria-selected={idx === 0 ? "true" : "false"}
+                    >
+                      <span class="pw-pill-num">{proj.numStr}</span>
+                      <span class="pw-pill-name">{proj.title}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div class="pw-step-controls">
                   <button
                     type="button"
-                    class={`pw-nav-pill ${idx === 0 ? "is-active" : ""}`}
-                    data-target-index={idx}
-                    role="tab"
-                    aria-selected={idx === 0 ? "true" : "false"}
+                    id="pw-prev-btn"
+                    class="pw-step-btn"
+                    aria-label={copy.prevLabel}
+                    disabled
                   >
-                    <span class="pw-pill-num">{proj.numStr}</span>
-                    <span class="pw-pill-name">{proj.title}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    id="pw-next-btn"
+                    class="pw-step-btn"
+                    aria-label={copy.nextLabel}
+                    disabled={count <= 1}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Active Project Showcase Card */}
-            {enrichedProjects.length > 0 && (
-              <article id="pw-active-card" class="pw-showcase-card">
-                <a id="pw-card-image-link" href={enrichedProjects[0].url} class="pw-card-media group">
-                  {enrichedProjects[0].image?.src ? (
-                    <img
-                      id="pw-card-img"
-                      src={enrichedProjects[0].image.src}
-                      alt={enrichedProjects[0].title}
-                      class="pw-card-img"
-                    />
-                  ) : (
-                    <div id="pw-card-img-fallback" class="pw-card-img-fallback">
-                      <span>{enrichedProjects[0].title}</span>
-                    </div>
-                  )}
+            {/* Open Editorial Showcase (no outer card box, matching HomePage aesthetic) */}
+            {firstProj && (
+              <article id="pw-active-card" class="pw-editorial-showcase">
+                <div class="pw-editorial-meta-row">
+                  <span class="pw-editorial-counter">
+                    <span id="pw-card-num">01</span>
+                    <span class="pw-counter-sep">/ {String(count).padStart(2, "0")}</span>
+                  </span>
+
+                  <span
+                    id="pw-meta-date"
+                    class={`pw-meta-date ${firstProj.yearLabel ? "" : "hidden"}`}
+                  >
+                    {firstProj.yearLabel}
+                  </span>
+
+                  <div id="pw-meta-badges" class="pw-meta-badges">
+                    {firstProj.docLabel && (
+                      <span class="pw-meta-badge pw-badge-doc">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        <span>{firstProj.docLabel}</span>
+                      </span>
+                    )}
+                    {firstProj.galleryLabel && (
+                      <span class="pw-meta-badge pw-badge-gallery">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <span>{firstProj.galleryLabel}</span>
+                      </span>
+                    )}
+                    {firstProj.simLabel && (
+                      <span class="pw-meta-badge pw-badge-sim">
+                        <span class="pw-sim-spark" aria-hidden="true">✦</span>
+                        <span>{firstProj.simLabel}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <h1 id="pw-card-title" class="pw-editorial-title">
+                  {firstProj.title}
+                </h1>
+
+                <div id="pw-card-tags" class="pw-tags-row">
+                  {firstProj.tags.map((tag: string) => (
+                    <span class="pw-tag">#{tag}</span>
+                  ))}
+                </div>
+
+                <p id="pw-card-desc" class="pw-editorial-desc">
+                  {firstProj.description}
+                </p>
+
+                {/* Standalone Floating Artwork Preview (shown once cleanly without wedge crop) */}
+                <a id="pw-card-image-link" href={firstProj.url} class="pw-editorial-media">
+                  <img
+                    id="pw-card-img"
+                    src={firstProj.image?.src || ""}
+                    alt={firstProj.title}
+                    class={`pw-card-img ${firstProj.image?.src ? "" : "hidden"}`}
+                  />
+                  <div
+                    id="pw-card-img-fallback"
+                    class={`pw-card-img-fallback ${firstProj.image?.src ? "hidden" : ""}`}
+                  >
+                    <span>{firstProj.title}</span>
+                  </div>
                   <div class="pw-card-media-overlay">
                     <span class="pw-media-cta">
                       {copy.exploreBtn} &rarr;
                     </span>
                   </div>
-                  <div class="pw-card-index-badge">
-                    <span id="pw-card-num">01</span>
-                    <span class="opacity-50">/ {String(count).padStart(2, "0")}</span>
-                  </div>
                 </a>
 
-                <div class="pw-card-body">
-                  <div id="pw-card-tags" class="pw-tags-row">
-                    {enrichedProjects[0].tags.map((tag: string) => (
-                      <span class="pw-tag">#{tag}</span>
-                    ))}
-                  </div>
+                <div class="pw-editorial-actions">
+                  <a id="pw-explore-link" href={firstProj.url} class="pw-btn-primary">
+                    <span>{copy.exploreBtn}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                  </a>
 
-                  <h1 id="pw-card-title" class="pw-card-title">
-                    {enrichedProjects[0].title}
-                  </h1>
-
-                  <p id="pw-card-desc" class="pw-card-desc">
-                    {enrichedProjects[0].description}
-                  </p>
-
-                  <div class="pw-card-actions">
-                    <div class="pw-primary-actions">
-                      <a id="pw-explore-link" href={enrichedProjects[0].url} class="pw-btn-primary">
-                        <span>{copy.exploreBtn}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                      </a>
-
-                      <a
-                        id="pw-external-link"
-                        href={enrichedProjects[0].externalUrl || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class={`pw-btn-secondary ${enrichedProjects[0].externalUrl ? "" : "hidden"}`}
-                      >
-                        <span>{copy.externalBtn}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                      </a>
-                    </div>
-
-                    <div class="pw-step-controls">
-                      <button
-                        type="button"
-                        id="pw-prev-btn"
-                        class="pw-step-btn"
-                        aria-label={copy.prevLabel}
-                        disabled
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                      </button>
-                      <button
-                        type="button"
-                        id="pw-next-btn"
-                        class="pw-step-btn"
-                        aria-label={copy.nextLabel}
-                        disabled={count <= 1}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                      </button>
-                    </div>
-                  </div>
+                  <a
+                    id="pw-external-link"
+                    href={firstProj.externalUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class={`pw-btn-secondary ${firstProj.externalUrl ? "" : "hidden"}`}
+                  >
+                    <span>{copy.externalBtn}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                  </a>
                 </div>
               </article>
             )}
@@ -330,7 +429,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     </div>
   </div>
 
-  {/* 2. Scannable Directory Grid Below the Wheel */}
+  {/* 2. Scannable Directory Grid Below the Wheel (3B Rich Sanity Metadata) */}
   <section class="pw-directory-section">
     <div class="pw-directory-header">
       <span class="pw-directory-eyebrow">{copy.allProjectsEyebrow}</span>
@@ -341,7 +440,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
       {enrichedProjects.map((proj) => (
         <a
           href={proj.url}
-          class="pw-dir-card group"
+          class="pw-dir-card"
           style={`--card-accent: ${proj.accentMain}; --card-accent-bg: ${proj.accentBg}; --card-accent-border: ${proj.accentBorder};`}
         >
           <div class="pw-dir-media">
@@ -351,6 +450,9 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
               <div class="pw-dir-fallback">{proj.numStr}</div>
             )}
             <span class="pw-dir-badge">{proj.numStr}</span>
+            {proj.yearLabel && (
+              <span class="pw-dir-year-badge">{proj.yearLabel}</span>
+            )}
           </div>
           <div class="pw-dir-body">
             <div class="pw-dir-tags">
@@ -360,6 +462,30 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
             </div>
             <h3 class="pw-dir-card-title">{proj.title}</h3>
             <p class="pw-dir-card-desc">{proj.description}</p>
+
+            {(proj.docLabel || proj.galleryLabel || proj.simLabel) && (
+              <div class="pw-dir-meta-row">
+                {proj.docLabel && (
+                  <span class="pw-dir-meta-chip">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    <span>{proj.docLabel}</span>
+                  </span>
+                )}
+                {proj.galleryLabel && (
+                  <span class="pw-dir-meta-chip">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <span>{proj.galleryLabel}</span>
+                  </span>
+                )}
+                {proj.simLabel && (
+                  <span class="pw-dir-meta-chip pw-dir-meta-sim">
+                    <span aria-hidden="true">✦</span>
+                    <span>{proj.simLabel}</span>
+                  </span>
+                )}
+              </div>
+            )}
+
             <span class="pw-dir-cta">
               {copy.exploreBtn} &rarr;
             </span>
@@ -375,6 +501,13 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   let activeCleanup: (() => void) | null = null;
 
+  function shortestAngleDeltaDeg(fromRad: number, toRad: number): number {
+    let diff = ((toRad - fromRad) * 180) / Math.PI;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    return diff;
+  }
+
   function initProjectWheel() {
     if (activeCleanup) {
       activeCleanup();
@@ -387,7 +520,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     if (!root || !runway || !drum) return;
 
     const count = parseInt(root.dataset.count || "0", 10);
-    const stepAngle = parseFloat(root.dataset.stepAngle || "55");
+    const stepAngle = parseFloat(root.dataset.stepAngle || "38");
     const projects: any[] = JSON.parse(root.dataset.projects || "[]");
     if (count <= 0 || projects.length === 0) return;
 
@@ -401,7 +534,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     const card = document.getElementById("pw-active-card");
     const cardImgLink = document.getElementById("pw-card-image-link") as HTMLAnchorElement | null;
     const cardImg = document.getElementById("pw-card-img") as HTMLImageElement | null;
+    const cardImgFallback = document.getElementById("pw-card-img-fallback");
     const cardNum = document.getElementById("pw-card-num");
+    const metaDate = document.getElementById("pw-meta-date");
+    const metaBadges = document.getElementById("pw-meta-badges");
     const cardTags = document.getElementById("pw-card-tags");
     const cardTitle = document.getElementById("pw-card-title");
     const cardDesc = document.getElementById("pw-card-desc");
@@ -410,7 +546,35 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     const prevBtn = document.getElementById("pw-prev-btn") as HTMLButtonElement | null;
     const nextBtn = document.getElementById("pw-next-btn") as HTMLButtonElement | null;
 
+    const maxRotation = Math.max(0, (count - 1) * stepAngle);
     let currentActiveIdx = 0;
+    let currentDeg = 0;
+    let isDraggingWheel = false;
+    let isProgrammaticScroll = false;
+    let snapTimer: number | null = null;
+    let programmaticTimer: number | null = null;
+    let switchTimer: number | null = null;
+    let suppressClickUntil = 0;
+
+    function buildMetaBadgesHtml(proj: any): string {
+      const parts: string[] = [];
+      if (proj.docLabel) {
+        parts.push(
+          `<span class="pw-meta-badge pw-badge-doc"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><span>${escapeHtml(proj.docLabel)}</span></span>`
+        );
+      }
+      if (proj.galleryLabel) {
+        parts.push(
+          `<span class="pw-meta-badge pw-badge-gallery"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>${escapeHtml(proj.galleryLabel)}</span></span>`
+        );
+      }
+      if (proj.simLabel) {
+        parts.push(
+          `<span class="pw-meta-badge pw-badge-sim"><span class="pw-sim-spark" aria-hidden="true">✦</span><span>${escapeHtml(proj.simLabel)}</span></span>`
+        );
+      }
+      return parts.join("");
+    }
 
     function applyActiveProject(idx: number) {
       const clampedIdx = Math.max(0, Math.min(count - 1, idx));
@@ -420,7 +584,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
       const proj = projects[clampedIdx];
       if (!proj) return;
 
-      // Update CSS accent variables on root and documentElement
       root!.style.setProperty("--pw-accent", proj.accentMain);
       root!.style.setProperty("--pw-accent-bg", proj.accentBg);
       root!.style.setProperty("--pw-accent-border", proj.accentBorder);
@@ -428,7 +591,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
       document.documentElement.style.setProperty("--color-project-accent-bg", proj.accentBg);
       document.documentElement.style.setProperty("--color-project-accent-border", proj.accentBorder);
 
-      // Update slices & pills active state
       slices.forEach((s, i) => s.classList.toggle("is-active", i === clampedIdx));
       pills.forEach((p, i) => {
         const active = i === clampedIdx;
@@ -438,20 +600,50 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
       if (hubActive) hubActive.textContent = proj.numStr;
 
-      // Subtle card transition
       if (card) {
         card.classList.add("is-switching");
-        setTimeout(() => card.classList.remove("is-switching"), 180);
+        if (switchTimer) window.clearTimeout(switchTimer);
+        switchTimer = window.setTimeout(() => card.classList.remove("is-switching"), 180);
       }
 
       if (cardImgLink) cardImgLink.href = proj.url;
-      if (cardImg && proj.image?.src) {
-        cardImg.src = proj.image.src;
-        cardImg.alt = proj.title;
+      if (cardImg) {
+        if (proj.image?.src) {
+          cardImg.src = proj.image.src;
+          cardImg.alt = proj.title;
+          cardImg.classList.remove("hidden");
+          cardImgFallback?.classList.add("hidden");
+        } else {
+          cardImg.classList.add("hidden");
+          if (cardImgFallback) {
+            const span = cardImgFallback.querySelector("span");
+            if (span) span.textContent = proj.title;
+            cardImgFallback.classList.remove("hidden");
+          }
+        }
       }
+
       if (cardNum) cardNum.textContent = proj.numStr;
+
+      if (metaDate) {
+        if (proj.yearLabel) {
+          metaDate.textContent = proj.yearLabel;
+          metaDate.classList.remove("hidden");
+        } else {
+          metaDate.textContent = "";
+          metaDate.classList.add("hidden");
+        }
+      }
+
+      if (metaBadges) {
+        metaBadges.innerHTML = buildMetaBadgesHtml(proj);
+      }
+
       if (cardTitle) cardTitle.textContent = proj.title;
-      if (cardDesc) cardDesc.textContent = proj.description;
+      if (cardDesc) {
+        cardDesc.textContent = proj.description;
+        cardDesc.scrollTop = 0;
+      }
       if (exploreLink) exploreLink.href = proj.url;
 
       if (externalLink) {
@@ -473,48 +665,165 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
       if (nextBtn) nextBtn.disabled = clampedIdx >= count - 1;
     }
 
-    function updateFromScroll() {
-      if (!runway || !drum) return;
-      const rect = runway.getBoundingClientRect();
-      const viewportH = window.innerHeight;
-      const scrollableDist = Math.max(1, rect.height - viewportH);
-      const scrolled = -rect.top;
-      const progress = Math.max(0, Math.min(1, scrolled / scrollableDist));
-
-      const maxRotation = Math.max(0, (count - 1) * stepAngle);
-      const currentDeg = progress * maxRotation;
-
-      drum.style.transform = `rotate(${-currentDeg}deg)`;
+    function applyDialVisuals(deg: number) {
+      currentDeg = Math.max(0, Math.min(maxRotation, deg));
+      drum!.style.transform = `rotate(${-currentDeg}deg)`;
 
       if (hubAngle) {
         hubAngle.textContent = `${String(Math.round(currentDeg)).padStart(3, "0")}°`;
       }
 
+      const normProgress = maxRotation > 0 ? currentDeg / maxRotation : 0;
       if (progressFill) {
-        const pct = count > 1 ? ((progress * (count - 1) + 1) / count) * 100 : 100;
+        const pct = count > 1 ? ((normProgress * (count - 1) + 1) / count) * 100 : 100;
         progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
       }
 
-      const targetIdx = count > 1 ? Math.round(progress * (count - 1)) : 0;
+      const targetIdx = count > 1 ? Math.round(normProgress * (count - 1)) : 0;
       applyActiveProject(targetIdx);
+    }
+
+    function getRunwayProgress(): { progress: number; runwayTop: number; scrollableDist: number } {
+      const rect = runway!.getBoundingClientRect();
+      const viewportH = window.innerHeight;
+      const scrollableDist = Math.max(1, rect.height - viewportH);
+      const runwayTop = rect.top + window.scrollY;
+      const progress = Math.max(0, Math.min(1, -rect.top / scrollableDist));
+      return { progress, runwayTop, scrollableDist };
     }
 
     function scrollToProjectIndex(idx: number) {
       if (!runway) return;
       const clamped = Math.max(0, Math.min(count - 1, idx));
-      const runwayTop = runway.getBoundingClientRect().top + window.scrollY;
-      const scrollableDist = Math.max(0, runway.offsetHeight - window.innerHeight);
+      const { runwayTop, scrollableDist } = getRunwayProgress();
       const targetProgress = count > 1 ? clamped / (count - 1) : 0;
       const targetScrollY = runwayTop + targetProgress * scrollableDist;
+
+      isProgrammaticScroll = true;
+      if (programmaticTimer) window.clearTimeout(programmaticTimer);
+      if (snapTimer) {
+        window.clearTimeout(snapTimer);
+        snapTimer = null;
+      }
 
       window.scrollTo({
         top: targetScrollY,
         behavior: "smooth",
       });
+
+      programmaticTimer = window.setTimeout(() => {
+        isProgrammaticScroll = false;
+      }, 600);
     }
+
+    // 2A: Scroll listener + Magnetic Detent Snap
+    function updateFromScroll() {
+      if (!runway || !drum || isDraggingWheel) return;
+      const { progress } = getRunwayProgress();
+      applyDialVisuals(progress * maxRotation);
+
+      if (snapTimer) window.clearTimeout(snapTimer);
+      if (count > 1 && !isProgrammaticScroll && progress > 0.01 && progress < 0.99) {
+        snapTimer = window.setTimeout(() => {
+          if (isDraggingWheel || isProgrammaticScroll) return;
+          const latest = getRunwayProgress().progress;
+          if (latest <= 0.01 || latest >= 0.99) return;
+          const floatIdx = latest * (count - 1);
+          const nearestIdx = Math.round(floatIdx);
+          if (Math.abs(floatIdx - nearestIdx) > 0.025) {
+            scrollToProjectIndex(nearestIdx);
+          }
+        }, 180);
+      }
+    }
+
+    // 2B: Direct Pointer Drag on the Wheel
+    let pointerActive = false;
+    let pointerId = -1;
+    let centerX = 0;
+    let centerY = 0;
+    let startClientX = 0;
+    let startClientY = 0;
+    let lastPointerAngleRad = 0;
+    let dragMovedPx = 0;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      const rect = drum.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+      startClientX = e.clientX;
+      startClientY = e.clientY;
+      lastPointerAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      dragMovedPx = 0;
+      pointerId = e.pointerId;
+      pointerActive = true;
+      if (snapTimer) {
+        window.clearTimeout(snapTimer);
+        snapTimer = null;
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!pointerActive || e.pointerId !== pointerId) return;
+
+      const distPx = Math.hypot(e.clientX - startClientX, e.clientY - startClientY);
+      dragMovedPx = Math.max(dragMovedPx, distPx);
+
+      if (!isDraggingWheel) {
+        if (dragMovedPx < 5) return;
+        isDraggingWheel = true;
+        drum.classList.add("is-dragging");
+        try {
+          drum.setPointerCapture(pointerId);
+        } catch {
+          // Pointer capture may fail in synthetic/unfocused states
+        }
+      }
+
+      const angleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      const deltaDeg = shortestAngleDeltaDeg(lastPointerAngleRad, angleRad);
+      lastPointerAngleRad = angleRad;
+
+      const nextDeg = Math.max(0, Math.min(maxRotation, currentDeg - deltaDeg));
+      applyDialVisuals(nextDeg);
+
+      const { runwayTop, scrollableDist } = getRunwayProgress();
+      const dragProgress = maxRotation > 0 ? nextDeg / maxRotation : 0;
+      window.scrollTo({
+        top: runwayTop + dragProgress * scrollableDist,
+        behavior: "instant" as ScrollBehavior,
+      });
+    };
+
+    const endDrag = (e: PointerEvent) => {
+      if (!pointerActive || e.pointerId !== pointerId) return;
+      pointerActive = false;
+
+      if (isDraggingWheel) {
+        isDraggingWheel = false;
+        drum.classList.remove("is-dragging");
+        try {
+          if (drum.hasPointerCapture(pointerId)) {
+            drum.releasePointerCapture(pointerId);
+          }
+        } catch {
+          // Ignore release failure
+        }
+        suppressClickUntil = performance.now() + 250;
+        const nearestIdx = stepAngle > 0 ? Math.round(currentDeg / stepAngle) : 0;
+        scrollToProjectIndex(nearestIdx);
+      }
+    };
+
+    drum.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
 
     // Click handlers for wheel slices
     const onSliceClick = (e: Event) => {
+      if (performance.now() < suppressClickUntil) return;
       const target = e.currentTarget as HTMLElement;
       const idx = parseInt(target.dataset.index || "0", 10);
       if (idx === currentActiveIdx) {
@@ -528,7 +837,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     const hitAreas = Array.from(root.querySelectorAll<HTMLElement>(".pw-slice-hit, .pw-slice-label"));
     hitAreas.forEach((el) => el.addEventListener("click", onSliceClick));
 
-    // Click handlers for quick-jump pills
     const onPillClick = (e: Event) => {
       const btn = e.currentTarget as HTMLButtonElement;
       const idx = parseInt(btn.dataset.targetIndex || "0", 10);
@@ -541,7 +849,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     prevBtn?.addEventListener("click", onPrev);
     nextBtn?.addEventListener("click", onNext);
 
-    // Keyboard navigation when wheel runway is visible
     const onKeyDown = (e: KeyboardEvent) => {
       if (
         document.activeElement?.tagName === "INPUT" ||
@@ -574,6 +881,13 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     updateFromScroll();
 
     activeCleanup = () => {
+      if (snapTimer) window.clearTimeout(snapTimer);
+      if (programmaticTimer) window.clearTimeout(programmaticTimer);
+      if (switchTimer) window.clearTimeout(switchTimer);
+      drum.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
       window.removeEventListener("scroll", updateFromScroll);
       window.removeEventListener("resize", updateFromScroll);
       window.removeEventListener("keydown", onKeyDown);
@@ -604,6 +918,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     position: relative;
   }
 
+  .hidden {
+    display: none !important;
+  }
+
   /* Tall scroll runway drives the sticky rotary stage smoothly */
   .pw-runway {
     position: relative;
@@ -630,13 +948,13 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     margin: 0 auto;
     height: 100%;
     display: grid;
-    grid-template-columns: 1fr 1.15fr;
+    grid-template-columns: 0.95fr 1.25fr;
     align-items: center;
-    gap: 2rem;
-    padding: 1.5rem 2rem;
+    gap: 2.5rem;
+    padding: 1.25rem 2.25rem;
   }
 
-  /* --- LEFT COLUMN: ROTARY DRUM --- */
+  /* --- LEFT COLUMN: CAD INSTRUMENT DIAL (1A) --- */
   .pw-wheel-column {
     position: relative;
     height: 100%;
@@ -655,9 +973,9 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-drum-wrapper {
     position: absolute;
-    width: min(118vh, 920px);
-    height: min(118vh, 920px);
-    left: min(-44vh, -320px);
+    width: min(116vh, 900px);
+    height: min(116vh, 900px);
+    left: min(-43vh, -310px);
     top: 50%;
     transform: translateY(-50%);
   }
@@ -673,18 +991,47 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   .pw-compass-outer {
     fill: none;
     stroke: #cbd5e1;
-    stroke-width: 0.35;
-    stroke-dasharray: 1.2 1.2;
+    stroke-width: 0.3;
+    stroke-dasharray: 1.1 1.1;
   }
 
   :global(.dark) .pw-compass-outer {
     stroke: #1e293b;
   }
 
+  .pw-compass-mid {
+    fill: none;
+    stroke: #e2e8f0;
+    stroke-width: 0.22;
+    stroke-dasharray: 0.6 1.4;
+  }
+
+  :global(.dark) .pw-compass-mid {
+    stroke: rgba(148, 163, 184, 0.14);
+  }
+
   .pw-compass-inner {
     fill: none;
     stroke: var(--color-border);
-    stroke-width: 0.4;
+    stroke-width: 0.35;
+  }
+
+  .pw-tick-major {
+    stroke: #94a3b8;
+    stroke-width: 0.35;
+  }
+
+  .pw-tick-minor {
+    stroke: #cbd5e1;
+    stroke-width: 0.2;
+  }
+
+  :global(.dark) .pw-tick-major {
+    stroke: #475569;
+  }
+
+  :global(.dark) .pw-tick-minor {
+    stroke: #1e293b;
   }
 
   .pw-rotating-drum {
@@ -694,7 +1041,15 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     height: 100%;
     border-radius: 50%;
     will-change: transform;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
     transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pw-rotating-drum.is-dragging {
+    cursor: grabbing;
+    transition: none;
   }
 
   .pw-slice {
@@ -713,53 +1068,50 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   }
 
   .pw-slice-backdrop {
-    fill: #e2e8f0;
-    transition: fill 0.35s ease;
+    fill: rgba(248, 250, 252, 0.92);
+    transition: fill 0.3s ease;
   }
 
   :global(.dark) .pw-slice-backdrop {
-    fill: #0f172a;
+    fill: rgba(15, 23, 42, 0.72);
+  }
+
+  .pw-slice:hover .pw-slice-backdrop {
+    fill: rgba(241, 245, 249, 0.98);
+  }
+
+  :global(.dark) .pw-slice:hover .pw-slice-backdrop {
+    fill: rgba(30, 41, 59, 0.82);
   }
 
   .pw-slice.is-active .pw-slice-backdrop {
     fill: #0f172a;
   }
 
-  .pw-slice-img {
-    opacity: 0.55;
-    filter: grayscale(70%) contrast(0.95) brightness(1.04);
-    transition: opacity 0.35s ease, filter 0.35s ease;
+  :global(.dark) .pw-slice.is-active .pw-slice-backdrop {
+    fill: #1e293b;
   }
 
-  :global(.dark) .pw-slice-img {
-    opacity: 0.42;
-    filter: grayscale(50%);
+  .pw-slice-guide {
+    stroke: #cbd5e1;
+    stroke-width: 0.24;
+    stroke-dasharray: 0.7 0.7;
+    transition: stroke 0.3s ease;
   }
 
-  .pw-slice.is-active .pw-slice-img,
-  .pw-slice:hover .pw-slice-img {
-    opacity: 0.96;
-    filter: grayscale(0%) contrast(1) brightness(1);
+  :global(.dark) .pw-slice-guide {
+    stroke: rgba(148, 163, 184, 0.2);
   }
 
-  .pw-slice-scrim {
-    fill: rgba(248, 250, 252, 0.52);
-    transition: fill 0.35s ease;
-  }
-
-  :global(.dark) .pw-slice-scrim {
-    fill: rgba(2, 6, 23, 0.44);
-  }
-
-  .pw-slice.is-active .pw-slice-scrim {
-    fill: rgba(15, 23, 42, 0.14);
+  .pw-slice.is-active .pw-slice-guide {
+    stroke: rgba(148, 163, 184, 0.32);
   }
 
   .pw-slice-border {
     fill: none;
     stroke: #cbd5e1;
-    stroke-width: 0.3;
-    transition: stroke 0.35s ease, stroke-width 0.35s ease;
+    stroke-width: 0.32;
+    transition: stroke 0.3s ease, stroke-width 0.3s ease;
   }
 
   :global(.dark) .pw-slice-border {
@@ -768,16 +1120,28 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-slice.is-active .pw-slice-border {
     stroke: var(--slice-accent, var(--pw-accent));
-    stroke-width: 0.55;
+    stroke-width: 0.48;
+  }
+
+  .pw-slice-rim-accent {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 1.25;
+    stroke-linecap: butt;
+    transition: stroke 0.3s ease;
+  }
+
+  .pw-slice.is-active .pw-slice-rim-accent {
+    stroke: var(--slice-accent, var(--pw-accent));
   }
 
   .pw-slice-hit {
     fill: transparent;
     pointer-events: auto;
-    cursor: pointer;
+    cursor: inherit;
   }
 
-  /* Radial Spoke Label on the Wheel */
+  /* Radial Spoke Label on CAD Wedge */
   .pw-slice-label {
     position: absolute;
     top: 50%;
@@ -785,7 +1149,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     width: 46%;
     transform: translateY(-50%);
     padding-left: 19%;
-    padding-right: 4%;
+    padding-right: 3.5%;
     display: flex;
     align-items: center;
     pointer-events: auto;
@@ -795,28 +1159,25 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   .pw-slice-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.55rem;
     max-width: 100%;
     min-width: 0;
-    padding: 0.28rem 0.68rem 0.28rem 0.32rem;
+    padding: 0.22rem 0.55rem 0.22rem 0.22rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    background: rgba(248, 250, 252, 0.94);
+    transition: background-color 0.3s ease;
   }
 
   :global(.dark) .pw-slice-pill {
-    background: rgba(15, 23, 42, 0.82);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    background: rgba(15, 23, 42, 0.85);
   }
 
   .pw-slice.is-active .pw-slice-pill {
-    background: rgba(15, 23, 42, 0.9);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+    background: #0f172a;
+  }
+
+  :global(.dark) .pw-slice.is-active .pw-slice-pill {
+    background: #1e293b;
   }
 
   .pw-slice-num {
@@ -824,18 +1185,17 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.68rem;
     font-weight: 800;
-    padding: 0.14rem 0.4rem;
+    padding: 0.16rem 0.42rem;
     border-radius: 999px;
-    background: #f1f5f9;
+    background: #e2e8f0;
     color: #0f172a;
-    border: 1px solid #cbd5e1;
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
   }
 
   :global(.dark) .pw-slice-num {
-    background: rgba(30, 41, 59, 0.9);
-    color: #f8fafc;
-    border-color: rgba(255, 255, 255, 0.15);
+    background: #0f172a;
+    color: #cbd5e1;
+    border: 1px solid #334155;
   }
 
   .pw-slice.is-active .pw-slice-num {
@@ -845,23 +1205,47 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     transform: scale(1.06);
   }
 
+  .pw-slice-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.15;
+  }
+
   .pw-slice-title {
     min-width: 0;
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 800;
     color: #0f172a;
-    text-shadow: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    opacity: 0.88;
+    opacity: 0.9;
     transition: color 0.3s ease, opacity 0.3s ease;
   }
 
-  :global(.dark) .pw-slice-title,
+  :global(.dark) .pw-slice-title {
+    color: #cbd5e1;
+  }
+
   .pw-slice.is-active .pw-slice-title {
     color: #ffffff;
     opacity: 1;
+  }
+
+  .pw-slice-sub {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s ease;
+  }
+
+  .pw-slice.is-active .pw-slice-sub {
+    color: #94a3b8;
   }
 
   /* Center Instrument Hub */
@@ -927,7 +1311,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   /* 3-o'clock Active Pointer Reticle */
   .pw-pointer-reticle {
     position: absolute;
-    left: calc(min(-44vh, -320px) + min(118vh, 920px) - 18px);
+    left: calc(min(-43vh, -310px) + min(116vh, 900px) - 18px);
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -942,7 +1326,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.2));
   }
 
-  /* --- RIGHT COLUMN: PROJECT SHOWCASE STAGE --- */
+  /* --- RIGHT COLUMN: OPEN EDITORIAL SHOWCASE (1B + 3B) --- */
   .pw-detail-column {
     display: flex;
     flex-direction: column;
@@ -952,17 +1336,19 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-detail-inner {
     width: 100%;
-    max-width: 640px;
+    max-width: 660px;
     margin-left: auto;
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: 1rem;
   }
 
-  .pw-header-block {
+  .pw-top-bar {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.6rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .pw-eyebrow-row {
@@ -977,7 +1363,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -993,23 +1379,32 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-scroll-hint {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     color: var(--color-secondary);
+  }
+
+  .pw-nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
   }
 
   .pw-pills-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
   }
 
   .pw-nav-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.38rem 0.75rem;
+    gap: 0.38rem;
+    padding: 0.34rem 0.7rem;
     border-radius: 999px;
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     font-weight: 700;
     background: #ffffff;
     color: #475569;
@@ -1017,6 +1412,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
     cursor: pointer;
     transition: all 0.25s ease;
+    white-space: nowrap;
   }
 
   :global(.dark) .pw-nav-pill {
@@ -1054,7 +1450,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-pill-num {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 800;
     color: #64748b;
     transition: color 0.25s ease;
@@ -1068,117 +1464,143 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     color: var(--pw-accent);
   }
 
-  /* Active Showcase Card */
-  .pw-showcase-card {
+  .pw-step-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .pw-step-btn {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.55rem;
+    border: 1px solid var(--color-border);
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 1.25rem;
-    overflow: hidden;
-    box-shadow:
-      0 20px 45px -15px rgba(15, 23, 42, 0.08),
-      0 4px 14px -2px rgba(15, 23, 42, 0.04);
-    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+    color: var(--color-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  :global(.dark) .pw-showcase-card {
+  :global(.dark) .pw-step-btn {
     background: #0f172a;
-    border-color: #1e293b;
-    box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.5);
   }
 
-  .pw-showcase-card.is-switching {
-    opacity: 0.82;
+  .pw-step-btn:hover:not(:disabled) {
+    border-color: var(--pw-accent);
+    color: var(--pw-accent);
+  }
+
+  .pw-step-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* Open Editorial Showcase (zero outer box) */
+  .pw-editorial-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  .pw-editorial-showcase.is-switching {
+    opacity: 0.76;
     transform: translateY(3px);
   }
 
-  .pw-card-media {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: clamp(190px, 27vh, 270px);
-    background: #f1f5f9;
-    border-bottom: 1px solid var(--color-border);
-    overflow: hidden;
-  }
-
-  :global(.dark) .pw-card-media {
-    background: #090d16;
-  }
-
-  .pw-card-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .pw-card-media:hover .pw-card-img {
-    transform: scale(1.04);
-  }
-
-  .pw-card-img-fallback {
-    width: 100%;
-    height: 100%;
+  .pw-editorial-meta-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 1.25rem;
-    color: rgba(15, 23, 42, 0.28);
-    text-transform: uppercase;
+    gap: 0.5rem;
   }
 
-  :global(.dark) .pw-card-img-fallback {
-    color: rgba(255, 255, 255, 0.35);
-  }
-
-  .pw-card-media-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.72) 0%, transparent 55%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    padding: 1rem;
-  }
-
-  .pw-card-media:hover .pw-card-media-overlay {
-    opacity: 1;
-  }
-
-  .pw-media-cta {
-    font-size: 0.75rem;
+  .pw-editorial-counter {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
     font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #ffffff;
-    background: var(--pw-accent);
-    padding: 0.4rem 0.85rem;
-    border-radius: 999px;
+    color: var(--pw-accent);
+    letter-spacing: 0.06em;
   }
 
-  .pw-card-index-badge {
-    position: absolute;
-    top: 0.85rem;
-    left: 0.85rem;
-    padding: 0.28rem 0.65rem;
-    border-radius: 999px;
-    background: rgba(2, 6, 23, 0.75);
-    backdrop-filter: blur(8px);
-    color: #f8fafc;
+  .pw-counter-sep {
+    color: var(--color-secondary);
+    opacity: 0.65;
+    font-weight: 700;
+  }
+
+  .pw-meta-date {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.72rem;
-    font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: 700;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 0.16rem 0.55rem;
+    border-radius: 999px;
   }
 
-  .pw-card-body {
-    padding: 1.35rem 1.5rem 1.5rem;
+  :global(.dark) .pw-meta-date {
+    color: #e2e8f0;
+    background: #0f172a;
+    border-color: #1e293b;
+  }
+
+  .pw-meta-badges {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  :global(.pw-meta-badge) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.69rem;
+    font-weight: 700;
+    padding: 0.16rem 0.55rem;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  :global(.dark .pw-meta-badge) {
+    background: rgba(15, 23, 42, 0.9);
+    color: #cbd5e1;
+    border-color: #1e293b;
+  }
+
+  :global(.pw-badge-sim) {
+    background: var(--pw-accent-bg);
+    color: #0f172a;
+    border-color: var(--pw-accent-border);
+  }
+
+  :global(.dark .pw-badge-sim) {
+    background: var(--pw-accent-bg);
+    color: #f8fafc;
+    border-color: var(--pw-accent-border);
+  }
+
+  :global(.pw-sim-spark) {
+    color: var(--pw-accent);
+    font-size: 0.72rem;
+    line-height: 1;
+  }
+
+  .pw-editorial-title {
+    font-size: clamp(1.65rem, 2.9vw, 2.55rem);
+    font-weight: 900;
+    color: var(--color-text);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0;
   }
 
   .pw-tags-row {
@@ -1205,52 +1627,107 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     border-color: #334155;
   }
 
-  .pw-card-title {
-    font-size: clamp(1.35rem, 2.2vw, 1.85rem);
-    font-weight: 900;
-    color: var(--color-text);
-    line-height: 1.15;
-    margin: 0;
-  }
-
-  .pw-card-desc {
-    font-size: 0.92rem;
+  .pw-editorial-desc {
+    font-size: 0.95rem;
     line-height: 1.6;
     color: var(--color-text-dim);
     margin: 0;
-    max-height: 8.5rem;
+    max-height: 7.2rem;
     overflow-y: auto;
     padding-right: 0.35rem;
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
   }
 
-  .pw-card-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--color-border);
-    margin-top: 0.25rem;
+  .pw-editorial-media {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: clamp(165px, 24vh, 250px);
+    border-radius: 1rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 18px 40px -15px rgba(15, 23, 42, 0.14);
+    overflow: hidden;
   }
 
-  .pw-primary-actions {
+  :global(.dark) .pw-editorial-media {
+    background: #090d16;
+    border-color: #1e293b;
+    box-shadow: 0 22px 48px -15px rgba(0, 0, 0, 0.55);
+  }
+
+  .pw-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pw-editorial-media:hover .pw-card-img {
+    transform: scale(1.03);
+  }
+
+  .pw-card-img-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.25rem;
+    color: rgba(15, 23, 42, 0.28);
+    text-transform: uppercase;
+  }
+
+  :global(.dark) .pw-card-img-fallback {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .pw-card-media-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.68) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 1rem;
+  }
+
+  .pw-editorial-media:hover .pw-card-media-overlay {
+    opacity: 1;
+  }
+
+  .pw-media-cta {
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #ffffff;
+    background: var(--pw-accent);
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+  }
+
+  .pw-editorial-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
+    padding-top: 0.15rem;
   }
 
   .pw-btn-primary {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.6rem 1.15rem;
+    padding: 0.62rem 1.2rem;
     border-radius: 0.65rem;
     background: var(--pw-accent);
     color: #ffffff;
-    font-size: 0.82rem;
+    font-size: 0.83rem;
     font-weight: 800;
     text-decoration: none;
     transition: transform 0.2s ease, opacity 0.2s ease;
@@ -1265,53 +1742,25 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.58rem 0.95rem;
+    padding: 0.6rem 0.98rem;
     border-radius: 0.65rem;
-    border: 1px solid var(--color-border);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     color: var(--color-text);
-    font-size: 0.78rem;
+    font-size: 0.79rem;
     font-weight: 700;
     text-decoration: none;
     transition: border-color 0.2s ease, background-color 0.2s ease;
   }
 
+  :global(.dark) .pw-btn-secondary {
+    background: transparent;
+    border-color: var(--color-border);
+  }
+
   .pw-btn-secondary:hover {
     border-color: var(--pw-accent);
     background: var(--pw-accent-bg);
-  }
-
-  .pw-btn-secondary.hidden {
-    display: none;
-  }
-
-  .pw-step-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .pw-step-btn {
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 0.6rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .pw-step-btn:hover:not(:disabled) {
-    border-color: var(--pw-accent);
-    color: var(--pw-accent);
-  }
-
-  .pw-step-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
   }
 
   /* Bottom Progress Bar */
@@ -1330,7 +1779,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     transition: width 0.15s ease, background-color 0.35s ease;
   }
 
-  /* --- 2. ALL PROJECTS DIRECTORY GRID BELOW WHEEL --- */
+  /* --- 2. ALL PROJECTS DIRECTORY GRID BELOW WHEEL (3B) --- */
   .pw-directory-section {
     max-width: 1280px;
     margin: 0 auto;
@@ -1444,6 +1893,27 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     font-weight: 800;
   }
 
+  .pw-dir-year-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.2rem 0.58rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(8px);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  :global(.dark) .pw-dir-year-badge {
+    background: rgba(15, 23, 42, 0.85);
+    color: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
   .pw-dir-body {
     padding: 1.25rem;
     display: flex;
@@ -1490,6 +1960,39 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     flex: 1;
   }
 
+  .pw-dir-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.38rem;
+    margin-top: 0.25rem;
+  }
+
+  .pw-dir-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-size: 0.67rem;
+    font-weight: 700;
+    padding: 0.14rem 0.5rem;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  :global(.dark) .pw-dir-meta-chip {
+    background: rgba(30, 41, 59, 0.55);
+    color: #cbd5e1;
+    border-color: #1e293b;
+  }
+
+  .pw-dir-meta-sim {
+    background: var(--card-accent-bg);
+    color: var(--color-text);
+    border-color: var(--card-accent-border);
+  }
+
   .pw-dir-cta {
     font-size: 0.78rem;
     font-weight: 800;
@@ -1501,13 +2004,13 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   @media (max-width: 1024px) {
     .pw-stage-grid {
       grid-template-columns: 1fr;
-      grid-template-rows: 170px 1fr;
+      grid-template-rows: 165px 1fr;
       gap: 0.75rem;
       padding: 0.75rem 1rem 1.25rem;
     }
 
     .pw-wheel-column {
-      height: 170px;
+      height: 165px;
       overflow: hidden;
     }
 
@@ -1523,24 +2026,46 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
       left: 252px;
     }
 
+    .pw-rotating-drum {
+      touch-action: pan-y;
+    }
+
+    .pw-slice-sub {
+      display: none;
+    }
+
     .pw-detail-inner {
       max-width: 100%;
       margin: 0 auto;
-      gap: 0.65rem;
+      gap: 0.6rem;
     }
 
-    .pw-card-media {
-      height: clamp(135px, 19vh, 185px);
+    .pw-top-bar {
+      padding-bottom: 0.5rem;
+      gap: 0.45rem;
     }
 
-    .pw-card-body {
-      padding: 1rem 1.15rem 1.15rem;
+    .pw-pills-nav {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .pw-pills-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pw-editorial-showcase {
       gap: 0.5rem;
     }
 
-    .pw-card-desc {
-      max-height: 5.2rem;
-      font-size: 0.84rem;
+    .pw-editorial-media {
+      height: clamp(120px, 18vh, 175px);
+    }
+
+    .pw-editorial-desc {
+      max-height: 4.8rem;
+      font-size: 0.85rem;
     }
 
     .pw-scroll-hint {

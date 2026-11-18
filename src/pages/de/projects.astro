@@ -51,6 +51,11 @@ const sanityProjects = (sanityProjectsData || []).map((p: any) => ({
   tags: p.tags || [],
   accentColor: p.accentColor || "primary",
   slug: p.slug?.current,
+  date: p.publishDate || p.timelineDate || null,
+  isOngoing: Boolean(p.isOngoing),
+  documentCount: typeof p.documentCount === "number" ? p.documentCount : 0,
+  galleryCount: typeof p.galleryCount === "number" ? p.galleryCount : 0,
+  backgroundEffect: p.backgroundEffect || "none",
 }));
 
 const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;

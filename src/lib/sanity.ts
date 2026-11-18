@@ -108,6 +108,14 @@ export async function getProjects(locale: string) {
     tags,
     link,
     order,
+    publishDate,
+    "timelineDate": coalesce(
+      *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].startDate,
+      *[_type == "homePage"][0].timeline[].milestoneEvents[relatedProject._ref == ^._id][0].date
+    ),
+    "isOngoing": *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].isOngoing,
+    "documentCount": count(documents[defined(asset) && (!defined(language) || language == "all" || language == $locale)]),
+    "galleryCount": count(gallery),
     backgroundEffect,
     topographyConfig,
     solarConfig,
