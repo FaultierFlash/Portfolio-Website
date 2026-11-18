@@ -172,8 +172,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
                       {/* Radial Spoke Label (sits along 0 deg horizontal axis of the slice) */}
                       <div class="pw-slice-label">
-                        <span class="pw-slice-num">{proj.numStr}</span>
-                        <span class="pw-slice-title">{proj.title}</span>
+                        <div class="pw-slice-pill">
+                          <span class="pw-slice-num">{proj.numStr}</span>
+                          <span class="pw-slice-title">{proj.title}</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -670,14 +672,18 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
 
   .pw-compass-outer {
     fill: none;
-    stroke: var(--color-border);
+    stroke: #cbd5e1;
     stroke-width: 0.35;
     stroke-dasharray: 1.2 1.2;
   }
 
+  :global(.dark) .pw-compass-outer {
+    stroke: #1e293b;
+  }
+
   .pw-compass-inner {
     fill: none;
-    stroke: var(--pw-accent-border);
+    stroke: var(--color-border);
     stroke-width: 0.4;
   }
 
@@ -707,40 +713,62 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   }
 
   .pw-slice-backdrop {
-    fill: var(--color-card-bg);
+    fill: #e2e8f0;
+    transition: fill 0.35s ease;
+  }
+
+  :global(.dark) .pw-slice-backdrop {
+    fill: #0f172a;
+  }
+
+  .pw-slice.is-active .pw-slice-backdrop {
+    fill: #0f172a;
   }
 
   .pw-slice-img {
-    opacity: 0.38;
-    filter: grayscale(45%);
+    opacity: 0.55;
+    filter: grayscale(70%) contrast(0.95) brightness(1.04);
     transition: opacity 0.35s ease, filter 0.35s ease;
+  }
+
+  :global(.dark) .pw-slice-img {
+    opacity: 0.42;
+    filter: grayscale(50%);
   }
 
   .pw-slice.is-active .pw-slice-img,
   .pw-slice:hover .pw-slice-img {
-    opacity: 0.88;
-    filter: grayscale(0%);
+    opacity: 0.96;
+    filter: grayscale(0%) contrast(1) brightness(1);
   }
 
   .pw-slice-scrim {
-    fill: rgba(2, 6, 23, 0.38);
+    fill: rgba(248, 250, 252, 0.52);
     transition: fill 0.35s ease;
   }
 
+  :global(.dark) .pw-slice-scrim {
+    fill: rgba(2, 6, 23, 0.44);
+  }
+
   .pw-slice.is-active .pw-slice-scrim {
-    fill: rgba(2, 6, 23, 0.18);
+    fill: rgba(15, 23, 42, 0.14);
   }
 
   .pw-slice-border {
     fill: none;
-    stroke: var(--color-border);
-    stroke-width: 0.35;
+    stroke: #cbd5e1;
+    stroke-width: 0.3;
     transition: stroke 0.35s ease, stroke-width 0.35s ease;
+  }
+
+  :global(.dark) .pw-slice-border {
+    stroke: #1e293b;
   }
 
   .pw-slice.is-active .pw-slice-border {
     stroke: var(--slice-accent, var(--pw-accent));
-    stroke-width: 0.85;
+    stroke-width: 0.55;
   }
 
   .pw-slice-hit {
@@ -760,42 +788,79 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     padding-right: 4%;
     display: flex;
     align-items: center;
-    gap: 0.55rem;
     pointer-events: auto;
     cursor: pointer;
   }
 
-  .pw-slice-num {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 0.15rem 0.42rem;
+  .pw-slice-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.28rem 0.68rem 0.28rem 0.32rem;
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.78);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  :global(.dark) .pw-slice-pill {
+    background: rgba(15, 23, 42, 0.82);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+
+  .pw-slice.is-active .pw-slice-pill {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+  }
+
+  .pw-slice-num {
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.14rem 0.4rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  }
+
+  :global(.dark) .pw-slice-num {
+    background: rgba(30, 41, 59, 0.9);
     color: #f8fafc;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    border-color: rgba(255, 255, 255, 0.15);
   }
 
   .pw-slice.is-active .pw-slice-num {
     background: var(--slice-accent, var(--pw-accent));
+    color: #ffffff;
     border-color: transparent;
-    transform: scale(1.08);
+    transform: scale(1.06);
   }
 
   .pw-slice-title {
-    font-size: 0.82rem;
-    font-weight: 800;
-    color: #ffffff;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+    min-width: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0f172a;
+    text-shadow: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    opacity: 0.72;
-    transition: opacity 0.3s ease;
+    opacity: 0.88;
+    transition: color 0.3s ease, opacity 0.3s ease;
   }
 
+  :global(.dark) .pw-slice-title,
   .pw-slice.is-active .pw-slice-title {
+    color: #ffffff;
     opacity: 1;
   }
 
@@ -808,16 +873,27 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     height: 31%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: var(--color-bg);
-    border: 2px solid var(--pw-accent-border);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow:
+      0 12px 32px -8px rgba(15, 23, 42, 0.12),
+      inset 0 0 0 6px #f8fafc,
+      inset 0 0 0 7px #e2e8f0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding-left: 10%;
     z-index: 10;
     pointer-events: none;
+  }
+
+  :global(.dark) .pw-center-hub {
+    background: #020617;
+    border-color: #1e293b;
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      inset 0 0 0 6px #0f172a,
+      inset 0 0 0 7px #1e293b;
   }
 
   .pw-hub-eyebrow {
@@ -863,7 +939,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
   .pw-pointer-arrow {
     width: 28px;
     height: 28px;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+    filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.2));
   }
 
   /* --- RIGHT COLUMN: PROJECT SHOWCASE STAGE --- */
@@ -905,7 +981,7 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.18em;
-    color: var(--pw-accent);
+    color: var(--color-secondary);
   }
 
   .pw-pulse-dot {
@@ -913,7 +989,6 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     height: 7px;
     border-radius: 50%;
     background: var(--pw-accent);
-    box-shadow: 0 0 10px var(--pw-accent);
   }
 
   .pw-scroll-hint {
@@ -936,40 +1011,79 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
-    background: var(--color-card-bg);
-    color: var(--color-text-dim);
-    border: 1px solid var(--color-border);
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
     cursor: pointer;
     transition: all 0.25s ease;
   }
 
-  .pw-nav-pill:hover {
-    border-color: var(--pw-accent-border);
-    color: var(--color-text);
+  :global(.dark) .pw-nav-pill {
+    background: #0f172a;
+    color: #94a3b8;
+    border-color: #1e293b;
+    box-shadow: none;
   }
 
-  .pw-nav-pill.is-active {
-    background: var(--pw-accent-bg);
-    border-color: var(--pw-accent);
-    color: var(--color-text);
-    box-shadow: 0 4px 14px -4px var(--pw-accent-bg);
+  .pw-nav-pill:hover {
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  :global(.dark) .pw-nav-pill:hover {
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .pw-nav-pill.is-active,
+  .pw-nav-pill.is-active:hover {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+  }
+
+  :global(.dark) .pw-nav-pill.is-active,
+  :global(.dark) .pw-nav-pill.is-active:hover {
+    background: #f8fafc;
+    border-color: #f8fafc;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   }
 
   .pw-pill-num {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.68rem;
     font-weight: 800;
+    color: #64748b;
+    transition: color 0.25s ease;
+  }
+
+  :global(.dark) .pw-pill-num {
+    color: #94a3b8;
+  }
+
+  .pw-nav-pill.is-active .pw-pill-num {
     color: var(--pw-accent);
   }
 
   /* Active Showcase Card */
   .pw-showcase-card {
-    background: var(--color-card-bg);
-    border: 1px solid var(--pw-accent-border);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 1.25rem;
     overflow: hidden;
-    box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.22);
-    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.35s ease;
+    box-shadow:
+      0 20px 45px -15px rgba(15, 23, 42, 0.08),
+      0 4px 14px -2px rgba(15, 23, 42, 0.04);
+    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  :global(.dark) .pw-showcase-card {
+    background: #0f172a;
+    border-color: #1e293b;
+    box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.5);
   }
 
   .pw-showcase-card.is-switching {
@@ -981,9 +1095,14 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     position: relative;
     display: block;
     width: 100%;
-    height: clamp(170px, 25vh, 250px);
-    background: #0f172a;
+    height: clamp(190px, 27vh, 270px);
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--color-border);
     overflow: hidden;
+  }
+
+  :global(.dark) .pw-card-media {
+    background: #090d16;
   }
 
   .pw-card-img {
@@ -1005,8 +1124,12 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     justify-content: center;
     font-weight: 900;
     font-size: 1.25rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(15, 23, 42, 0.28);
     text-transform: uppercase;
+  }
+
+  :global(.dark) .pw-card-img-fallback {
+    color: rgba(255, 255, 255, 0.35);
   }
 
   .pw-card-media-overlay {
@@ -1071,9 +1194,15 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     letter-spacing: 0.08em;
     padding: 0.2rem 0.6rem;
     border-radius: 999px;
-    background: var(--pw-accent-bg);
-    color: var(--color-text);
-    border: 1px solid var(--pw-accent-border);
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  :global(.dark .pw-tag) {
+    background: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+    border-color: #334155;
   }
 
   .pw-card-title {
@@ -1239,24 +1368,41 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     display: flex;
     flex-direction: column;
     border-radius: 1rem;
-    background: var(--color-card-bg);
-    border: 1px solid var(--color-border);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.06);
     overflow: hidden;
     text-decoration: none;
     transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
+  :global(.dark) .pw-dir-card {
+    background: #0f172a;
+    border-color: #1e293b;
+    box-shadow: none;
+  }
+
   .pw-dir-card:hover {
     transform: translateY(-4px);
+    border-color: #cbd5e1;
+    box-shadow: 0 18px 36px -12px rgba(15, 23, 42, 0.12);
+  }
+
+  :global(.dark) .pw-dir-card:hover {
     border-color: var(--card-accent-border);
-    box-shadow: 0 18px 40px -15px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 18px 40px -15px rgba(0, 0, 0, 0.45);
   }
 
   .pw-dir-media {
     position: relative;
     height: 200px;
-    background: #0f172a;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--color-border);
     overflow: hidden;
+  }
+
+  :global(.dark) .pw-dir-media {
+    background: #090d16;
   }
 
   .pw-dir-img {
@@ -1278,6 +1424,10 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     justify-content: center;
     font-size: 2rem;
     font-weight: 900;
+    color: rgba(15, 23, 42, 0.22);
+  }
+
+  :global(.dark) .pw-dir-fallback {
     color: rgba(255, 255, 255, 0.2);
   }
 
@@ -1314,8 +1464,15 @@ const firstAccent = enrichedProjects[0] || { accentMain: "#FF7D1A", accentBg: "r
     text-transform: uppercase;
     padding: 0.15rem 0.5rem;
     border-radius: 999px;
-    background: var(--card-accent-bg);
-    color: var(--color-text);
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  :global(.dark) .pw-dir-tag {
+    background: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+    border-color: #334155;
   }
 
   .pw-dir-card-title {
