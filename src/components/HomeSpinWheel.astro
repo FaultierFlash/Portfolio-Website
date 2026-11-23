@@ -52,7 +52,15 @@ const copy = isDe ? {
 ---
 
 {count > 0 && (
-<div class="hsw-root scroll-section" data-accent-color="primary">
+<div
+  id="hsw-root"
+  class="hsw-root"
+  data-accent-color="primary"
+  data-projects={JSON.stringify(projects)}
+  data-lang={lang}
+  data-fallback-desc={copy.fallbackDesc}
+  data-default-tag={copy.defaultTag}
+>
   <div class="hsw-layout">
     <!-- Left Side: Clipped Wheel -->
     <div class="hsw-wheel-viewport">
@@ -114,7 +122,7 @@ const copy = isDe ? {
 )}
 
 {count === 0 && (
-<div class="hsw-root empty-state scroll-section">
+<div class="hsw-root empty-state">
   <div class="empty-content">
     <p class="hsw-eyebrow">{copy.emptyEyebrow}</p>
     <h2 class="hsw-title">{copy.emptyTitle}</h2>
@@ -123,171 +131,167 @@ const copy = isDe ? {
 </div>
 )}
 
-<script is:inline define:vars={{ projects, lang, fallbackDesc: copy.fallbackDesc, defaultTag: copy.defaultTag }}>
-(function() {
-  function esc(val) {
-    return String(val ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-  const COLOR_MAP = {
-    primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.1)', border: 'rgba(255,125,26,0.3)' },
-    blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
-    green:   { main: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.3)' },
-    purple:  { main: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)' },
-    rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.1)',   border: 'rgba(244,63,94,0.3)' },
-    gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.3)' },
-  };
+<script>
+  import { escapeHtml } from "../lib/html";
 
-  const N = projects.length;
-  if (N <= 0) return;
+  let activeRafId: number | null = null;
 
-  let currentRotation = 0; // Total accumulated rotation
-  let isSpinning = false;
-
-
-  function getProject(index) {
-    return projects[((index % N) + N) % N];
+  function cleanupWheel() {
+    if (activeRafId !== null) {
+      cancelAnimationFrame(activeRafId);
+      activeRafId = null;
+    }
   }
 
-  function updateSliceContent(sliceEl, project) {
-    if (!sliceEl || !project) return;
-    const colors = COLOR_MAP[project.accentColor] || COLOR_MAP.primary;
-    
-    // Mimic ProjectSlice.astro structure but in a reusable way
-    sliceEl.innerHTML = `
-      <div class="slice-inner" style="--accent: ${colors.main}; --accent-bg: ${colors.bg}; --accent-border: ${colors.border}">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <clipPath id="clip-${esc(project.slug.current)}">
-              <path d="M 50,50 L 50,0 A 50,50 0 0,1 50,100 Z" />
-            </clipPath>
-          </defs>
-          <image 
-            href="${esc(project.image || '')}" 
-            x="0" y="0" width="100" height="100" 
-            preserveAspectRatio="xMidYMid slice"
-            clip-path="url(#clip-${esc(project.slug.current)})"
-            class="slice-image"
-          />
-          <path d="M 50,0 A 50,50 0 0,1 50,100" class="slice-border" fill="none" stroke="${colors.main}" stroke-width="0.5" />
-        </svg>
-        <div class="slice-content">
-          <h4 class="slice-title">${esc(project.title)}</h4>
-          <span class="slice-tag">${esc(project.tags?.[0] || defaultTag)}</span>
-        </div>
-      </div>
-    `;
-  }
-
-  function init() {
+  function initWheel() {
+    cleanupWheel();
+    const root = document.getElementById('hsw-root');
     const wheel = document.getElementById('hsw-wheel');
-    const spinBtn = document.getElementById('hsw-spin-btn');
-    const respinBtn = document.getElementById('hsw-respin-btn');
+    const spinBtn = document.getElementById('hsw-spin-btn') as HTMLButtonElement | null;
+    const respinBtn = document.getElementById('hsw-respin-btn') as HTMLButtonElement | null;
     const resultCard = document.getElementById('hsw-result');
     const slices = [document.getElementById('hsw-slice-0'), document.getElementById('hsw-slice-1')];
 
-    if (!wheel || !spinBtn) return;
+    if (!root || !wheel || !spinBtn || !respinBtn || !resultCard) return;
     if (spinBtn.dataset.hswInit === 'true') return;
     spinBtn.dataset.hswInit = 'true';
 
+    let projects: any[] = [];
+    try {
+      projects = JSON.parse(root.dataset.projects || '[]');
+    } catch {
+      projects = [];
+    }
+    const lang = root.dataset.lang || 'en';
+    const fallbackDesc = root.dataset.fallbackDesc || 'Discover more about this project.';
+    const defaultTag = root.dataset.defaultTag || 'Project';
+
+    const COLOR_MAP: Record<string, { main: string; bg: string; border: string }> = {
+      primary: { main: '#FF7D1A', bg: 'rgba(255,125,26,0.1)', border: 'rgba(255,125,26,0.3)' },
+      blue:    { main: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
+      green:   { main: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.3)' },
+      purple:  { main: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)' },
+      rose:    { main: '#f43f5e', bg: 'rgba(244,63,94,0.1)',   border: 'rgba(244,63,94,0.3)' },
+      gray:    { main: '#6b7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.3)' },
+    };
+
+    const N = projects.length;
+    if (N <= 0) return;
+
+    let currentRotation = 0;
+    let isSpinning = false;
     let lastBaseIndex = -1;
 
-    // Secret loading: Update slices as they go behind the scenes
-    function refreshSlices(rot) {
-      // Every 180 deg, we swap which slice is "front"
-      // baseIndex: which 180-deg period we are in
-      // Adding 90 shifts the logic so the swap happens when slices are vertical
+    function getProject(index: number) {
+      return projects[((index % N) + N) % N];
+    }
+
+    function updateSliceContent(sliceEl: HTMLElement | null, project: any) {
+      if (!sliceEl || !project) return;
+      const colors = COLOR_MAP[project.accentColor] || COLOR_MAP.primary;
+      const slug = project.slug?.current || '';
+      const clipId = `clip-${sliceEl.id}-${escapeHtml(slug)}`;
+
+      sliceEl.innerHTML = `
+        <div class="slice-inner" style="--accent: ${colors.main}; --accent-bg: ${colors.bg}; --accent-border: ${colors.border}">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <clipPath id="${clipId}">
+                <path d="M 50,50 L 50,0 A 50,50 0 0,1 50,100 Z" />
+              </clipPath>
+            </defs>
+            <image 
+              href="${escapeHtml(project.image || '')}" 
+              x="0" y="0" width="100" height="100" 
+              preserveAspectRatio="xMidYMid slice"
+              clip-path="url(#${clipId})"
+              class="slice-image"
+            />
+            <path d="M 50,0 A 50,50 0 0,1 50,100" class="slice-border" fill="none" stroke="${colors.main}" stroke-width="0.5" />
+          </svg>
+          <div class="slice-content">
+            <h4 class="slice-title">${escapeHtml(project.title)}</h4>
+            <span class="slice-tag">${escapeHtml(project.tags?.[0] || defaultTag)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function refreshSlices(rot: number) {
       const baseIndex = Math.floor((rot + 90) / 180);
-      
       if (baseIndex !== lastBaseIndex) {
-        // Update both to be safe, but specifically the one that just went back
-        // slice 0 is at 0, 360, 720...
-        // slice 1 is at 180, 540, 900...
-        updateSliceContent(slices[0], getProject(Math.floor(rot / 180 / 2) * 2));
-        updateSliceContent(slices[1], getProject(Math.floor((rot - 180) / 180 / 2) * 2 + 1));
-        
-        // Actually, simpler mapping:
-        // slice i should have project (Math.round((i * 180 + rot) / 180))? No.
-        
-        // Let's just use the floor logic:
-        const s0Index = Math.round((0 + rot) / 180);
-        const s1Index = Math.round((180 + rot) / 180);
-        
-        // Only update if index changed
+        const s0Index = Math.round(rot / 360) * 2;
+        const s1Index = Math.round((rot - 180) / 360) * 2 + 1;
         updateSliceContent(slices[0], getProject(s0Index));
         updateSliceContent(slices[1], getProject(s1Index));
-        
         lastBaseIndex = baseIndex;
       }
     }
 
-    // Initial setup
     refreshSlices(0);
 
+    function finishSpin(index: number) {
+      isSpinning = false;
+      if (spinBtn) spinBtn.disabled = false;
+
+      const p = getProject(index);
+      const colors = COLOR_MAP[p.accentColor] || COLOR_MAP.primary;
+
+      const titleEl = document.getElementById('hsw-result-title');
+      const descEl = document.getElementById('hsw-result-desc');
+      const linkEl = document.getElementById('hsw-result-link') as HTMLAnchorElement | null;
+
+      if (titleEl) titleEl.textContent = p.title;
+      if (descEl) descEl.textContent = p.description || fallbackDesc;
+      if (linkEl) {
+        linkEl.href = `/${lang}/projects/${p.slug?.current || ''}`;
+        linkEl.style.backgroundColor = colors.main;
+      }
+      if (resultCard) resultCard.hidden = false;
+    }
+
     function spin() {
-      if (isSpinning) return;
+      if (isSpinning || !wheel || !spinBtn || !resultCard) return;
       isSpinning = true;
       resultCard.hidden = true;
       spinBtn.disabled = true;
 
-      const spins = 5 + Math.floor(Math.random() * 5); // 5-10 full spins
+      const spins = 5 + Math.floor(Math.random() * 5);
       const randomProject = Math.floor(Math.random() * N);
-      
-      // Calculate target rotation to land on randomProject
-      // currentRotation is total accumulated
       const currentVirtualIndex = Math.round(currentRotation / 180);
-      // We want (nextMatchingVirtualIndex % N) == randomProject
       let nextMatchingVirtualIndex = currentVirtualIndex + spins * 2;
       while (nextMatchingVirtualIndex % N !== randomProject) {
         nextMatchingVirtualIndex++;
       }
-      
+
       const targetRotation = nextMatchingVirtualIndex * 180;
       const duration = 5000;
       const startTime = performance.now();
       const startRotation = currentRotation;
 
-      function animate(now) {
+      function animate(now: number) {
+        if (!document.body.contains(wheel)) {
+          cleanupWheel();
+          return;
+        }
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
-        // Cubic ease out
         const ease = 1 - Math.pow(1 - progress, 3);
         const rot = startRotation + (targetRotation - startRotation) * ease;
         currentRotation = rot;
-        
-        wheel.style.transform = `rotate(${-rot}deg)`;
+
+        wheel!.style.transform = `rotate(${-rot}deg)`;
         refreshSlices(rot);
-        
+
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          activeRafId = requestAnimationFrame(animate);
         } else {
+          activeRafId = null;
           finishSpin(randomProject);
         }
       }
 
-      requestAnimationFrame(animate);
-    }
-
-    function finishSpin(index) {
-      isSpinning = false;
-      spinBtn.disabled = false;
-
-
-      const p = getProject(index);
-      const colors = COLOR_MAP[p.accentColor] || COLOR_MAP.primary;
-
-      document.getElementById('hsw-result-title').textContent = p.title;
-      document.getElementById('hsw-result-desc').textContent = p.description || fallbackDesc;
-      const link = document.getElementById('hsw-result-link');
-      link.href = `/${lang}/projects/${p.slug.current}`;
-      link.style.backgroundColor = colors.main;
-      
-      resultCard.hidden = false;
+      activeRafId = requestAnimationFrame(animate);
     }
 
     spinBtn.addEventListener('click', spin);
@@ -297,9 +301,8 @@ const copy = isDe ? {
     });
   }
 
-  document.addEventListener('astro:page-load', init);
-  init(); // Fallback
-})();
+  document.addEventListener('astro:page-load', initWheel);
+  document.addEventListener('astro:before-swap', cleanupWheel);
 </script>
 
 <style>

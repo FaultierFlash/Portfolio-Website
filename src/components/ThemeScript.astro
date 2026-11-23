@@ -4,11 +4,10 @@
 
 <script is:inline>
   // Sofort ausgeführtes Skript für Theme-Erkennung und -Anwendung
-  function applyTheme() {
-    // Bereits gespeichertes Theme abrufen, falls vorhanden
+  function applyTheme(targetDocument) {
+    const doc = targetDocument || document;
     const storedTheme = localStorage.getItem("theme");
 
-    // Theme basierend auf Präferenz oder System-Einstellung ermitteln
     const getTheme = () => {
       if (storedTheme) return storedTheme;
       if (window.matchMedia("(prefers-color-scheme: dark)").matches)
@@ -16,16 +15,21 @@
       return "light";
     };
 
-    // Theme-Entscheidung
     const theme = getTheme();
-
-    // Theme anwenden
-    document.documentElement.classList.toggle("dark", theme === "dark");
-
-    // Für spätere Verwendung speichern
+    doc.documentElement.classList.toggle("dark", theme === "dark");
     window.theme = theme;
   }
 
-  // Sofort ausführen
-  applyTheme();
+  applyTheme(document);
+
+  // Retain dark mode immediately during Astro ClientRouter DOM swaps before paint
+  if (!window.__themeSwapBound) {
+    window.__themeSwapBound = true;
+    document.addEventListener("astro:before-swap", (event) => {
+      if (event && event.newDocument) {
+        applyTheme(event.newDocument);
+      }
+    });
+    document.addEventListener("astro:after-swap", () => applyTheme(document));
+  }
 </script>

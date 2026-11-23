@@ -31,8 +31,8 @@ const timelineItems = (homeData?.timeline || []).map((item: any) => {
     return item;
 });
 const showSpinWheel = homeData?.showSpinWheel !== false;
-const featuredSlugs = new Set(featuredProjects.map((p: any) => p.slug.current));
-const nonFeaturedProjects = (allProjects || []).filter((p: any) => !featuredSlugs.has(p.slug.current));
+const featuredSlugs = new Set(featuredProjects.map((p: any) => p?.slug?.current).filter(Boolean));
+const nonFeaturedProjects = (allProjects || []).filter((p: any) => p?.slug?.current && !featuredSlugs.has(p.slug.current));
 
 // --- Timescale Math Logic ---
 // We lock the timeline container strictly to the user-defined bounds.
@@ -347,13 +347,13 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 ---
 
-<BaseLayout hidePageScrollbar={true} showFooter={false} overrides={overrides}>
+<BaseLayout hidePageScrollbar={true} showFooter={false} overrides={overrides} projects={allProjects}>
   <div class="scroll-container">
     {/* Section 1: Introduction */}
     <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
-        config={homeData?.backgroundEffect === 'solar' ? homeData?.solarConfig : homeData?.backgroundEffect === 'airflow' ? homeData?.airflowConfig : homeData?.topographyConfig}
+        config={(homeData?.backgroundEffect === 'solar' || homeData?.backgroundEffect === 'stars') ? homeData?.solarConfig : homeData?.backgroundEffect === 'airflow' ? homeData?.airflowConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
       
@@ -385,7 +385,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Scroll to projects">
+        <button id="scroll-down-btn" class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Zu den Projekten scrollen' : 'Scroll to projects'}>
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">{lang === 'de' ? 'Reise beginnen' : 'Start Journey'}</span>
            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -558,14 +558,13 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const c = colors[resolvedColor] || colors.primary;
                     
                     const EventWrapper = 'div';
-                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
 
                     const hasWidget = !!(item.widgetImage || item.widgetButtonLabel || item.widgetButtonLink || item.description || item.relatedProject?.description);
                     const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
                     const widgetTitle = item.title;
                     const widgetDesc = item.description || item.relatedProject?.description;
                     const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? `${item.title} ansehen` : `View ${item.title}`) : '');
-                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
+                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject?.slug?.current ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
 
                     const isTopHalf = item.verticalPosition === 'far-above' || item.verticalPosition === 'above' || (!item.verticalPosition && isDuration);
 
@@ -643,7 +642,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 </div>
 
                                 {/* Close Button */}
-                                <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label="Close card">
+                                <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label={lang === 'de' ? 'Karte schließen' : 'Close card'}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                                 
@@ -658,6 +657,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                             `}
                                             sizes="(max-width: 768px) 100vw, 240px"
                                             alt={widgetTitle}
+                                            width="480"
+                                            height="288"
                                             loading="lazy"
                                             decoding="async"
                                             class="w-full h-auto rounded-lg"
@@ -711,7 +712,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                             const subWidgetTitle = evt.title;
                             const subWidgetDesc = evt.description || evt.relatedProject?.description;
                             const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
-                            const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
+                            const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                             const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
                             
                             if (!hasSubWidget) return null;
@@ -756,7 +757,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                         </div>
 
                                         {/* Close Button */}
-                                        <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label="Close card">
+                                        <button class="close-card-btn absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-50 cursor-pointer" aria-label={lang === 'de' ? 'Karte schließen' : 'Close card'}>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                         </button>
                                         
@@ -771,6 +772,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                                     `}
                                                     sizes="(max-width: 768px) 100vw, 240px"
                                                     alt={subWidgetTitle}
+                                                    width="480"
+                                                    height="288"
                                                     loading="lazy"
                                                     decoding="async"
                                                     class="w-full h-auto rounded-lg"
@@ -937,13 +940,13 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const isDuration = !!item.endDate || isActuallyOngoing;
                     const resolvedColor = item.relatedProject?.accentColor || item.color || 'primary';
                     const c = colors[resolvedColor] || colors.primary;
-                    const eventHref = item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
+                    const eventHref = item.relatedProject?.slug?.current ? `/${lang}/projects/${item.relatedProject.slug.current}` : undefined;
 
                     const widgetImage = item.widgetImage || item.relatedProject?.mainImage;
                     const widgetTitle = item.title;
                     const widgetDesc = item.description || item.relatedProject?.description;
                     const widgetBtnLabel = item.widgetButtonLabel || (item.relatedProject ? (lang === 'de' ? `${item.title} ansehen` : `View ${item.title}`) : '');
-                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
+                    const widgetBtnLink = item.widgetButtonLink || (item.relatedProject?.slug?.current ? `/${lang}/projects/${item.relatedProject.slug.current}` : '');
 
                     const mobileTimeframe = (() => {
                         const start = new Date(item.startDate).toLocaleDateString(lang, { month: 'short', year: 'numeric' });
@@ -968,6 +971,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                     `}
                                     sizes="(max-width: 640px) calc(100vw - 40px), 600px"
                                     alt={widgetTitle}
+                                    width="600"
+                                    height="360"
                                     loading="lazy"
                                     decoding="async"
                                     class="w-full h-auto rounded-xl"
@@ -981,7 +986,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                         {mobileTimeframe}
                                     </span>
                                     {isActuallyOngoing && (
-                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>Active</span>
+                                        <span class={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${c.bg} text-slate-700 dark:text-slate-200`}>{lang === 'de' ? 'Aktiv' : 'Active'}</span>
                                     )}
                                 </div>
                                 <h3 class="text-lg font-black text-[var(--color-text)] leading-tight">{widgetTitle}</h3>
@@ -1001,11 +1006,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
                                     <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>{lang === 'de' ? 'Meilensteine' : 'Milestones'}</span>
                                     {item.milestoneEvents.map((evt: any, mIdx: number) => {
-                                        const subEventHref = evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
+                                        const subEventHref = evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                                         const subWidgetDesc = evt.description || evt.relatedProject?.description;
                                         const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
-                                        const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
+                                        const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                                         
                                         const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
                                         const ec = colors[resolvedEvtColor] || colors.primary;
@@ -1022,7 +1027,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                                         ${urlFor(subWidgetImage).width(900).auto('format').quality(85).url()} 900w
                                                     `}
                                                     sizes="(max-width: 640px) calc(100vw - 64px), 500px"
-                                                    alt={evt.title} 
+                                                    alt={evt.title}
+                                                    width="500"
+                                                    height="300"
                                                     loading="lazy"
                                                     decoding="async"
                                                     class="w-full h-auto rounded-lg"
@@ -1128,10 +1135,10 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         const pc = colors[projectColor] || colors.primary;
         
         return (
-          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug.current} data-accent-color={projectColor}>
+          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug?.current || ''} data-accent-color={projectColor}>
             <DynamicBackground 
               effect={project.backgroundEffect || "none"} 
-              config={project.backgroundEffect === 'solar' ? project.solarConfig : project.backgroundEffect === 'airflow' ? project.airflowConfig : project.topographyConfig}
+              config={(project.backgroundEffect === 'solar' || project.backgroundEffect === 'stars') ? project.solarConfig : project.backgroundEffect === 'airflow' ? project.airflowConfig : project.topographyConfig}
               isAbsolute={true} 
             />
             
@@ -1165,7 +1172,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 )}
 
                 <a 
-                  href={`/${lang}/projects/${project.slug.current}`} 
+                  href={`/${lang}/projects/${project.slug?.current || ''}`} 
                   class={`inline-block mt-1 md:mt-8 px-4 py-1.5 sm:px-6 sm:py-2.5 md:px-8 md:py-3 text-xs sm:text-sm md:text-base font-bold rounded shadow-lg transition-all focus:ring-4 ${pc.btn}`}
                   aria-label={lang === 'de' ? `Projekt ${project.title} entdecken` : `Explore ${project.title} project`}
                 >
@@ -1188,11 +1195,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               )}
             </div>
 
-            <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Previous Slide">
+            <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Vorheriger Abschnitt' : 'Previous Slide'}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">{lang === 'de' ? 'Vorheriges' : 'Previous'}</span>
             </button>
-            <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label="Next Slide">
+            <button class="nav-down-btn absolute bottom-3 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Nächster Abschnitt' : 'Next Slide'}>
               <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">
                  {isLastSection ? (showSpinWheel && nonFeaturedProjects.length > 0 ? (lang === 'de' ? 'Alle Projekte' : 'View All Projects') : (lang === 'de' ? 'Kontakt' : 'Contact')) : (lang === 'de' ? 'Nächstes Projekt' : 'Next Project')}
               </span>
@@ -1262,9 +1269,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       </div>
 
       {/* Footer Section */}
-      <footer class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-20">
-        <Footer />
-      </footer>
+      <div class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-20">
+        <Footer locale={lang} overrides={overrides} />
+      </div>
     </section>
   </div>
 </BaseLayout>
@@ -1355,13 +1362,37 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 </style>
 
 <script>
+  let activeHomeCleanup: (() => void) | null = null;
+
   function initializeScrollLogic() {
+    if (activeHomeCleanup) {
+      activeHomeCleanup();
+      activeHomeCleanup = null;
+    }
+
     const container = document.querySelector('.scroll-container');
     if (!container) return;
 
+    let disposed = false;
+    const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+    function scheduleTimeout(fn: () => void, delay: number) {
+      const id = setTimeout(() => {
+        activeTimeouts.delete(id);
+        if (!disposed) fn();
+      }, delay);
+      activeTimeouts.add(id);
+      return id;
+    }
+
+    const activeObservers: IntersectionObserver[] = [];
+    const activeResizeObservers: ResizeObserver[] = [];
+    const windowResizeListeners: Array<() => void> = [];
+    const visualViewportListeners: Array<() => void> = [];
+    const cleanupFns: Array<() => void> = [];
+
     let maxTimelineZIndex = 100;
     let allowPushAway = true;
-    setTimeout(() => {
+    scheduleTimeout(() => {
         allowPushAway = false;
     }, 1500);
 
@@ -1384,7 +1415,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         });
 
         const targetIndex = Math.max(0, Math.min(sections.length - 1, currentSectionIndex + offset));
-        sections[targetIndex].scrollIntoView({ behavior: 'smooth' });
+        sections[targetIndex]?.scrollIntoView({ behavior: 'smooth' });
     };
 
     upBtns.forEach(btn => btn.addEventListener('click', () => scrollToSection(-1)));
@@ -1394,13 +1425,14 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     // Timeline Horizontal Scroll Hijack
     const timelineSection = document.querySelector('.timeline-section');
     const timelineContainer = document.getElementById('timeline-scroll-area');
-    const titleHeader = document.querySelector('.timeline-header') as HTMLElement;
+    const titleHeader = document.querySelector('.timeline-header') as HTMLElement | null;
 
     // Boundary Scroll Buffer State
     let boundaryScrollAccumulator = 0;
     const BOUNDARY_THRESHOLD = 200; // threshold in pixels
     let lastScrollDirection = 0;
-    let boundaryTimeoutId: any = null;
+    let boundaryTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let animationTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const shouldBlockBoundaryScroll = (deltaY: number) => {
         if (!timelineContainer) return false;
@@ -1420,6 +1452,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         }
         boundaryTimeoutId = setTimeout(() => {
             boundaryScrollAccumulator = 0;
+            boundaryTimeoutId = null;
         }, 500);
         
         if (isAtLeft && direction === -1) {
@@ -1441,15 +1474,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     let titleMaskRafId: number | null = null;
     function updateTitleMask() {
-        if (titleMaskRafId !== null) return;
+        if (disposed || titleMaskRafId !== null) return;
         titleMaskRafId = requestAnimationFrame(() => {
             titleMaskRafId = null;
-            if (!titleHeader || !timelineContainer) return;
+            if (disposed || !titleHeader || !timelineContainer) return;
             
             const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
             if (activeCards.length === 0) {
                 titleHeader.style.maskImage = '';
-                titleHeader.style.webkitMaskImage = '';
+                titleHeader.style.removeProperty('-webkit-mask-image');
                 return;
             }
             
@@ -1457,7 +1490,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             const titleCenterX = titleRect.left + titleRect.width / 2;
             const titleCenterY = titleRect.top + titleRect.height / 2;
             
-            let closestCard: HTMLElement | null = null;
             let minDist = Infinity;
             let closestCardCenterX = 0;
             let closestCardCenterY = 0;
@@ -1471,7 +1503,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 const dist = Math.hypot(cardCenterX - titleCenterX, cardCenterY - titleCenterY);
                 if (dist < minDist) {
                     minDist = dist;
-                    closestCard = card;
                     closestCardCenterX = cardCenterX;
                     closestCardCenterY = cardCenterY;
                 }
@@ -1479,7 +1510,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             
             if (minDist > 550) {
                 titleHeader.style.maskImage = '';
-                titleHeader.style.webkitMaskImage = '';
+                titleHeader.style.removeProperty('-webkit-mask-image');
                 return;
             }
             
@@ -1488,7 +1519,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             
             const maskStr = `radial-gradient(circle 240px at ${relativeX}px ${relativeY}px, transparent 0px, transparent 130px, black 240px)`;
             titleHeader.style.maskImage = maskStr;
-            titleHeader.style.webkitMaskImage = maskStr;
+            titleHeader.style.setProperty('-webkit-mask-image', maskStr);
         });
     }
 
@@ -1552,8 +1583,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         });
     }
 
-    if (timelineSection && timelineContainer && window.innerWidth >= 768) {
+    if (timelineSection && timelineContainer) {
         timelineSection.addEventListener('wheel', (e) => {
+            if (window.innerWidth < 768) return;
             const wheelEvent = e as WheelEvent;
             
             // If the wheel event is within an active info card, let the card's own wheel listener handle it
@@ -1592,7 +1624,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         let maxRevealPos = 0; // High-water mark relative to timeline track
 
         function updateReveal() {
-            if (!timelineTrack || !movingArrow || !actualMarker || window.innerWidth < 768) return;
+            if (disposed || !timelineTrack || !movingArrow || !actualMarker || window.innerWidth < 768) return;
             
             if (maxRevealPos === 0) {
                 maxRevealPos = window.innerWidth * 0.75;
@@ -1642,33 +1674,14 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }
         }
         
-        timelineContainer.addEventListener('scroll', updateReveal);
-        timelineContainer.addEventListener('scroll', updateTitleMask);
-        window.addEventListener('resize', () => {
-            updateReveal();
-            updateTitleMask();
-        });
-        updateReveal();
-        initPushAway();
-        updateTitleMask();
-        setTimeout(() => {
-            updateReveal();
-            initPushAway();
-            updateTitleMask();
-        }, 100);
-        setTimeout(() => {
-            initPushAway();
-            updateTitleMask();
-        }, 1200);
-        
         // --- Timeline Intersection Animations ---
         const timelineItems = document.querySelectorAll('.timeline-item');
         if (timelineItems.length > 0) {
             const itemObserver = new IntersectionObserver((entries, obs) => {
-                // Determine how many items are entering at once to stagger them nicely
+                if (disposed) return;
                 const entering = entries.filter(e => e.isIntersecting);
                 entering.forEach((entry, idx) => {
-                    setTimeout(() => {
+                    scheduleTimeout(() => {
                         entry.target.classList.remove('opacity-0', 'translate-x-12');
                         entry.target.classList.add('opacity-100', 'translate-x-0');
                     }, idx * 100); 
@@ -1676,9 +1689,10 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 });
             }, {
                 root: timelineContainer, 
-                rootMargin: '0px 200px 0px 200px', // Trigger slightly ahead of view
+                rootMargin: '0px 200px 0px 200px',
                 threshold: 0.1
             });
+            activeObservers.push(itemObserver);
 
             timelineItems.forEach(item => {
                 itemObserver.observe(item);
@@ -1692,13 +1706,51 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             });
         }
 
-        // --- Draggable & Toggleable Timeline Card Logic ---
+        let wasDesktop = window.innerWidth >= 768;
+        const onDesktopTimelineResize = () => {
+            const isDesktop = window.innerWidth >= 768;
+            updateReveal();
+            updateTitleMask();
+            if (isDesktop && !wasDesktop) {
+                wasDesktop = true;
+                timelineItems.forEach(item => {
+                    item.classList.remove('opacity-0', 'translate-x-12');
+                    item.classList.add('opacity-100', 'translate-x-0');
+                });
+                scheduleTimeout(() => {
+                    updateReveal();
+                    initPushAway();
+                    updateTitleMask();
+                }, 50);
+            } else {
+                wasDesktop = isDesktop;
+            }
+        };
+
+        timelineContainer.addEventListener('scroll', updateReveal);
+        timelineContainer.addEventListener('scroll', updateTitleMask);
+        window.addEventListener('resize', onDesktopTimelineResize);
+        windowResizeListeners.push(onDesktopTimelineResize);
+
+        if (window.innerWidth >= 768) {
+            updateReveal();
+            initPushAway();
+            updateTitleMask();
+            scheduleTimeout(() => {
+                updateReveal();
+                initPushAway();
+                updateTitleMask();
+            }, 100);
+            scheduleTimeout(() => {
+                initPushAway();
+                updateTitleMask();
+            }, 1200);
+        }
         
-        // Helper to toggle active status and reset card coordinates on drag close
+        // --- Draggable & Toggleable Timeline Card Logic ---
         function openCard(card: HTMLElement) {
             card.classList.add('active');
             
-            // Highlight line and make it visible
             const item = card.closest('.timeline-item') as HTMLElement;
             if (item) {
                 item.classList.add('has-active-card');
@@ -1713,33 +1765,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     if (itemIdx && evtIdx) {
                         const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
                         line?.classList.add('visible');
-                    }
-                }
-            }
-            updateTitleMask();
-        }
-
-        function closeCard(card: HTMLElement) {
-            card.classList.remove('active');
-            resetCardDrag(card);
-            
-            // Hide line
-            const item = card.closest('.timeline-item') as HTMLElement;
-            if (item) {
-                const otherActiveCards = item.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
-                if (otherActiveCards.length === 0) {
-                    item.classList.remove('has-active-card');
-                    item.style.zIndex = '';
-                }
-                if (card.classList.contains('timeline-parent-card')) {
-                    const line = item.querySelector('.line-parent');
-                    line?.classList.remove('visible', 'highlighted');
-                } else {
-                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
-                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
-                    if (itemIdx && evtIdx) {
-                        const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
-                        line?.classList.remove('visible', 'highlighted');
                     }
                 }
             }
@@ -1781,7 +1806,32 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }
         }
 
-        // Initialize visible state for cards starting with 'active' class
+        function closeCard(card: HTMLElement) {
+            card.classList.remove('active');
+            resetCardDrag(card);
+            
+            const item = card.closest('.timeline-item') as HTMLElement;
+            if (item) {
+                const otherActiveCards = item.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
+                if (otherActiveCards.length === 0) {
+                    item.classList.remove('has-active-card');
+                    item.style.zIndex = '';
+                }
+                if (card.classList.contains('timeline-parent-card')) {
+                    const line = item.querySelector('.line-parent');
+                    line?.classList.remove('visible', 'highlighted');
+                } else {
+                    const itemIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[1];
+                    const evtIdx = card.className.match(/milestone-card-(\d+)-(\d+)/)?.[2];
+                    if (itemIdx && evtIdx) {
+                        const line = item.querySelector(`.line-milestone-${itemIdx}-${evtIdx}`);
+                        line?.classList.remove('visible', 'highlighted');
+                    }
+                }
+            }
+            updateTitleMask();
+        }
+
         const activeCards = document.querySelectorAll('.timeline-parent-card.active, .timeline-milestone-card.active');
         activeCards.forEach(card => {
             const item = card.closest('.timeline-item') as HTMLElement;
@@ -1801,17 +1851,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }
         });
 
-        // 1. Toggle on click of Timeline capsule/point
         const capsulesAndPoints = document.querySelectorAll('.timeline-parent-capsule, .timeline-parent-point');
         capsulesAndPoints.forEach(trigger => {
-            trigger.addEventListener('click', (e) => {
+            trigger.addEventListener('click', () => {
                 const item = trigger.closest('.timeline-item') as HTMLElement;
                 if (!item) return;
                 const card = item.querySelector('.timeline-parent-card') as HTMLElement;
                 if (!card) return;
                 
-                const isActive = card.classList.contains('active');
-                if (isActive) {
+                if (card.classList.contains('active')) {
                     closeCard(card);
                 } else {
                     openCard(card);
@@ -1819,7 +1867,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             });
         });
 
-        // 2. Toggle on click of milestone pin
         const milestonePins = document.querySelectorAll('.milestone-pin');
         milestonePins.forEach(pin => {
             pin.addEventListener('click', (e) => {
@@ -1831,8 +1878,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 const card = item.querySelector(`.milestone-card-${itemIdx}-${evtIdx}`) as HTMLElement;
                 if (!card) return;
 
-                const isActive = card.classList.contains('active');
-                if (isActive) {
+                if (card.classList.contains('active')) {
                     closeCard(card);
                 } else {
                     openCard(card);
@@ -1840,7 +1886,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             });
         });
 
-        // 3. Bind close button inside cards
         const closeBtns = document.querySelectorAll('.close-card-btn');
         closeBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1852,7 +1897,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             });
         });
 
-        // 3.5 Bring card to front on click/touch & handle wheel scroll event
         const timelineCards = document.querySelectorAll('.timeline-parent-card, .timeline-milestone-card');
         timelineCards.forEach(el => {
             const card = el as HTMLElement;
@@ -1865,7 +1909,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 }
             };
             card.addEventListener('mousedown', bringToFront);
-            card.addEventListener('touchstart', bringToFront);
+            card.addEventListener('touchstart', bringToFront, { passive: true });
             
             card.addEventListener('wheel', (e) => {
                 const wheelEvent = e as WheelEvent;
@@ -1886,15 +1930,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                         return;
                     }
 
-                    // If the card has a scrollbar and we hit the boundaries (top/bottom),
-                    // prevent default scroll behavior so it does NOT scroll the main timeline/page.
                     wheelEvent.preventDefault();
                     return;
                 }
                 
                 const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
                 
-                // Apply boundary buffer
                 if (shouldBlockBoundaryScroll(wheelEvent.deltaY)) {
                     wheelEvent.preventDefault();
                     return;
@@ -1912,11 +1953,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }, { passive: false });
         });
 
-        // 4. Highlight lines on card hover
         timelineItems.forEach(el => {
             const item = el as HTMLElement;
-            
-            // Parent card hover highlights
             const parentCard = item.querySelector('.timeline-parent-card');
             const parentLines = item.querySelectorAll('.line-parent');
             
@@ -1931,7 +1969,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 parentCard.addEventListener('mouseleave', () => highlightParent(false));
             }
 
-            // Milestone pin and card highlights
             const pins = item.querySelectorAll('.milestone-pin');
             pins.forEach(pin => {
                 const itemIdx = pin.getAttribute('data-item-idx');
@@ -1957,7 +1994,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             });
         });
 
-        // 5. Card Drag Handle Event Listeners (Mouse & Touch)
         const dragHandles = document.querySelectorAll('.drag-handle');
         dragHandles.forEach(handle => {
             let startX = 0;
@@ -2002,7 +2038,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
             handle.addEventListener('mousedown', (e) => {
                 const mouseEvent = e as MouseEvent;
-                if (mouseEvent.button !== 0) return; // Left click only
+                if (mouseEvent.button !== 0) return;
                 
                 card = handle.closest('.timeline-parent-card, .timeline-milestone-card') as HTMLElement;
                 if (!card) return;
@@ -2015,7 +2051,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 initialDragX = parseFloat(card.getAttribute('data-drag-x') || '0');
                 initialDragY = parseFloat(card.getAttribute('data-drag-y') || '0');
                 
-                card.style.transition = 'none'; // Disable animations during active drag
+                card.style.transition = 'none';
                 card.classList.add('dragging');
                 isDragging = true;
 
@@ -2024,7 +2060,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     maxTimelineZIndex++;
                     item.style.zIndex = maxTimelineZIndex.toString();
 
-                    // Find corresponding line
                     if (card.classList.contains('timeline-parent-card')) {
                         line = item.querySelector('.line-parent') as SVGElement;
                     } else {
@@ -2044,7 +2079,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 document.addEventListener('mouseup', onMouseUp);
             });
 
-            // Touch Drag Support
             const onTouchMove = (e: TouchEvent) => {
                 if (!isDragging || !card) return;
                 const touch = e.touches[0];
@@ -2097,7 +2131,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     maxTimelineZIndex++;
                     item.style.zIndex = maxTimelineZIndex.toString();
 
-                    // Find corresponding line
                     if (card.classList.contains('timeline-parent-card')) {
                         line = item.querySelector('.line-parent') as SVGElement;
                     } else {
@@ -2115,12 +2148,19 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                 document.addEventListener('touchmove', onTouchMove, { passive: true });
                 document.addEventListener('touchend', onTouchEnd);
+            }, { passive: true });
+
+            cleanupFns.push(() => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', onTouchEnd);
             });
         });
     }
 
     // --- Mobile Timeline Strip Logic ---
-    if (timelineSection && window.innerWidth < 768) {
+    if (timelineSection) {
         const mobileCards = document.querySelectorAll('.mobile-timeline-card');
         const milestoneCards = document.querySelectorAll('.mobile-milestone-card');
         const stripDots = document.querySelectorAll('.mobile-strip-dot');
@@ -2133,7 +2173,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             let activeParentIdx = -1;
             let activeMilestoneKey = '';
             let animatingTitle = '';
-            let animationTimeoutId: any = null;
             
             function updateDynamicTitle() {
                 const titleEl = document.getElementById('mobile-strip-title-text');
@@ -2153,26 +2192,20 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 if (!card) return;
                 
                 const newTitle = card.getAttribute('data-title') || '';
-                
-                // If the new title is already what we are animating/displaying, ensure active and return
                 if (newTitle === animatingTitle) {
                     titleEl.classList.add('active');
                     return;
                 }
                 
-                // Clear any pending transition
                 if (animationTimeoutId) {
                     clearTimeout(animationTimeoutId);
                 }
                 
                 animatingTitle = newTitle;
-                
-                // Slide down and fade out current title
                 titleEl.classList.remove('active');
                 
                 animationTimeoutId = setTimeout(() => {
                     titleEl.textContent = newTitle;
-                    // Slide up and fade in new title
                     titleEl.classList.add('active');
                     animationTimeoutId = null;
                 }, 200);
@@ -2184,7 +2217,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 activeParentIdx = parentIdx;
                 activeMilestoneKey = newKey;
                 
-                // Update dots highlight
                 stripDots.forEach((dot) => {
                     const el = dot as HTMLElement;
                     const dParent = parseInt(el.getAttribute('data-parent-idx') || '-1');
@@ -2197,28 +2229,24 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const isActiveMilestone = dParent === parentIdx && dMilestone === milestoneIdx && milestoneIdx >= 0 && parentIdx >= 0;
                     
                     if (isActiveMilestone) {
-                        // Currently focused milestone — big glow
                         el.style.width = '14px';
                         el.style.height = '14px';
                         el.style.opacity = '1';
                         el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 10px currentColor';
                         el.style.zIndex = '15';
                     } else if (isActiveParent && isParent) {
-                        // Active parent dot — enlarged ring
                         el.style.width = '14px';
                         el.style.height = '14px';
                         el.style.opacity = '1';
                         el.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.8), 0 0 8px currentColor';
                         el.style.zIndex = '14';
                     } else if (isActiveParent) {
-                        // Sibling milestones of active parent — slightly brighter
                         el.style.width = (baseSize + 2) + 'px';
                         el.style.height = (baseSize + 2) + 'px';
                         el.style.opacity = '0.9';
                         el.style.boxShadow = '';
                         el.style.zIndex = '11';
                     } else {
-                        // Inactive
                         el.style.width = baseSize + 'px';
                         el.style.height = baseSize + 'px';
                         el.style.opacity = isParent ? '1' : '0.5';
@@ -2227,7 +2255,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     }
                 });
 
-                // Highlight range capsules (spans) for parent entries
                 stripSpans.forEach((span) => {
                     const el = span as HTMLElement;
                     const dParent = parseInt(el.getAttribute('data-span-parent-idx') || '-1');
@@ -2244,11 +2271,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }
             
             function handleScroll() {
-                if (!scrollContainer || !mobileStrip) return;
+                if (disposed || window.innerWidth >= 768 || !scrollContainer || !mobileStrip) return;
                 const containerRect = scrollContainer.getBoundingClientRect();
                 const stripHeight = mobileStrip.getBoundingClientRect().height;
-                
-                // The activation line is just below the sticky strip
                 const activationLine = containerRect.top + stripHeight + 40;
                 
                 let activeIdx = -1;
@@ -2259,19 +2284,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     }
                 });
                 
-                // If center is not inside any card, determine if we are above the timeline or below it
                 if (activeIdx < 0 && mobileCards.length > 0) {
                     const firstRect = mobileCards[0].getBoundingClientRect();
                     if (firstRect.top > activationLine) {
-                        // Above the timeline (e.g. in hero)
                         activeIdx = -1;
                     } else {
-                        // Check if below the timeline (e.g. in footer/contact)
                         const lastRect = mobileCards[mobileCards.length - 1].getBoundingClientRect();
                         if (lastRect.bottom < activationLine) {
                             activeIdx = -1;
                         } else {
-                            // Currently in a gap between cards inside the timeline — keep the card that has already crossed active
                             for (let i = mobileCards.length - 1; i >= 0; i--) {
                                 const rect = mobileCards[i].getBoundingClientRect();
                                 if (rect.top <= activationLine) {
@@ -2287,7 +2308,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 if (activeIdx >= 0) {
                     milestoneCards.forEach((mCard) => {
                         const rect = mCard.getBoundingClientRect();
-                        // Highlight milestone dot when its card crosses the activation line area
                         if (rect.top <= activationLine + 40 && rect.bottom >= activationLine - 40) {
                             const pIdx = parseInt(mCard.getAttribute('data-parent-idx') || '-1');
                             const mIdx = parseInt(mCard.getAttribute('data-milestone-idx') || '-1');
@@ -2301,7 +2321,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 updateStripHighlight(activeIdx, activeMIdx);
             }
             
-            // Dot click → scroll to card
             stripDots.forEach(dot => {
                 dot.addEventListener('click', () => {
                     const el = dot as HTMLElement;
@@ -2312,11 +2331,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const stripHeight = mobileStrip.getBoundingClientRect().height;
                     
                     if (mIdx >= 0) {
-                        // Scroll to specific milestone card
                         const target = document.querySelector(`.mobile-milestone-card[data-parent-idx="${pIdx}"][data-milestone-idx="${mIdx}"]`) as HTMLElement;
                         if (target) {
                             const targetRect = target.getBoundingClientRect();
-                            // Center the milestone card below the strip
                             const targetScrollTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - stripHeight - 20;
                             scrollContainer.scrollTo({
                                 top: targetScrollTop,
@@ -2326,7 +2343,6 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                         }
                     }
                     
-                    // Scroll to parent card
                     const card = mobileCards[pIdx] as HTMLElement;
                     if (card) {
                         const cardRect = card.getBoundingClientRect();
@@ -2339,15 +2355,13 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 });
             });
 
-            // Listen to scroll to update dynamic highlights and title ticker
             scrollContainer.addEventListener('scroll', handleScroll);
-            
+            const onMobileStripResize = () => handleScroll();
+            window.addEventListener('resize', onMobileStripResize);
+            windowResizeListeners.push(onMobileStripResize);
             handleScroll();
         }
     }
-
-    // Library Section Horizontal Scroll Support (if needed)
-    // Currently vertical snap works best for the Library layout
 
     // --- Accent Color Observer: update CSS vars as project slides scroll into view ---
     const colorMap = (window as any).__accentColorMap || {
@@ -2366,20 +2380,22 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       document.documentElement.style.setProperty('--color-project-accent-border', c.border);
     }
 
-      const projectSections = document.querySelectorAll('.project-section[data-accent-color]');
-      if (projectSections.length > 0) {
-        const accentObserver = new IntersectionObserver((entries) => {
-          let best: IntersectionObserverEntry | null = null;
-          entries.forEach(entry => {
+    const projectSections = document.querySelectorAll('.project-section[data-accent-color]');
+    if (projectSections.length > 0) {
+      const accentObserver = new IntersectionObserver((entries) => {
+        if (disposed) return;
+        let best: IntersectionObserverEntry | null = null;
+        entries.forEach(entry => {
           if (entry.isIntersecting && (!best || (entry as any).intersectionRatio > (best as any).intersectionRatio)) {
             best = entry;
           }
         });
         if (best) setAccentColor(((best as any).target as HTMLElement).dataset.accentColor || 'primary');
-        }, { threshold: [0.4, 0.6, 0.8] });
-  
-        const nonProjectSections = document.querySelectorAll('.hero-section, .timeline-section');
+      }, { threshold: [0.4, 0.6, 0.8] });
+
+      const nonProjectSections = document.querySelectorAll('.hero-section, .timeline-section, .wheel-section, .contact-section');
       const resetObserver = new IntersectionObserver((entries) => {
+        if (disposed) return;
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.5) setAccentColor('primary');
         });
@@ -2387,6 +2403,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
       projectSections.forEach(s => accentObserver.observe(s));
       nonProjectSections.forEach(s => resetObserver.observe(s));
+      activeObservers.push(accentObserver, resetObserver);
     }
 
     // Dynamic measurement of footer height for mobile contact subpage
@@ -2396,6 +2413,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       if (!footer) return;
 
       const updateFooterHeight = () => {
+        if (disposed) return;
         if (window.innerWidth <= 767) {
           const h = footer.offsetHeight || 120;
           document.documentElement.style.setProperty('--mobile-footer-height', `${h}px`);
@@ -2406,16 +2424,19 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
       updateFooterHeight();
       window.addEventListener('resize', updateFooterHeight);
+      windowResizeListeners.push(updateFooterHeight);
 
       if (window.ResizeObserver) {
         const ro = new ResizeObserver(() => {
           updateFooterHeight();
         });
         ro.observe(footer);
+        activeResizeObservers.push(ro);
       }
 
       if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
+        const onVvResize = () => {
+          if (disposed) return;
           if (window.innerWidth <= 767 && contactSection) {
             const vvHeight = window.visualViewport?.height || window.innerHeight;
             const isKeyboardOpen = vvHeight < window.innerHeight * 0.75;
@@ -2431,15 +2452,47 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
               updateFooterHeight();
             }
           }
-        });
+        };
+        window.visualViewport.addEventListener('resize', onVvResize);
+        visualViewportListeners.push(onVvResize);
       }
     }
 
     setupMobileContactLayout();
+
+    activeHomeCleanup = () => {
+      disposed = true;
+      activeTimeouts.forEach((id) => clearTimeout(id));
+      activeTimeouts.clear();
+      if (boundaryTimeoutId) {
+        clearTimeout(boundaryTimeoutId);
+        boundaryTimeoutId = null;
+      }
+      if (animationTimeoutId) {
+        clearTimeout(animationTimeoutId);
+        animationTimeoutId = null;
+      }
+      if (titleMaskRafId !== null) {
+        cancelAnimationFrame(titleMaskRafId);
+        titleMaskRafId = null;
+      }
+      activeObservers.forEach((obs) => obs.disconnect());
+      activeResizeObservers.forEach((ro) => ro.disconnect());
+      windowResizeListeners.forEach((fn) => window.removeEventListener('resize', fn));
+      if (window.visualViewport) {
+        visualViewportListeners.forEach((fn) => window.visualViewport?.removeEventListener('resize', fn));
+      }
+      cleanupFns.forEach((fn) => fn());
+    };
   }
 
-  // Handle Astro page transitions
   document.addEventListener('astro:page-load', initializeScrollLogic);
+  document.addEventListener('astro:before-swap', () => {
+    if (activeHomeCleanup) {
+      activeHomeCleanup();
+      activeHomeCleanup = null;
+    }
+  });
 </script>
 
 <style>

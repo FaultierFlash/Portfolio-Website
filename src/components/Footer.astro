@@ -3,14 +3,20 @@
 import { useTranslations, type Locale } from "../i18n/utils";
 import AudioPlayer from "./AudioPlayer.astro";
 
-const currentLocale = (Astro.currentLocale as Locale) || "de";
-const t = useTranslations(currentLocale);
+interface Props {
+  locale?: Locale;
+  overrides?: Record<string, string>;
+}
+
+const currentLocale = Astro.props.locale || (Astro.currentLocale as Locale) || "en";
+const t = useTranslations(currentLocale, Astro.props.overrides);
 const currentYear = new Date().getFullYear();
+const rightsText = currentLocale === "de" ? "Alle Rechte vorbehalten." : "All rights reserved.";
 ---
 
 <footer class="site-footer">
   <div class="footer-content">
-    <p>&copy; {currentYear} Marlon Müller. All rights reserved.</p>
+    <p>&copy; {currentYear} Marlon Müller. {rightsText}</p>
     <p>
       <a href={`/${currentLocale}/privacy-policy`}>{t("footer.privacy")}</a> |
       <a href={`/${currentLocale}/terms-of-service`}>{t("footer.terms")}</a> |

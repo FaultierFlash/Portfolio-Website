@@ -46,11 +46,7 @@
     "library": "Bibliothek",
     "notes": "Notizen",
     "goToLabel": "Gehe zu {page}",
-    "home": {
-      "label": "Startseite",
-      "ariaLabel": "Startseite",
-      "about": "Über uns"
-    },
+    "home": "Startseite",
     "projects": "Projekte",
     "toggleMenu": "Menü umschalten",
     "mainNavigation": "Hauptnavigation",
@@ -74,8 +70,7 @@
     "projects": {
       "_title_": "Projekt-Übersicht",
       "circon": "Circon",
-      "photeia": "Photeia",
-      "another-project-slug": "Translated Another Project Name"
+      "photeia": "Photeia"
     },
     "contact": {
       "_title_": "Kontakt"
@@ -109,5 +104,8 @@
     "privacy": "Datenschutzerklärung",
     "terms": "Nutzungsbedingungen",
     "impressum": "Impressum"
+  },
+  "theme": {
+    "toggle": "Hell-/Dunkelmodus umschalten"
   }
 }

@@ -10,6 +10,7 @@ interface Props {
   intensity?: number;
   scale?: number;
   color?: string; // Hex code or CSS variable
+  isAbsolute?: boolean;
 }
 
 const {
@@ -19,24 +20,25 @@ const {
   intensity = 1.0,
   scale = 1.0,
   color = 'var(--color-project-accent, var(--color-primary))',
+  isAbsolute = false,
 } = Astro.props;
 ---
 
 <div
-  class="topography-container"
+  class={`topography-container ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}
   data-source={source}
   data-lat={lat}
   data-lng={lng}
   data-intensity={intensity}
   data-scale={scale}
   data-color={color}
+  aria-hidden="true"
 >
   <canvas class="topo-canvas"></canvas>
 </div>
 
 <style>
   .topography-container {
-    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -46,6 +48,14 @@ const {
     opacity: 0.2;
     background: transparent;
     transition: opacity 0.3s ease;
+  }
+
+  .topography-container.is-fixed {
+    position: fixed;
+  }
+
+  .topography-container.is-absolute {
+    position: absolute;
   }
 
   :global(.dark) .topography-container {
@@ -75,14 +85,16 @@ const {
     width = 0;
     height = 0;
 
-    mouseX = 0;
-    mouseY = 0;
-    targetMouseX = 0;
-    targetMouseY = 0;
+    mouseX = -9999;
+    mouseY = -9999;
+    targetMouseX = -9999;
+    targetMouseY = -9999;
     resolvedColor = '#FF7D1A';
     rafId: number | null = null;
+    isVisible = true;
     destroyed = false;
     observer: MutationObserver | null = null;
+    io: IntersectionObserver | null = null;
     onResize: () => void;
     onMouseMove: (e: MouseEvent) => void;
 
@@ -107,6 +119,21 @@ const {
         attributes: true,
         attributeFilter: ['class', 'style'],
       });
+
+      this.io = new IntersectionObserver(
+        (entries) => {
+          const visible = entries[0]?.isIntersecting ?? true;
+          this.isVisible = visible;
+          if (visible && !this.destroyed && this.rafId === null && this.grid.length > 0) {
+            this.animate();
+          } else if (!visible && this.rafId !== null) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+          }
+        },
+        { threshold: 0.05 }
+      );
+      this.io.observe(container);
 
       this.init();
     }
@@ -150,7 +177,11 @@ const {
         .map(() => Array(this.gridSize).fill(0));
 
       this.resize();
-      this.animate();
+      if (this.isVisible) {
+        this.animate();
+      } else {
+        this.draw();
+      }
     }
 
     resize() {
@@ -166,8 +197,14 @@ const {
         this.destroy();
         return;
       }
-      this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
-      this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+      if (!this.isVisible) {
+        this.rafId = null;
+        return;
+      }
+      if (this.targetMouseX > -9000) {
+        this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
+        this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+      }
 
       this.updateRipples();
       this.draw();
@@ -298,7 +335,9 @@ const {
       window.removeEventListener('resize', this.onResize);
       window.removeEventListener('mousemove', this.onMouseMove);
       this.observer?.disconnect();
+      this.io?.disconnect();
       this.observer = null;
+      this.io = null;
       this.container.removeAttribute('data-initialized');
     }
   }

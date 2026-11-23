@@ -13,7 +13,6 @@ interface Props {
   intensity?: number;
   flutter?: number;
   cursorTurbulence?: number;
-  showGhosts?: boolean;
   isAbsolute?: boolean;
 }
 
@@ -22,7 +21,6 @@ const {
   intensity = 1.0,
   flutter = 1.0,
   cursorTurbulence = 1.0,
-  showGhosts = false,
   isAbsolute = false,
 } = Astro.props;
 ---
@@ -33,7 +31,6 @@ const {
   data-intensity={intensity}
   data-flutter={flutter}
   data-cursor-turbulence={cursorTurbulence}
-  data-show-ghosts={showGhosts ? 'true' : 'false'}
   aria-hidden="true"
 >
   <canvas class="airflow-canvas"></canvas>
@@ -452,9 +449,12 @@ const {
       if (!ctx) return;
 
       const phasePref = (container.dataset.phase || 'scroll') as string;
-      const intensity = Math.max(0.15, Math.min(3.0, parseFloat(container.dataset.intensity || '1.0') || 1.0));
-      const flutterGain = Math.max(0, Math.min(3.0, parseFloat(container.dataset.flutter || '1.0') || 1.0));
-      const cursorTurbulence = Math.max(0, Math.min(3.0, parseFloat(container.dataset.cursorTurbulence || '1.0') || 1.0));
+      const rawIntensity = parseFloat(container.dataset.intensity ?? '1.0');
+      const rawFlutter = parseFloat(container.dataset.flutter ?? '1.0');
+      const rawCursorTurb = parseFloat(container.dataset.cursorTurbulence ?? '1.0');
+      const intensity = Math.max(0.15, Math.min(3.0, Number.isFinite(rawIntensity) ? rawIntensity : 1.0));
+      const flutterGain = Math.max(0, Math.min(3.0, Number.isFinite(rawFlutter) ? rawFlutter : 1.0));
+      const cursorTurbulence = Math.max(0, Math.min(3.0, Number.isFinite(rawCursorTurb) ? rawCursorTurb : 1.0));
       const isAbsolute = container.classList.contains('is-absolute');
 
       let width = 0;

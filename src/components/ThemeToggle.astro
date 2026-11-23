@@ -126,35 +126,39 @@ const { id = "theme-toggle", className = "" } = Astro.props;
       });
 
       // Wait for the pseudo-elements to be created
-      await transition.ready;
+      try {
+        await transition.ready;
+      } catch {
+        // Ignore AbortError when interrupted by rapid clicks or ClientRouter swaps
+        return;
+      }
 
       // Calculate radius to expand well beyond the screen corners from the center
       const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
       const pauseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.25;
 
       // Animate the circle clip-path from center: expand -> brief pause -> expand far beyond screen
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at 50% 50%)`,
-            `circle(${pauseRadius}px at 50% 50%)`,
-            `circle(${pauseRadius}px at 50% 50%)`,
-            `circle(${maxRadius}px at 50% 50%)`,
-          ],
-          offset: [
-            0,
-            0.3,
-            0.55,
-            1.0,
-          ],
-          easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
-        },
-        {
-          duration: 1200,
-          pseudoElement: "::view-transition-new(root)",
-          fill: "forwards",
-        },
-      );
+      try {
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at 50% 50%)`,
+              `circle(${pauseRadius}px at 50% 50%)`,
+              `circle(${pauseRadius}px at 50% 50%)`,
+              `circle(${maxRadius}px at 50% 50%)`,
+            ],
+            offset: [0, 0.3, 0.55, 1.0],
+            easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+          },
+          {
+            duration: 1200,
+            pseudoElement: "::view-transition-new(root)",
+            fill: "forwards",
+          },
+        );
+      } catch {
+        // Ignore animation errors if pseudo-element was torn down mid-navigation
+      }
     };
 
     function toggleTheme() {

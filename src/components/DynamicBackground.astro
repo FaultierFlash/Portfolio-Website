@@ -19,7 +19,6 @@ interface Props {
     phase?: 'scroll' | '01' | '02' | '03' | '04';
     flutter?: number;
     cursorTurbulence?: number;
-    showGhosts?: boolean;
   };
 }
 
@@ -35,6 +34,7 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
       intensity={config?.intensity}
       scale={config?.scale}
       color={config?.color}
+      isAbsolute={isAbsolute}
     />
   </div>
 ) : effect === 'solar' || effect === 'stars' ? (
@@ -53,7 +53,6 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
       intensity={config?.intensity}
       flutter={config?.flutter}
       cursorTurbulence={config?.cursorTurbulence}
-      showGhosts={config?.showGhosts}
       isAbsolute={isAbsolute}
     />
   </div>
