@@ -1,11 +1,24 @@
 ---
 // src/pages/index.astro
-const acceptLang = (Astro.request.headers.get('accept-language') || '').toLowerCase();
+const rawAcceptLang = Astro.request.headers.get('accept-language') || '';
+const primaryLangTag =
+  rawAcceptLang
+    .split(',')
+    .map((entry) => {
+      const [tagPart, ...params] = entry.trim().toLowerCase().split(';');
+      const qParam = params.find((p) => p.trim().startsWith('q='));
+      const q = qParam ? parseFloat(qParam.trim().slice(2)) : 1.0;
+      return { tag: (tagPart || '').trim(), q: Number.isFinite(q) ? q : 0 };
+    })
+    .filter((item) => item.tag.length > 0 && item.tag !== '*')
+    .sort((a, b) => b.q - a.q)[0]?.tag || 'en';
+
+const targetLocale = primaryLangTag === 'de' || primaryLangTag.startsWith('de-') ? 'de' : 'en';
 
 return new Response(null, {
   status: 302,
   headers: {
-    Location: acceptLang.includes('de') ? '/de/' : '/en/',
+    Location: `/${targetLocale}/`,
     Vary: 'Accept-Language',
   },
 });

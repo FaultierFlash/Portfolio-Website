@@ -14,9 +14,13 @@ const [entries, notesSettings, overrides] = await Promise.all([
 const t = useTranslations(lang, overrides);
 
 const isPreview = Astro.url.searchParams.get("preview") === "true";
-const isEnabled = notesSettings?.enabled === true || isPreview;
+const isPubliclyEnabled = notesSettings?.enabled === true;
+const isEnabled = isPubliclyEnabled || isPreview;
 const pageTitle = notesSettings?.titleEn || t("nav.notes");
 const pageSubtitle = notesSettings?.subtitleEn || "";
+const pageDescription =
+  pageSubtitle ||
+  "Engineering lab notebook, simulation logs, and field notes by Marlon Müller.";
 
 const dLabels = {
   badge: "Restricted Access",
@@ -28,7 +32,13 @@ const dLabels = {
 };
 ---
 
-<BaseLayout title={pageTitle}>
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  overrides={overrides}
+  noindex={!isPubliclyEnabled || isPreview}
+  noCache={isPreview}
+>
   <div class="notes-page-container">
     {isEnabled ? (
       <div class="w-full max-w-[900px]">

@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import TextFadeIn from "../../../components/TextFadeIn.astro";
 import { sanityClient, urlFor } from "../../../lib/sanity";
+import { sanitizeHtml } from "../../../lib/html";
 import { marked } from "marked";
 
 const { slug } = Astro.params;
@@ -31,10 +32,10 @@ const projectData = await sanityClient.fetch(
 
 if (!projectData) {
   Astro.response.status = 404;
-  return Astro.rewrite("/404");
+  return Astro.rewrite("/404?lang=de");
 }
 
-const parsedBody = projectData.body ? (marked.parse(projectData.body, { async: false }) as string) : "";
+const parsedBody = projectData.body ? sanitizeHtml(marked.parse(projectData.body, { async: false })) : "";
 
 const projectDocuments = (projectData.documents || []).filter(
   (doc: any) => doc.url && (doc.language === "all" || doc.language === lang || !doc.language)
@@ -61,6 +62,28 @@ const pc = colors[projectData.accentColor || "primary"] || colors.primary;
 const projectOgImage = projectData.mainImage
   ? urlFor(projectData.mainImage).width(1200).height(630).fit("crop").auto("format").quality(85).url()
   : undefined;
+
+const availableLocales = Array.isArray(projectData.languages) && projectData.languages.length > 0
+  ? projectData.languages
+  : ["en", "de"];
+
+const creativeWorkSchema = {
+  "@context": "https://schema.org",
+  "@type": "CreativeWork",
+  name: projectData.title,
+  description: projectData.description || "",
+  url: `https://marlonmueller.eu/de/projects/${encodeURIComponent(slug || "")}`,
+  ...(projectOgImage ? { image: projectOgImage } : {}),
+  author: {
+    "@type": "Person",
+    name: "Marlon Müller",
+    url: "https://marlonmueller.eu",
+  },
+  ...(Array.isArray(projectData.tags) && projectData.tags.length > 0
+    ? { keywords: projectData.tags.join(", ") }
+    : {}),
+  inLanguage: "de",
+};
 ---
 
 <BaseLayout
@@ -72,6 +95,8 @@ const projectOgImage = projectData.mainImage
   solarConfig={projectData.solarConfig}
   airflowConfig={projectData.airflowConfig}
   accentColor={projectData.accentColor || "primary"}
+  availableLocales={availableLocales}
+  extraJsonLd={creativeWorkSchema}
 >
   <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
     <div class="z-10 mt-16 max-w-5xl">
@@ -102,8 +127,10 @@ const projectOgImage = projectData.mainImage
     {projectData.mainImage && (
       <div class="hero-image-container w-full max-w-6xl mt-12 z-10 px-4">
         <img
-          src={urlFor(projectData.mainImage).url()}
-          alt={`${projectData.title} hero image`}
+          src={urlFor(projectData.mainImage).width(1400).auto("format").quality(85).url()}
+          alt={projectData.mainImage.alt || `${projectData.title} Titelbild`}
+          width="1400"
+          height="788"
           class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
           style="max-height: 50vh;"
         />

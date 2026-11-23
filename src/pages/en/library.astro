@@ -16,14 +16,17 @@ const t = useTranslations(lang, overrides);
 const rawTitle = (lang === 'de' ? settings?.titleDe : settings?.titleEn) || t("nav.library");
 const pageTitle = rawTitle ? rawTitle.replace(/Libary/g, 'Library').replace(/libary/g, 'library') : "Library";
 const pageSubtitle = lang === 'de' ? settings?.subtitleDe : settings?.subtitleEn;
+const pageDescription = pageSubtitle || "Personal reading archive and technical reference library curated by Marlon Müller.";
 const backgroundEffect = settings?.backgroundEffect || "grid";
 const accentColor = settings?.accentColor || "primary";
 ---
 
 <BaseLayout 
-  title={pageTitle} 
+  title={pageTitle}
+  description={pageDescription}
   backgroundEffect={backgroundEffect} 
   accentColor={accentColor}
+  overrides={overrides}
   topographyConfig={settings?.topographyConfig}
   solarConfig={settings?.solarConfig}
   airflowConfig={settings?.airflowConfig}

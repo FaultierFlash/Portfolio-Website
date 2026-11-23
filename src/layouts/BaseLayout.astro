@@ -22,6 +22,12 @@ interface Props {
   accentColor?: string;
   showFooter?: boolean;
   overrides?: Record<string, any>;
+  noindex?: boolean;
+  noCache?: boolean;
+  localeOverride?: Locale;
+  availableLocales?: Locale[];
+  extraJsonLd?: Record<string, any> | null;
+  projects?: any[];
 }
 
 const {
@@ -36,9 +42,15 @@ const {
   accentColor = "primary",
   showFooter = true,
   overrides: propOverrides,
+  noindex = false,
+  noCache = false,
+  localeOverride: propLocaleOverride,
+  availableLocales = ["en", "de"],
+  extraJsonLd = null,
+  projects: propProjects,
 } = Astro.props;
 
-const currentLocale = Astro.currentLocale as Locale;
+const currentLocale = (propLocaleOverride || (Astro.currentLocale as Locale) || "en") as Locale;
 const overrides = propOverrides ?? (await getTranslationOverrides(currentLocale));
 const t = useTranslations(currentLocale, overrides);
 
@@ -63,23 +75,31 @@ const accentColorMap: Record<string, { main: string; bg: string; border: string 
 };
 const resolvedAccent = accentColorMap[accentColor] || accentColorMap.primary;
 
-// Set Netlify Edge CDN caching: fresh for 10 mins, stale-while-revalidate for 24 hours
-Astro.response.headers.set(
-  'Cache-Control',
-  'public, max-age=0, s-maxage=600, stale-while-revalidate=86400'
-);
+// Sensitive/error pages must never be publicly cached; public pages opt into Netlify Durable Cache
+if (noCache || noindex) {
+  Astro.response.headers.set('Cache-Control', 'private, no-store');
+  Astro.response.headers.set('Netlify-CDN-Cache-Control', 'private, no-store');
+} else {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  Astro.response.headers.set(
+    'Netlify-CDN-Cache-Control',
+    'public, durable, max-age=600, stale-while-revalidate=86400'
+  );
+}
 
-// --- Data needed by Header & Layout (Fetched in parallel) ---
+// --- Data needed by Header & Layout (Fetched in parallel, reusing caller projects if provided) ---
 const [allSanityProjects, notesSettings, socials] = await Promise.all([
-  getProjects(currentLocale),
+  propProjects ? Promise.resolve(propProjects) : getProjects(currentLocale),
   getNotesSettings(),
   getSocialsSettings(),
 ]);
 
-let projectPages: { href: string; text: string }[] = (allSanityProjects || []).map((p: any) => ({
-  href: `/${currentLocale}/projects/${p.slug.current}`,
-  text: p.title
-}));
+const projectPages: { href: string; text: string }[] = (allSanityProjects || [])
+  .filter((p: any) => p?.slug?.current)
+  .map((p: any) => ({
+    href: `/${currentLocale}/projects/${p.slug.current}`,
+    text: p.title,
+  }));
 
 const showNotes = notesSettings?.enabled === true;
 
@@ -90,26 +110,36 @@ const navLinks = [
 ];
 const homePath = `/${currentLocale}/`;
 
-// SEO URL configurations
+// SEO URL configurations with normalized trailing slashes matching middleware & sitemap.xml
 const siteUrl = "https://marlonmueller.eu";
-const canonicalURL = `${siteUrl}${Astro.url.pathname}`;
+function normalizeSeoPath(rawPath: string): string {
+  if (rawPath === "/en" || rawPath === "/en/") return "/en/";
+  if (rawPath === "/de" || rawPath === "/de/") return "/de/";
+  if (rawPath.length > 1 && rawPath.endsWith("/")) return rawPath.slice(0, -1);
+  return rawPath;
+}
+
+const normalizedPath = normalizeSeoPath(Astro.url.pathname);
+const canonicalURL = `${siteUrl}${normalizedPath}`;
 const ogImage = propImage
   ? (propImage.startsWith("http") ? propImage : `${siteUrl}${propImage}`)
   : `${siteUrl}/og-image.jpg`;
 
-const alternateLocale = currentLocale === "en" ? "de" : "en";
-let alternatePathname = Astro.url.pathname;
-if (alternatePathname.startsWith(`/${currentLocale}/`)) {
-  alternatePathname = alternatePathname.replace(`/${currentLocale}/`, `/${alternateLocale}/`);
-} else if (alternatePathname === `/${currentLocale}`) {
-  alternatePathname = `/${alternateLocale}/`;
-} else {
-  alternatePathname = `/${alternateLocale}/`;
+function buildLocalizedPath(targetLoc: Locale): string {
+  if (normalizedPath === `/${currentLocale}/` || normalizedPath === `/${currentLocale}`) {
+    return `/${targetLoc}/`;
+  }
+  if (normalizedPath.startsWith(`/${currentLocale}/`)) {
+    return normalizedPath.replace(`/${currentLocale}/`, `/${targetLoc}/`);
+  }
+  return `/${targetLoc}/`;
 }
-const alternateURL = `${siteUrl}${alternatePathname}`;
 
-const localeEnURL = currentLocale === "en" ? canonicalURL : alternateURL;
-const localeDeURL = currentLocale === "de" ? canonicalURL : alternateURL;
+const hasEn = availableLocales.includes("en");
+const hasDe = availableLocales.includes("de");
+const localeEnURL = hasEn ? `${siteUrl}${buildLocalizedPath("en")}` : undefined;
+const localeDeURL = hasDe ? `${siteUrl}${buildLocalizedPath("de")}` : undefined;
+const xDefaultURL = localeEnURL || localeDeURL || canonicalURL;
 
 // Structured Data (Schema.org JSON-LD)
 const sameAsLinks = [
@@ -124,6 +154,7 @@ const personSchema = {
   "@context": "https://schema.org",
   "@type": "Person",
   "name": "Marlon Müller",
+  "alternateName": "Marlon Hendrik Müller",
   "url": "https://marlonmueller.eu",
   "image": ogImage,
   "jobTitle": currentLocale === "de" ? "Student der Ingenieurwissenschaften" : "Engineering Science Student",
@@ -259,17 +290,26 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
     <meta name="twitter:description" content={pageDescription} />
     <meta name="twitter:image" content={ogImage} />
 
-    <!-- Canonical and Bilingual Alternate SEO Links -->
-    <link rel="canonical" href={canonicalURL} />
-    <link rel="alternate" hreflang="en" href={localeEnURL} />
-    <link rel="alternate" hreflang="de" href={localeDeURL} />
-    <link rel="alternate" hreflang="x-default" href={localeEnURL} />
+    {noindex ? (
+      <meta name="robots" content="noindex, nofollow" />
+    ) : (
+      <>
+        {/* Canonical and Bilingual Alternate SEO Links */}
+        <link rel="canonical" href={canonicalURL} />
+        {localeEnURL && <link rel="alternate" hreflang="en" href={localeEnURL} />}
+        {localeDeURL && <link rel="alternate" hreflang="de" href={localeDeURL} />}
+        <link rel="alternate" hreflang="x-default" href={xDefaultURL} />
+      </>
+    )}
 
     <!-- Structured Data (JSON-LD) -->
-    <script type="application/ld+json" set:html={JSON.stringify(personSchema)} />
-    <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
-    {breadcrumbSchema && (
-      <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(websiteSchema)} />
+    {!noindex && breadcrumbSchema && (
+      <script type="application/ld+json" is:inline set:html={JSON.stringify(breadcrumbSchema)} />
+    )}
+    {extraJsonLd && (
+      <script type="application/ld+json" is:inline set:html={JSON.stringify(extraJsonLd)} />
     )}
     
     <ThemeScript />
@@ -283,7 +323,7 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   <body>
     <DynamicBackground 
       effect={backgroundEffect} 
-      config={backgroundEffect === 'solar' ? solarConfig : backgroundEffect === 'airflow' ? airflowConfig : topographyConfig} 
+      config={(backgroundEffect === 'solar' || backgroundEffect === 'stars') ? solarConfig : backgroundEffect === 'airflow' ? airflowConfig : topographyConfig} 
     />
     <Header
       currentLocale={currentLocale}
@@ -299,12 +339,13 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
       <slot />
     </main>
 
-    {showFooter && <Footer />}
+    {showFooter && <Footer locale={currentLocale} overrides={overrides} />}
 
     <CommandPalette
       currentLocale={currentLocale}
       projectPages={projectPages}
       navLinks={navLinks}
+      overrides={overrides}
     />
 
     <script>

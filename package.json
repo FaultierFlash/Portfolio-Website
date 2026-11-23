@@ -18,7 +18,8 @@
     "astro": "astro",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "astro check && tsc --noEmit"
+    "typecheck": "astro check && tsc --noEmit",
+    "indexnow": "node scripts/ping-indexnow.mjs"
   },
   "dependencies": {
     "@astrojs/netlify": "^8.2.3",

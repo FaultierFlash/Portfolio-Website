@@ -4,11 +4,13 @@ import CvDocument from '../../components/CvDocument.astro';
 import { getCvData } from '../../lib/sanity';
 
 const cvData = await getCvData('en');
-const pageTitle = `${cvData.personalInfo?.name || "CV"} — Curriculum Vitae (CV)`;
+const pageTitle = "Curriculum Vitae (CV)";
+const pageDescription = `Academic Curriculum Vitae (CV) of ${cvData.personalInfo?.name || "Marlon Müller"} – Engineering Science at TUM, Odonatum e.V., experience, skills, and downloadable PDF.`;
 ---
 
 <BaseLayout 
-  title={pageTitle} 
+  title={pageTitle}
+  description={pageDescription}
   backgroundEffect="grid" 
   accentColor="primary"
   showFooter={true}

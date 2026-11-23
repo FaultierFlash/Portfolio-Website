@@ -3,8 +3,17 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { type Locale } from "../i18n/utils";
 
-const rawPath = Astro.url.pathname;
-const isDe = rawPath.startsWith("/de");
+let reqPath = Astro.url.pathname;
+try {
+  reqPath = new URL(Astro.request.url).pathname;
+} catch {
+  reqPath = Astro.url.pathname;
+}
+const isDe =
+  Astro.url.pathname.startsWith("/de") ||
+  reqPath === "/de" ||
+  reqPath.startsWith("/de/") ||
+  Astro.url.searchParams.get("lang") === "de";
 const lang: Locale = isDe ? "de" : "en";
 
 
@@ -34,6 +43,9 @@ const content = {
   description={content.description}
   backgroundEffect="grid"
   accentColor="primary"
+  noindex={true}
+  noCache={true}
+  localeOverride={lang}
 >
   <div class="min-h-[80vh] flex items-center justify-center px-6 py-20">
     <div class="max-w-xl w-full text-center space-y-8">

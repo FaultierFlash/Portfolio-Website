@@ -5,7 +5,7 @@ export const sanityClient = createClient({
   projectId: import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'k4t36b6u',
   dataset: import.meta.env.PUBLIC_SANITY_DATASET || 'production',
   apiVersion: '2024-03-12', // use current date (YYYY-MM-DD) to target the latest API version
-  useCdn: false, // Disabled CDN to ensure slider values hot-reload immediately
+  useCdn: import.meta.env.PROD,
 });
 
 const builder = createImageUrlBuilder(sanityClient);
@@ -40,7 +40,7 @@ export async function getHomePageData(locale: string) {
     topographyConfig,
     solarConfig,
     airflowConfig,
-    featuredProjects[]->{
+    "featuredProjects": featuredProjects[defined(@->_id) && $locale in @->languages]->{
       "title": title,
       slug,
       mainImage,
@@ -77,23 +77,29 @@ export async function getHomePageData(locale: string) {
         "widgetButtonLabel": widgetButtonLabel[$locale],
         widgetButtonLink,
         openByDefault,
-        relatedProject->{
+        "relatedProject": select(
+          defined(relatedProject->_id) && $locale in relatedProject->languages => relatedProject->{
+            slug,
+            title,
+            "description": description[$locale],
+            mainImage,
+            tags,
+            accentColor
+          },
+          null
+        )
+      },
+      "relatedProject": select(
+        defined(relatedProject->_id) && $locale in relatedProject->languages => relatedProject->{
           slug,
+          accentColor,
           title,
           "description": description[$locale],
           mainImage,
-          tags,
-          accentColor
-        }
-      },
-      relatedProject->{
-        slug,
-        accentColor,
-        title,
-        "description": description[$locale],
-        mainImage,
-        tags
-      }
+          tags
+        },
+        null
+      )
     }
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -111,7 +117,7 @@ export async function getProjects(locale: string) {
     publishDate,
     "timelineDate": coalesce(
       *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].startDate,
-      *[_type == "homePage"][0].timeline[].milestoneEvents[relatedProject._ref == ^._id][0].date
+      (*[_type == "homePage"][0].timeline[].milestoneEvents[])[relatedProject._ref == ^._id][0].date
     ),
     "isOngoing": *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].isOngoing,
     "documentCount": count(documents[defined(asset) && (!defined(language) || language == "all" || language == $locale)]),
@@ -225,11 +231,14 @@ export async function getLabEntries(locale?: string) {
         alt,
         caption
       },
-      relatedProject->{
-        title,
-        slug,
-        accentColor
-      }
+      "relatedProject": select(
+        defined(relatedProject->_id) && (!defined($locale) || $locale in relatedProject->languages) => relatedProject->{
+          title,
+          slug,
+          accentColor
+        },
+        null
+      )
     }`
     : `*[_type == "labEntry" && status == "published"] | order(date desc) {
       title,
@@ -244,11 +253,14 @@ export async function getLabEntries(locale?: string) {
         alt,
         caption
       },
-      relatedProject->{
-        title,
-        slug,
-        accentColor
-      }
+      "relatedProject": select(
+        defined(relatedProject->_id) => relatedProject->{
+          title,
+          slug,
+          accentColor
+        },
+        null
+      )
     }`;
   return await sanityClient.fetch(query, locale ? { locale } : {});
 }

@@ -59,8 +59,16 @@ const sanityProjects = (sanityProjectsData || []).map((p: any) => ({
 
 const projects = sanityProjects.length > 0 ? sanityProjects : defaultProjects;
 const pageTitle = t("paths.projects._title_") || "Projekte";
+const pageDescription =
+  "Interaktives Projekt-Archiv von Marlon Müller – Ingenieurs-, Robotik-, Hackathon- und Software-Projekte an der TUM.";
 ---
 
-<Layout title={pageTitle} backgroundEffect="grid" overrides={overrides}>
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  backgroundEffect="grid"
+  overrides={overrides}
+  projects={sanityProjectsData}
+>
   <ProjectWheel projects={projects} lang={lang} />
 </Layout>
