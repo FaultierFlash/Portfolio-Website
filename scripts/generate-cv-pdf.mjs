@@ -176,7 +176,7 @@ async function main() {
       console.log('🛑 Stopping temporary Astro server...');
       try {
         if (process.platform === 'win32') {
-          spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+          execSync(`taskkill /pid ${serverProcess.pid} /f /t`, { stdio: 'ignore' });
         } else {
           // Kill process group on Linux/macOS
           try {

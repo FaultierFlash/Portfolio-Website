@@ -91,12 +91,13 @@ def upload_image_to_sanity(image_url):
         return None
         
     upload_url = f"https://{SANITY_PROJECT_ID}.api.sanity.io/v{API_VERSION}/assets/images/{SANITY_DATASET}"
+    content_type = (image_res.headers.get("Content-Type", "image/jpeg").split(";")[0].strip() or "image/jpeg")
     upload_headers = {
         "Authorization": f"Bearer {SANITY_WRITE_TOKEN}",
-        "Content-Type": "image/jpeg"
+        "Content-Type": content_type
     }
     
-    response = requests.post(upload_url, headers=upload_headers, data=image_res.content)
+    response = requests.post(upload_url, headers=upload_headers, data=image_res.content, timeout=30)
     # Sanity returns 201 for new, 200 for existing asset
     if response.status_code in [200, 201]:
         return response.json()["document"]["_id"]
@@ -105,8 +106,8 @@ def upload_image_to_sanity(image_url):
         return None
 
 def create_sanity_book(isbn, metadata, image_asset_id, series_name=None, order=None, status="shortlist", extra_genres=None):
-    """Create or update a book document in Sanity."""
-    print(f"[*] Creating document for '{metadata['title']}'...")
+    """Create or safely patch a book document in Sanity without overwriting personal edits."""
+    print(f"[*] Upserting document for '{metadata['title']}'...")
     
     allowed_statuses = ["shortlist", "reading", "finished"]
     final_status = status.lower() if status.lower() in allowed_statuses else "shortlist"
@@ -118,41 +119,62 @@ def create_sanity_book(isbn, metadata, image_asset_id, series_name=None, order=N
         final_genres = list(dict.fromkeys(extra_genres + final_genres))
 
     doc_id = f"book-{isbn}"
+    default_progress = 0 if final_status != "finished" else 100
     book_doc = {
         "_id": doc_id,
         "_type": "book",
         "title": metadata["title"],
         "author": metadata["author"],
         "status": final_status,
-        "progress": 0 if final_status != "finished" else 100,
+        "progress": default_progress,
         "physicalCopy": False,
+        "genres": final_genres
+    }
+    patch_set = {
+        "title": metadata["title"],
+        "author": metadata["author"],
         "genres": final_genres
     }
     
     if series_name:
         book_doc["series"] = series_name
+        patch_set["series"] = series_name
     if order is not None:
         book_doc["seriesOrder"] = order
+        patch_set["seriesOrder"] = order
     
     if image_asset_id:
-        book_doc["cover"] = {
+        cover_obj = {
             "_type": "image",
             "asset": {
                 "_type": "reference",
                 "_ref": image_asset_id
             }
         }
+        book_doc["cover"] = cover_obj
+        patch_set["cover"] = cover_obj
         
     mutation = {
         "mutations": [
             {
-                "createOrReplace": book_doc
+                "createIfNotExists": book_doc
+            },
+            {
+                "patch": {
+                    "id": doc_id,
+                    "set": patch_set,
+                    "setIfMissing": {
+                        "status": final_status,
+                        "progress": default_progress,
+                        "physicalCopy": False
+                    }
+                }
             }
         ]
     }
     
     mutate_url = f"{BASE_URL}/data/mutate/{SANITY_DATASET}"
-    response = requests.post(mutate_url, headers=HEADERS, data=json.dumps(mutation))
+    response = requests.post(mutate_url, headers=HEADERS, data=json.dumps(mutation), timeout=30)
     
     if response.status_code == 200:
         print(f"[+] Successfully imported: {metadata['title']} ({final_status})")

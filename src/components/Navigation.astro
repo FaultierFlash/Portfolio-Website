@@ -215,7 +215,7 @@ const {
       <button id="search-palette-trigger" class="control-btn" aria-label="Open Command Palette" title="Command Palette (Cmd+K)">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </button>
-      <LanguageSwitcher accentColor={accentColor} />
+      <LanguageSwitcher />
       <ThemeToggle />
     </div>
   </nav>
@@ -226,9 +226,9 @@ const {
   // This script now lives within Navigation.astro
   let docClickHandlerMobileMenu: ((event: MouseEvent) => void) | null = null;
   let docClickHandlerDesktopDropdowns: ((event: MouseEvent) => void) | null = null;
+  let docKeydownHandlerNavigation: ((event: KeyboardEvent) => void) | null = null;
 
   function setupNavigationInteractivity() {
-    console.log("Navigation: setupNavigationInteractivity() called");
     // Query for elements within this component's scope (or its parent's if hamburger is passed via slot)
     const hamburgerButton = document.getElementById(
       "site-hamburger-button"
@@ -253,9 +253,12 @@ const {
       hamburgerButton.classList.add("is-active");
       sessionStorage.setItem(menuStateKey, "open");
       document.body.classList.add("no-scroll-mobile");
+      const closeBtn = document.getElementById("mobile-drawer-close-btn") as HTMLButtonElement | null;
+      const firstFocusable = mobileMenu.querySelector<HTMLElement>("button, a");
+      (closeBtn || firstFocusable)?.focus({ preventScroll: true });
     }
 
-    function closeMainMenu() {
+    function closeMainMenu(returnFocus = false) {
       if (!hamburgerButton || !mobileMenu) return;
       hamburgerButton.setAttribute("aria-expanded", "false");
       mobileMenu.classList.remove("menu-open");
@@ -277,6 +280,9 @@ const {
           const arrow = toggle.querySelector(".dropdown-arrow");
           if (arrow) arrow.classList.remove("open");
         });
+      if (returnFocus) {
+        hamburgerButton.focus({ preventScroll: true });
+      }
     }
     (window as any).astroNavigationUtils.closeMainMenu = closeMainMenu;
 
@@ -299,10 +305,6 @@ const {
         "click",
         (hamburgerButton as any)._navClickHandler
       );
-    } else {
-      console.log(
-        "Navigation: Hamburger button not found for interactivity setup."
-      );
     }
 
     const drawerCloseBtn = document.getElementById("mobile-drawer-close-btn");
@@ -314,7 +316,7 @@ const {
         );
       }
       (drawerCloseBtn as any)._closeClickHandler = () => {
-        closeMainMenu();
+        closeMainMenu(true);
       };
       drawerCloseBtn.addEventListener(
         "click",
@@ -426,11 +428,13 @@ const {
       });
     });
 
-    // Document-level click handlers
+    // Document-level click & Escape handlers
     if (docClickHandlerMobileMenu)
       document.removeEventListener("click", docClickHandlerMobileMenu);
     if (docClickHandlerDesktopDropdowns)
       document.removeEventListener("click", docClickHandlerDesktopDropdowns);
+    if (docKeydownHandlerNavigation)
+      document.removeEventListener("keydown", docKeydownHandlerNavigation);
 
     docClickHandlerMobileMenu = (event: MouseEvent) => {
       const currentMobileMenu = document.getElementById(
@@ -480,14 +484,36 @@ const {
         }
       });
     };
+    docKeydownHandlerNavigation = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const navArea = document.getElementById("mobile-menu");
+      if (!navArea) return;
+
+      if (navArea.classList.contains("menu-open")) {
+        closeMainMenu(true);
+        return;
+      }
+
+      navArea
+        .querySelectorAll<HTMLButtonElement>('.dropdown-wrapper .dropdown-toggle[aria-expanded="true"]')
+        .forEach((toggle) => {
+          toggle.setAttribute("aria-expanded", "false");
+          const menu = toggle.nextElementSibling as HTMLElement | null;
+          if (menu && menu.classList.contains("dropdown-menu")) {
+            menu.classList.remove("open");
+            menu.style.maxHeight = "";
+          }
+          toggle.querySelector(".dropdown-arrow")?.classList.remove("open");
+          toggle.focus({ preventScroll: true });
+        });
+    };
 
     document.addEventListener("click", docClickHandlerMobileMenu);
     document.addEventListener("click", docClickHandlerDesktopDropdowns);
-    console.log("Navigation: Document-level click handlers attached.");
+    document.addEventListener("keydown", docKeydownHandlerNavigation);
   }
 
   function cleanupNavigationDocumentListeners() {
-    console.log("Navigation: cleanupNavigationDocumentListeners() called.");
     if (docClickHandlerMobileMenu) {
       document.removeEventListener("click", docClickHandlerMobileMenu);
       docClickHandlerMobileMenu = null;
@@ -496,12 +522,13 @@ const {
       document.removeEventListener("click", docClickHandlerDesktopDropdowns);
       docClickHandlerDesktopDropdowns = null;
     }
+    if (docKeydownHandlerNavigation) {
+      document.removeEventListener("keydown", docKeydownHandlerNavigation);
+      docKeydownHandlerNavigation = null;
+    }
   }
 
   function reinitializeNavigation() {
-    console.log(
-      "Navigation: astro:page-load triggered. Running re-initialization."
-    );
     cleanupNavigationDocumentListeners();
     setupNavigationInteractivity();
   }
@@ -509,15 +536,8 @@ const {
   document.addEventListener("astro:page-load", reinitializeNavigation);
 
   document.addEventListener("astro:before-swap", () => {
-    console.log(
-      "Navigation: astro:before-swap triggered. Running cleanupNavigationDocumentListeners."
-    );
     cleanupNavigationDocumentListeners();
   });
-
-  console.log(
-    "Navigation Script: Initialized. Waiting for Astro lifecycle events."
-  );
 </script>
 
 <style>

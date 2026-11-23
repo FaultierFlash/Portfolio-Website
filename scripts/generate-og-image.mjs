@@ -174,16 +174,18 @@ async function generate() {
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1200, height: 630, deviceScaleFactor: 2 });
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 630, deviceScaleFactor: 2 });
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-  const jpgPath = path.join(rootDir, 'public', 'og-image.jpg');
+    const jpgPath = path.join(rootDir, 'public', 'og-image.jpg');
 
-  await page.screenshot({ path: jpgPath, type: 'jpeg', quality: 90 });
-
-  await browser.close();
-  console.log('Successfully generated public/og-image.jpg');
+    await page.screenshot({ path: jpgPath, type: 'jpeg', quality: 90 });
+    console.log('Successfully generated public/og-image.jpg');
+  } finally {
+    await browser.close();
+  }
 }
 
 generate().catch(err => {

@@ -5,7 +5,7 @@
 
 <div id="audio-player-widget" class="audio-widget-wrapper docked expand-up align-right" transition:persist="audio-player-widget">
   <!-- Mini Circular Button -->
-  <button id="widget-toggle-btn" class="widget-toggle-btn" aria-label="Music Player" title="Play Music">
+  <button id="widget-toggle-btn" class="widget-toggle-btn" aria-label="Music Player" aria-expanded="false" aria-controls="widget-panel" title="Play Music">
     <!-- Visualizer Icon (Static or Animated) -->
     <div class="mini-visualizer" id="mini-visualizer">
       <div class="bar"></div>
@@ -168,7 +168,7 @@
     }
     // Suspend audio context dynamically after fade out to save CPU
     setTimeout(() => {
-      if (synthContext && !isPlaying && synthContext.state === "running") {
+      if (synthContext && (!isPlaying || currentTrack !== "synth") && synthContext.state === "running") {
         synthContext.suspend();
       }
     }, 600);
@@ -199,7 +199,7 @@
   }
 
   function updateSynthVolume(vol: number) {
-    if (synthGain && synthContext) {
+    if (synthGain && synthContext && isPlaying && currentTrack === "synth") {
       synthGain.gain.setValueAtTime(synthGain.gain.value, synthContext.currentTime);
       synthGain.gain.linearRampToValueAtTime(vol, synthContext.currentTime + 0.1);
     }
@@ -320,6 +320,11 @@
     let initialTop = 0;
     let suppressClickUntil = 0;
 
+    function setPanelExpanded(expanded: boolean) {
+      panel?.classList.toggle("expanded", expanded);
+      toggleBtn?.setAttribute("aria-expanded", String(expanded));
+    }
+
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
 
@@ -362,7 +367,7 @@
         }
 
         // Close expanded panel while dragging
-        panel?.classList.remove("expanded");
+        setPanelExpanded(false);
       }
 
       if (hasDragged) {
@@ -421,7 +426,7 @@
       window.removeEventListener('pointercancel', onPointerCancel);
     }
 
-    function onPointerUp(e: PointerEvent) {
+    function onPointerUp() {
       if (!isPointerDown) return;
       const wasDragged = hasDragged;
       cleanupPointerListeners();
@@ -451,8 +456,9 @@
           floatWidget(parseFloat(activeWidget.style.left) || initialLeft, parseFloat(activeWidget.style.top) || initialTop);
         }
       } else {
-        // Pure click/tap action
-        panel?.classList.toggle("expanded");
+        // Pure click/tap action; suppress trailing native click event
+        suppressClickUntil = Date.now() + 300;
+        setPanelExpanded(!panel?.classList.contains("expanded"));
       }
     }
 
@@ -469,24 +475,24 @@
     // Attach pointerdown dragging listener to toggle button
     toggleBtn.addEventListener('pointerdown', onPointerDown);
 
-    // Suppress native click if trailing after drag
+    // Handle keyboard activation (Enter/Space) and native clicks when not trailing a drag/pointer tap
     toggleBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (Date.now() < suppressClickUntil) {
         return;
       }
-      // Note: toggle is executed directly in onPointerUp when not dragged
+      setPanelExpanded(!panel?.classList.contains("expanded"));
     });
 
     // Close panel when clicking outside the widget
-    document.addEventListener("click", (e: any) => {
-      if (!activeWidget.contains(e.target)) {
-        panel?.classList.remove("expanded");
+    document.addEventListener("click", (e: MouseEvent) => {
+      if (!activeWidget.contains(e.target as Node)) {
+        setPanelExpanded(false);
       }
     });
 
-    // Deferred audio loading logic: only buffer on first user activity or play request
+    // Deferred audio loading logic: only buffer when switching to or playing the Lofi stream
     function ensureAudioLoaded() {
       if (!audioEl) return;
       if (!audioEl.src && audioEl.dataset.src) {
@@ -494,27 +500,7 @@
         audioEl.preload = "auto";
         audioEl.load();
       }
-      removeInteractionListeners();
     }
-
-    const interactionEvents = ["pointerdown", "mousemove", "scroll", "keydown", "touchstart"];
-    function onFirstUserInteraction() {
-      ensureAudioLoaded();
-    }
-
-    function addInteractionListeners() {
-      interactionEvents.forEach((evt) => {
-        window.addEventListener(evt, onFirstUserInteraction, { passive: true, once: true });
-      });
-    }
-
-    function removeInteractionListeners() {
-      interactionEvents.forEach((evt) => {
-        window.removeEventListener(evt, onFirstUserInteraction);
-      });
-    }
-
-    addInteractionListeners();
 
     // Play/Pause Action
     playPauseBtn.addEventListener("click", () => {
