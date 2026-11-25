@@ -70,6 +70,7 @@ const t = {
     finished: "Archives",
     readReview: "Read Thoughts",
     close: "Close",
+    closeSeries: "Close Series",
     progress: "Progress",
     author: "by",
     rating: "Personal Rating",
@@ -86,6 +87,7 @@ const t = {
     finished: "Archiv",
     readReview: "Gedanken lesen",
     close: "Schließen",
+    closeSeries: "Reihe schließen",
     progress: "Fortschritt",
     author: "von",
     rating: "Persönliche Bewertung",
@@ -102,6 +104,7 @@ const t = {
     finished: "Archives",
     readReview: "Read Thoughts",
     close: "Close",
+    closeSeries: "Close Series",
     progress: "Progress",
     author: "by",
     rating: "Personal Rating",
@@ -240,7 +243,7 @@ const t = {
                                                 </div>
                                                 <button type="button" class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    {t.close} {t.series}
+                                                    {t.closeSeries}
                                                 </button>
                                             </div>
                                             
@@ -350,7 +353,7 @@ const t = {
                                                 </div>
                                                 <button type="button" class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    {t.close} {t.series}
+                                                    {t.closeSeries}
                                                 </button>
                                             </div>
                                             
@@ -650,8 +653,14 @@ const t = {
         closeBtns.forEach(btn => btn.addEventListener('click', closePanel));
         if (activeEscapeHandler) document.removeEventListener('keydown', activeEscapeHandler);
         activeEscapeHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && panelEl.classList.contains('translate-x-0')) {
+            if (e.key !== 'Escape') return;
+            if (panelEl.classList.contains('translate-x-0')) {
                 closePanel();
+                return;
+            }
+            const expandedCloseBtn = document.querySelector('.series-container.is-expanded .close-series-btn') as HTMLButtonElement | null;
+            if (expandedCloseBtn) {
+                expandedCloseBtn.click();
             }
         };
         document.addEventListener('keydown', activeEscapeHandler);

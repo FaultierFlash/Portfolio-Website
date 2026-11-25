@@ -13,12 +13,10 @@ const primaryLangTag =
     .filter((item) => item.tag.length > 0 && item.tag !== '*')
     .sort((a, b) => b.q - a.q)[0]?.tag || 'en';
 
-const targetLocale = primaryLangTag === 'de' || primaryLangTag.startsWith('de-') ? 'de' : 'en';
-
 return new Response(null, {
   status: 302,
   headers: {
-    Location: `/${targetLocale}/`,
+    Location: `/${primaryLangTag === 'de' || primaryLangTag.startsWith('de-') ? 'de' : 'en'}/`,
     Vary: 'Accept-Language',
   },
 });

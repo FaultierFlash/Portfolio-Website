@@ -32,7 +32,6 @@ const {
   projectPages,
   mainNavigationLabel,
   projectsSubmenuLabel,
-  accentColor = "primary",
   socials,
 } = Astro.props;
 ---
@@ -545,6 +544,7 @@ const {
   .navigation-container {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
   }
   .mobile-header-controls {
     display: none;

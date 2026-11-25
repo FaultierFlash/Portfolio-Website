@@ -42,57 +42,80 @@ const {
     };
   }
 
+  let activeObservers: IntersectionObserver[] = [];
+
+  function cleanupTextFadeIn() {
+    while (activeObservers.length > 0) {
+      activeObservers.pop()?.disconnect();
+    }
+  }
+
   function processTextFadeInContainer(container: Element) {
     if (!(container instanceof HTMLElement)) return;
-    // Exit if already processed and not currently part of an outgoing Astro transition
     if (
       container.dataset.textFadeInProcessed === "true" &&
       !container.classList.contains("astro-transitioning-out")
     ) {
-      // console.log('TextFadeIn: Already processed, skipping:', container);
       return;
     }
-    // console.log('TextFadeIn: Processing container:', container);
 
-    // Clear processed flag if it's part of an outgoing transition, to allow re-processing on next load
     if (container.classList.contains("astro-transitioning-out")) {
       container.dataset.textFadeInProcessed = "false";
-      // Potentially remove 'in-view' and animation classes from children if needed for clean exit
       container.classList.remove("in-view");
       container
         .querySelectorAll(".fade-in-target-element.processed-for-animation")
         .forEach((el) => {
-          el.classList.remove("in-view"); // Might not be strictly necessary if element is removed
-          // Consider reverting innerHTML if complex interactions are an issue on exit
+          el.classList.remove("in-view");
         });
-      return; // Don't process for fade-in if it's transitioning out
+      return;
     }
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     const targetSelectors =
       container.dataset.targetSelectors || "p, li, h1, h2, h3, h4, h5, h6";
-    const baseWordDelayForBlock = parseInt(
-      container.dataset.baseDelay || "10",
-      10
+    const baseWordDelayForBlock = Math.min(
+      parseInt(container.dataset.baseDelay || "10", 10),
+      40
     );
-    const wordIncrementDelay = parseInt(
-      container.dataset.wordDelay || "25",
-      10
-    );
-    const blockStagger = parseInt(
-      container.dataset.blockStaggerDelay || "75",
-      10
+    const wordIncrementDelay = Math.min(
+      parseInt(container.dataset.wordDelay || "20", 10),
+      18
     );
 
     const elementsToAnimate = Array.from(
       container.querySelectorAll(targetSelectors)
     );
-    // console.log('TextFadeIn: Elements to animate:', elementsToAnimate.length, elementsToAnimate);
 
-    elementsToAnimate.forEach((element, elementIndex) => {
+    if (prefersReducedMotion) {
+      container.classList.add("in-view");
+      elementsToAnimate.forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.classList.add("fade-in-target-element", "in-view");
+        }
+      });
+      container.dataset.textFadeInProcessed = "true";
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in-view");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.01, rootMargin: "80px 0px 80px 0px" }
+    );
+    activeObservers.push(observer);
+
+    elementsToAnimate.forEach((element) => {
       if (!(element instanceof HTMLElement)) return;
 
-      // Skip if this specific element was already processed (e.g. if script runs multiple times accidentally)
-      // and it's not being force-reprocessed due to Astro transitions.
       if (
         element.classList.contains("processed-for-animation") &&
         container.dataset.textFadeInProcessed === "true"
@@ -100,25 +123,14 @@ const {
         return;
       }
 
-      // Clean previous spans if re-processing (e.g. after content change or for Astro transitions)
-      // This is tricky; ideally, Astro View Transitions handle swapping, and this script runs on new content.
-      // If an element's *content* changes but the element itself persists, we might need to clear old spans.
-      // For now, we assume new elements or full container re-processing.
-      // If element.dataset.originalContent is available from a previous run, restore it before re-processing.
       if (element.dataset.originalContent) {
         element.innerHTML = element.dataset.originalContent;
       } else {
-        element.dataset.originalContent = element.innerHTML; // Store original content before wrapping
+        element.dataset.originalContent = element.innerHTML;
       }
 
-      element.classList.add("fade-in-target-element");
-      element.classList.add("processed-for-animation"); // Mark this specific element
-
-      const elementActualBlockAnimationDelay = elementIndex * blockStagger;
-      element.style.setProperty(
-        "--block-animation-delay",
-        `${elementActualBlockAnimationDelay}ms`
-      );
+      element.classList.add("fade-in-target-element", "processed-for-animation");
+      element.style.setProperty("--block-animation-delay", "0ms");
 
       const newChildNodes: Node[] = [];
       let wordIndexWithinCurrentBlock = 0;
@@ -135,10 +147,10 @@ const {
               const span = document.createElement("span");
               span.className = "fade-in-word";
               span.textContent = part;
-              const currentWordEffectiveDelay =
-                elementActualBlockAnimationDelay + // Stagger for the block itself
-                baseWordDelayForBlock + // Base delay for the first word in this block
-                wordIndexWithinCurrentBlock * wordIncrementDelay; // Incremental delay for subsequent words
+              const currentWordEffectiveDelay = Math.min(
+                300,
+                baseWordDelayForBlock + wordIndexWithinCurrentBlock * wordIncrementDelay
+              );
               span.style.setProperty(
                 "--word-animation-delay",
                 `${currentWordEffectiveDelay}ms`
@@ -149,8 +161,6 @@ const {
           });
           return fragment;
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-          // Treat specified inline elements as single "words" for animation timing.
-          // Preserve their original structure within the word span.
           if (
             node instanceof Element &&
             node.matches(
@@ -158,177 +168,134 @@ const {
             )
           ) {
             const wrapperSpan = document.createElement("span");
-            wrapperSpan.className = "fade-in-word"; // This node itself acts as a "word"
-            const currentWordEffectiveDelay =
-              elementActualBlockAnimationDelay +
-              baseWordDelayForBlock +
-              wordIndexWithinCurrentBlock * wordIncrementDelay;
+            wrapperSpan.className = "fade-in-word";
+            const currentWordEffectiveDelay = Math.min(
+              300,
+              baseWordDelayForBlock + wordIndexWithinCurrentBlock * wordIncrementDelay
+            );
             wrapperSpan.style.setProperty(
               "--word-animation-delay",
               `${currentWordEffectiveDelay}ms`
             );
-            wrapperSpan.appendChild(node.cloneNode(true)); // Clone the original inline element inside
+            wrapperSpan.appendChild(node.cloneNode(true));
             wordIndexWithinCurrentBlock++;
             return wrapperSpan;
           } else {
-            // For other block-level or unrecognized elements, clone them and recursively process their children.
-            const clonedElement = node.cloneNode(false) as Element; // Shallow clone (tag and attributes only)
+            const clonedElement = node.cloneNode(false) as Element;
             Array.from(node.childNodes).forEach((childNode) => {
               clonedElement.appendChild(processNodeForWordWrapping(childNode));
             });
             return clonedElement;
           }
         } else {
-          // Other node types (comments, etc.) - clone them as is.
           return node.cloneNode(true);
         }
       }
 
-      // Process all child nodes of the current element (e.g., p, li, h2).
       const childNodesToProcess = Array.from(element.childNodes);
       childNodesToProcess.forEach((child) => {
         newChildNodes.push(processNodeForWordWrapping(child));
       });
 
-      // Replace content carefully
-      element.innerHTML = ""; // Clear existing content
+      element.innerHTML = "";
       newChildNodes.forEach((newNode) => {
         element.appendChild(newNode);
       });
+
+      const rect = element.getBoundingClientRect();
+      if (rect.top < window.innerHeight + 80) {
+        element.classList.add("in-view");
+      } else {
+        observer.observe(element);
+      }
     });
 
-    // IntersectionObserver setup (if not already observing this specific container)
-    // Use a flag on the container to avoid multiple observers if processTextFadeInContainer is called again.
-    if (!container.dataset.observerAttached) {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              // console.log('TextFadeIn: Container in view:', entry.target);
-              entry.target.classList.add("in-view");
-              // Optional: Unobserve after first intersection if animation should only play once
-              // observer.unobserve(entry.target);
-              // container.dataset.observerAttached = "false"; // Allow re-attachment if needed later
-            } else {
-              // Optional: Remove 'in-view' to allow re-animation if user scrolls away and back
-              // entry.target.classList.remove("in-view");
-              // This would require elements to reset their opacity/transform if re-animating.
-            }
-          });
-        },
-        { threshold: 0 } // Trigger when 0% of the container is visible (as soon as top enters)
-      );
-      observer.observe(container);
-      container.dataset.observerAttached = "true";
-    }
-
-    container.dataset.textFadeInProcessed = "true"; // Mark this container as processed for this script pass
+    container.dataset.observerAttached = "true";
+    container.dataset.textFadeInProcessed = "true";
   }
 
   const initAllFadeInContainers = debounce(() => {
-    // console.log('TextFadeIn: Running initAllFadeInContainers');
+    cleanupTextFadeIn();
     document
       .querySelectorAll(".text-fade-in-container")
       .forEach((container) => {
-        // The check inside processTextFadeInContainer will handle if it's already processed.
         processTextFadeInContainer(container);
       });
-  }, 50); // Debounce to prevent rapid re-runs during complex load scenarios
+  }, 50);
 
-  // Astro's View Transitions: astro:page-load is the primary event.
   document.addEventListener("astro:page-load", () => {
-    // console.log("TextFadeIn: astro:page-load event triggered.");
     initAllFadeInContainers();
   });
 
-  // Fallback for initial load IF astro:page-load isn't triggered early enough,
-  // or for scenarios without View Transitions.
-  // The `data-text-fade-in-processed` flag inside processTextFadeInContainer should prevent redundant processing.
+  document.addEventListener("astro:before-swap", () => {
+    cleanupTextFadeIn();
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initAllFadeInContainers, {
       once: true,
     });
   } else {
-    // Already loaded
     initAllFadeInContainers();
   }
 </script>
 
 <style is:global>
-  /* Container for the text blocks that will fade in */
   .text-fade-in-container {
-    overflow: visible; /* Default, but good to ensure it doesn't clip children unexpectedly */
-    display: block; /* Or 'flow-root' if helpful for containing floats, usually 'block' is fine */
+    overflow: visible;
+    display: block;
   }
 
-  /* Target elements (p, li, h2, etc.) that will contain animated words */
   .fade-in-target-element {
-    opacity: 0; /* Initially hidden */
-    transform: translateY(0.5em); /* Start slightly offset downwards */
+    opacity: 0;
+    transform: translateY(0.5em);
     transition-property: opacity, transform;
-    transition-duration: 0.5s; /* Duration for the block itself to fade/slide in */
-    transition-timing-function: cubic-bezier(
-      0.215,
-      0.61,
-      0.355,
-      1
-    ); /* EaseOutCubic */
-    /* transition-delay is applied via --block-animation-delay CSS variable */
+    transition-duration: 0.4s;
+    transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
   }
 
-  /* When the container is in view, the target elements become visible */
+  .fade-in-target-element.in-view,
   .text-fade-in-container.in-view .fade-in-target-element {
     opacity: 1;
     transform: translateY(0);
-    transition-delay: var(
-      --block-animation-delay,
-      0ms
-    ); /* Apply stagger for each block */
+    transition-delay: 0ms;
   }
 
-  /* Ensure list items preserve their markers when processed */
   .fade-in-target-element.processed-for-animation {
-    /* These styles help maintain list appearance if they are list items */
-    list-style-position: outside !important; /* Try to force if prose or other styles interfere */
+    list-style-position: outside !important;
     list-style-type: inherit !important;
   }
-  /* Specifically for LIs if they are direct targets */
+
   li.fade-in-target-element.processed-for-animation {
-    display: list-item !important; /* Ensure it's treated as a list item */
+    display: list-item !important;
   }
 
-  /* Individual words within the target elements */
   .fade-in-word {
-    display: inline-block; /* Allows transform and respects spaces around it */
+    display: inline-block;
     opacity: 0;
-    transform: translateY(
-      0.7em
-    ); /* Start slightly further down than the block */
-    /* Individual word animation properties */
+    transform: translateY(0.55em);
     transition-property: opacity, transform;
-    transition-duration: 0.6s; /* Slightly longer animation for word emphasis */
-    transition-timing-function: cubic-bezier(
-      0.215,
-      0.61,
-      0.355,
-      1
-    ); /* EaseOutCubic */
-    /* transition-delay is applied via --word-animation-delay CSS variable */
-    /* Helps with long words not breaking layout if they are the only content of a line */
+    transition-duration: 0.4s;
+    transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
     max-width: 100%;
     overflow-wrap: break-word;
-    /* Fix for potential sub-pixel rendering issues causing slight jumps in some browsers */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
 
-  /* Words become visible after their parent block is in view and their own delay passes */
+  .fade-in-target-element.in-view .fade-in-word,
   .text-fade-in-container.in-view .fade-in-word {
     opacity: 1;
     transform: translateY(0);
-    transition-delay: var(
-      --word-animation-delay,
-      0ms
-    ); /* Apply staggered word delay */
+    transition-delay: var(--word-animation-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in-target-element,
+    .fade-in-word {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
   }
 </style>

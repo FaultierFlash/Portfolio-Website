@@ -663,7 +663,7 @@
     top: auto !important;
     right: auto !important;
     bottom: auto !important;
-    z-index: 10;
+    z-index: 120;
     width: 48px;
     height: 48px;
   }
@@ -767,7 +767,7 @@
     pointer-events: none;
     visibility: hidden;
     transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
-    z-index: 10;
+    z-index: 125;
   }
 
   /* Expansion directions and alignment classes */
@@ -817,7 +817,11 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--color-text-secondary, #64748b);
+    color: var(--color-secondary, #64748b);
+  }
+
+  :global(.dark) .now-playing-label {
+    color: #94a3b8;
   }
 
   .track-title {
@@ -960,6 +964,10 @@
     box-shadow: 0 0 0 2px rgba(255, 125, 26, 0.2);
   }
 
+  .track-select::-ms-expand {
+    display: none;
+  }
+
   .track-select option {
     background-color: var(--color-bg-elevated, #ffffff);
     color: var(--color-text, #0f172a);
@@ -976,7 +984,11 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    color: var(--color-text-secondary, #64748b);
+    color: var(--color-secondary, #64748b);
+  }
+
+  :global(.dark) .volume-container {
+    color: #cbd5e1;
   }
 
   .volume-slider {

@@ -203,6 +203,7 @@ const items = [
     filteredItems = [...allItems];
 
     function openPalette() {
+      (window as any).astroNavigationUtils?.closeMainMenu?.();
       lastFocusedEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       isOpen = true;
       modal?.classList.remove("hidden");
@@ -454,7 +455,7 @@ const items = [
   #command-palette-modal .palette-backdrop {
     position: absolute;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: rgba(2, 6, 23, 0.62);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }

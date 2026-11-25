@@ -244,9 +244,10 @@ timelineItems.forEach((item: any, itemIdx: number) => {
     
     if (item.milestoneEvents) {
         item.milestoneEvents.forEach((evt: any, evtIdx: number) => {
+            const milestoneTitle = evt.title || evt.relatedProject?.title || (lang === 'de' ? 'Meilenstein' : 'Milestone');
             const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
             const subWidgetDesc = evt.description || evt.relatedProject?.description;
-            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
+            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${milestoneTitle} ansehen` : `View ${milestoneTitle}`) : '');
             const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
             const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
             
@@ -340,7 +341,8 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
             const evtDate = new Date(evt.date);
             const evtPct = Math.max(2, Math.min(98, ((evtDate.getTime() - timelineStartDate.getTime()) / totalDurationMs) * 100));
             const evtColorKey = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
-            mobileStripEvents.push({ type: 'milestone', parentIdx: pIdx, milestoneIdx: mIdx, date: evtDate, pct: evtPct, title: evt.title, colorKey: evtColorKey, rowIdx });
+            const milestoneTitle = evt.title || evt.relatedProject?.title || (lang === 'de' ? 'Meilenstein' : 'Milestone');
+            mobileStripEvents.push({ type: 'milestone', parentIdx: pIdx, milestoneIdx: mIdx, date: evtDate, pct: evtPct, title: milestoneTitle, colorKey: evtColorKey, rowIdx });
         });
     }
 });
@@ -357,7 +359,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         isAbsolute={true} 
       />
       
-      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 md:py-0">
+      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 pb-14 md:py-0">
         <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-1.5 md:mb-6 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
@@ -373,12 +375,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             height="224"
             fetchpriority="high"
             decoding="async"
-            class="mx-auto rounded-full w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 object-cover shadow-2xl mb-3 md:mb-8 border-4 border-white dark:border-gray-800"
+            class="mx-auto rounded-full w-28 h-28 sm:w-36 sm:h-36 md:w-56 md:h-56 object-cover shadow-2xl mb-2.5 md:mb-8 border-4 border-white dark:border-gray-800"
           />
         )}
 
         {homeData?.aboutText && (
-          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-semibold opacity-80 line-clamp-3 sm:line-clamp-4 md:line-clamp-none">
+          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-semibold opacity-80">
             {homeData.aboutText}
           </p>
         )}
@@ -394,15 +396,15 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     {/* Section 1.5: Timeline */}
     {timelineItems.length > 0 && (
-    <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full" id="timeline">
+    <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full overflow-hidden" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="timeline-header relative md:absolute pt-8 md:pt-0 md:top-24 w-full text-center z-10 pointer-events-none px-4">
+        <div class="timeline-header relative md:absolute pt-8 md:pt-0 md:top-5 w-full text-center z-10 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">{lang === 'de' ? 'Meine Reise' : 'My Journey'}</h2>
-            <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-sm font-black">{lang === 'de' ? 'Hover über ein Event für Details' : 'Hover events for details'}</p>
+            <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-1 uppercase tracking-widest text-xs font-black">{lang === 'de' ? 'Hover über ein Event für Details' : 'Hover events for details'}</p>
             <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">{lang === 'de' ? 'Scrollen zum Erkunden · Tippe auf Punkte zum Navigieren' : 'Scroll to explore · Tap dots to navigate'}</p>
         </div>        
-        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-45px);">
+        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-6px);">
             {/* The Track Canvas */}
             <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: ${timelineWidthPx}px; margin: 0 25vw 0 0;`}>
                 
@@ -458,7 +460,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 'far-below': 106
                             };
                             const y1 = isDuration ? (verticalMapPx[item.verticalPosition] || -48) : 0;
-                            const y2 = isTopHalf ? -130 : 140;
+                            const y2 = isTopHalf ? -108 : 112;
 
                             return (
                                 <div class="absolute top-1/2 pointer-events-none opacity-40" style={`left: ${styles.left}; width: ${isDuration ? styles.width : '0px'}; transform: translate(0, -50%);`}>
@@ -591,7 +593,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                         'far-below': 106
                     };
                     const y1 = isDuration ? (verticalMapPx[item.verticalPosition] || -48) : 0;
-                    const y2 = isTopHalf ? -130 : 140;
+                    const y2 = isTopHalf ? -108 : 112;
 
                     const showConnector = isDuration || hasWidget;
 
@@ -633,8 +635,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                         {hasWidget && (
                             <div 
-                                class={`timeline-parent-card absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${c.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${c.shadow} ${item.openByDefault ? 'active' : ''} ${isTopHalf ? 'bottom-1/2 mb-[130px] max-h-[calc(50vh-180px)]' : 'top-1/2 mt-[140px] max-h-[calc(50vh-190px)]'} overflow-hidden`}
+                                class={`timeline-parent-card absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${c.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${c.shadow} ${item.openByDefault ? 'active' : ''} ${isTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-195px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
                                 style={`left: calc(50% + ${parentDx + visibleOffsetPx}px);`}
+                                aria-hidden={item.openByDefault ? 'false' : 'true'}
                             >
                                 {/* Drag Handle */}
                                 <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
@@ -708,10 +711,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                             }
                             evtPct = Math.max(0, Math.min(100, evtPct));
 
+                            const milestoneTitle = evt.title || evt.relatedProject?.title || (lang === 'de' ? 'Meilenstein' : 'Milestone');
                             const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
-                            const subWidgetTitle = evt.title;
+                            const subWidgetTitle = milestoneTitle;
                             const subWidgetDesc = evt.description || evt.relatedProject?.description;
-                            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
+                            const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${milestoneTitle} ansehen` : `View ${milestoneTitle}`) : '');
                             const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                             const hasSubWidget = !!(subWidgetImage || subWidgetBtnLabel || subWidgetBtnLink || subWidgetDesc);
                             
@@ -726,7 +730,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                             const milestoneAdjustedX = widgetAdjustedXMap[milestoneId] !== undefined ? widgetAdjustedXMap[milestoneId] : milestoneTargetX;
                             const milestoneDx = milestoneAdjustedX - milestoneTargetX;
 
-                            const subY2 = subIsTopHalf ? -130 : 140;
+                            const subY2 = subIsTopHalf ? -108 : 112;
 
                             const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
                             const ec = colors[resolvedEvtColor] || colors.primary;
@@ -748,8 +752,9 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                     </svg>
                                     {/* Subentry Widget Card */}
                                     <div 
-                                        class={`timeline-milestone-card milestone-card-${itemIdx}-${evtIdx} absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${ec.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${ec.shadow} ${evt.openByDefault ? 'active' : ''} ${subIsTopHalf ? 'bottom-1/2 mb-[130px] max-h-[calc(50vh-180px)]' : 'top-1/2 mt-[140px] max-h-[calc(50vh-190px)]'} overflow-hidden`}
+                                        class={`timeline-milestone-card milestone-card-${itemIdx}-${evtIdx} absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${ec.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${ec.shadow} ${evt.openByDefault ? 'active' : ''} ${subIsTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-195px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
                                         style={`left: calc(${evtPct}% + ${milestoneDx}px);`}
+                                        aria-hidden={evt.openByDefault ? 'false' : 'true'}
                                     >
                                         {/* Drag Handle */}
                                         <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
@@ -864,7 +869,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     
                     {/* Present marker line */}
                     <div class="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-primary/50 pointer-events-none" style={`left: ${presentLeftPct}%;`}>
-                        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse absolute top-full mt-2 -translate-x-1/2"></div>
+                        <div class="w-2 h-2 rounded-full bg-primary animate-pulse absolute top-[32px] -translate-y-1/2 -translate-x-1/2"></div>
                     </div>
 
                     {/* Statically render 5 background lanes (staff lines matching the 5 stack rows) */}
@@ -1006,10 +1011,11 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col gap-3 relative z-20">
                                     <span class="text-[10px] uppercase font-black tracking-widest" style={`color: ${c.hex}`}>{lang === 'de' ? 'Meilensteine' : 'Milestones'}</span>
                                     {item.milestoneEvents.map((evt: any, mIdx: number) => {
+                                        const milestoneTitle = evt.title || evt.relatedProject?.title || (lang === 'de' ? 'Meilenstein' : 'Milestone');
                                         const subEventHref = evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : undefined;
                                         const subWidgetImage = evt.widgetImage || evt.relatedProject?.mainImage;
                                         const subWidgetDesc = evt.description || evt.relatedProject?.description;
-                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`) : '');
+                                        const subWidgetBtnLabel = evt.widgetButtonLabel || (evt.relatedProject ? (lang === 'de' ? `${milestoneTitle} ansehen` : `View ${milestoneTitle}`) : '');
                                         const subWidgetBtnLink = evt.widgetButtonLink || (evt.relatedProject?.slug?.current ? `/${lang}/projects/${evt.relatedProject.slug.current}` : '');
                                         
                                         const resolvedEvtColor = evt.relatedProject?.accentColor || evt.color || item.color || 'primary';
@@ -1017,7 +1023,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                                         return (
                                         <div class="mobile-milestone-card relative flex flex-col gap-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 group/sub" data-parent-idx={idx} data-milestone-idx={mIdx}>
-                                            {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl" aria-label={lang === 'de' ? `${evt.title} ansehen` : `View ${evt.title}`}></a>}
+                                            {subEventHref && !subWidgetBtnLink && <a href={subEventHref} class="absolute inset-0 z-10 rounded-xl" aria-label={lang === 'de' ? `${milestoneTitle} ansehen` : `View ${milestoneTitle}`}></a>}
                                             {subWidgetImage && (
                                                 <img 
                                                     src={urlFor(subWidgetImage).width(600).auto('format').quality(85).url()} 
@@ -1027,7 +1033,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                                         ${urlFor(subWidgetImage).width(900).auto('format').quality(85).url()} 900w
                                                     `}
                                                     sizes="(max-width: 640px) calc(100vw - 64px), 500px"
-                                                    alt={evt.title}
+                                                    alt={milestoneTitle}
                                                     width="500"
                                                     height="300"
                                                     loading="lazy"
@@ -1040,7 +1046,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                                     {new Date(evt.date).toLocaleDateString(lang, { month: 'short', year: 'numeric' })}
                                                 </span>
                                                 <h4 class="text-sm font-bold text-[var(--color-text)] leading-snug group-hover/sub:text-[var(--color-project-accent)] transition-colors">
-                                                    {evt.title}
+                                                    {milestoneTitle}
                                                 </h4>
                                                 {subWidgetDesc && (
                                                     <p class="text-xs text-[var(--color-text-dim)] mt-1 leading-relaxed">
@@ -1093,7 +1099,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             <div id="future-line" class="absolute h-0 w-[100vw] border-t-[2px] border-dashed border-gray-500 dark:border-gray-400 opacity-50 z-0 transition-opacity duration-300 -translate-y-1/2" style="left: 100vw; top: 50%;"></div>
         </div>
 
-        <button id="mobile-next-btn" class="nav-down-btn absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1.5 md:p-2 z-20 max-md:opacity-0 max-md:pointer-events-none transition-opacity duration-500" aria-label="Next Section">
+        <button id="mobile-next-btn" class="nav-down-btn absolute bottom-12 md:bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1.5 md:p-2 z-20 max-md:opacity-0 max-md:pointer-events-none transition-opacity duration-500" aria-label="Next Section">
           <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">{lang === 'de' ? 'Ausgewählte Projekte' : 'Featured Projects'}</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-gray-500 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -1229,13 +1235,13 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     {/* Section: Contact & Footer */}
     <section class="scroll-section contact-section relative flex flex-col justify-between min-h-[100vh] min-h-[100dvh] h-[100vh] h-[100dvh] w-full overflow-hidden" data-accent-color="primary">
-      <button class="nav-up-btn hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 flex-col items-center gap-1 group cursor-pointer p-1.5 z-20" aria-label={lang === 'de' ? 'Vorheriger Abschnitt' : 'Previous Slide'}>
+      <button class="nav-up-btn hidden md:flex absolute top-2.5 left-1/2 -translate-x-1/2 flex-col items-center gap-1 group cursor-pointer p-1.5 z-20" aria-label={lang === 'de' ? 'Vorheriger Abschnitt' : 'Previous Slide'}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
         <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">{lang === 'de' ? 'Zurück' : 'Back'}</span>
       </button>
 
       {/* Wrapper dynamically sizes terminal to remaining vertical height above footer */}
-      <div class="contact-terminal-wrapper flex-1 min-h-0 w-full flex items-center justify-center relative p-2 md:p-4">
+      <div class="contact-terminal-wrapper flex-1 min-h-0 w-full flex items-center justify-center relative p-2 md:p-4 md:pt-14">
         <TerminalContactForm 
           projects={allProjects}
           currentLocale={lang}
@@ -1269,7 +1275,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       </div>
 
       {/* Footer Section */}
-      <div class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-20">
+      <div class="footer-section shrink-0 w-full bg-slate-950/80 backdrop-blur text-slate-400 border-t border-slate-900 z-[115]">
         <Footer locale={lang} overrides={overrides} />
       </div>
     </section>
@@ -1309,7 +1315,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     left: auto;
     margin: 0 auto;
     aspect-ratio: 4 / 3;
-    width: min(760px, calc((100vh - 180px) * 4 / 3), 85vw);
+    width: min(760px, calc((100vh - 220px) * 4 / 3), 85vw);
     max-height: calc(100% - 1rem);
     height: auto;
   }
@@ -1596,25 +1602,28 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             }
             
             const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
-            
-            // Apply boundary buffer
-            if (shouldBlockBoundaryScroll(wheelEvent.deltaY)) {
+            const useHorizontalDelta = Math.abs(wheelEvent.deltaX) > Math.abs(wheelEvent.deltaY);
+            const scrollDelta = useHorizontalDelta ? wheelEvent.deltaX : wheelEvent.deltaY;
+            if (scrollDelta === 0) return;
+
+            // Apply boundary buffer for vertical-to-horizontal wheel mapping
+            if (!useHorizontalDelta && shouldBlockBoundaryScroll(scrollDelta)) {
                 wheelEvent.preventDefault();
                 return;
             }
 
             // Allow vertical native scrolling down ONLY if we hit the right boundary
-            if (wheelEvent.deltaY > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
+            if (scrollDelta > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
                 return;
             }
             // Allow vertical native scrolling up ONLY if we hit the left boundary
-            if (wheelEvent.deltaY < 0 && timelineContainer.scrollLeft <= 0) {
+            if (scrollDelta < 0 && timelineContainer.scrollLeft <= 0) {
                return;
             }
 
             // Otherwise, we intercept and scroll horizontally
             wheelEvent.preventDefault();
-            timelineContainer.scrollLeft += wheelEvent.deltaY;
+            timelineContainer.scrollLeft += scrollDelta;
         }, { passive: false });
         
         // --- Timeline Reveal Animation ---
@@ -1750,6 +1759,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         // --- Draggable & Toggleable Timeline Card Logic ---
         function openCard(card: HTMLElement) {
             card.classList.add('active');
+            card.setAttribute('aria-hidden', 'false');
             
             const item = card.closest('.timeline-item') as HTMLElement;
             if (item) {
@@ -1808,6 +1818,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
         function closeCard(card: HTMLElement) {
             card.classList.remove('active');
+            card.setAttribute('aria-hidden', 'true');
             resetCardDrag(card);
             
             const item = card.closest('.timeline-item') as HTMLElement;
@@ -1935,21 +1946,24 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                 }
                 
                 const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
-                
-                if (shouldBlockBoundaryScroll(wheelEvent.deltaY)) {
+                const useHorizontalDelta = Math.abs(wheelEvent.deltaX) > Math.abs(wheelEvent.deltaY);
+                const scrollDelta = useHorizontalDelta ? wheelEvent.deltaX : wheelEvent.deltaY;
+                if (scrollDelta === 0) return;
+
+                if (!useHorizontalDelta && shouldBlockBoundaryScroll(scrollDelta)) {
                     wheelEvent.preventDefault();
                     return;
                 }
 
-                if (wheelEvent.deltaY > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
+                if (scrollDelta > 0 && timelineContainer.scrollLeft >= maxScroll - 1) {
                     return;
                 }
-                if (wheelEvent.deltaY < 0 && timelineContainer.scrollLeft <= 0) {
+                if (scrollDelta < 0 && timelineContainer.scrollLeft <= 0) {
                     return;
                 }
                 
                 wheelEvent.preventDefault();
-                timelineContainer.scrollLeft += wheelEvent.deltaY;
+                timelineContainer.scrollLeft += scrollDelta;
             }, { passive: false });
         });
 
@@ -2661,18 +2675,21 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   .timeline-parent-card,
   .timeline-milestone-card {
       opacity: 0;
+      visibility: hidden;
       pointer-events: none;
       --card-scale: 0;
       --drag-x: 0px;
       --drag-y: 0px;
       transform: translate(calc(-50% + var(--drag-x)), var(--drag-y)) scale(var(--card-scale));
-      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.7s ease;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, visibility 0s linear 0.35s;
   }
   .timeline-parent-card.active,
   .timeline-milestone-card.active {
       opacity: 1;
+      visibility: visible;
       pointer-events: auto;
       --card-scale: 1;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0s linear 0s;
   }
   
   /* Thin custom scrollbar for cards */

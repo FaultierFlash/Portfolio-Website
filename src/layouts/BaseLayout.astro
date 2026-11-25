@@ -256,6 +256,9 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   lang={currentLocale}
   dir="ltr"
   class={hidePageScrollbar ? "page-hides-scrollbar" : ""}
+  data-accent-main={resolvedAccent.main}
+  data-accent-bg={resolvedAccent.bg}
+  data-accent-border={resolvedAccent.border}
   style={`--color-project-accent:${resolvedAccent.main};--color-project-accent-bg:${resolvedAccent.bg};--color-project-accent-border:${resolvedAccent.border}`}
 >
   <head>
@@ -367,6 +370,13 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
             : "light");
 
         htmlElement.classList.toggle("dark", currentTheme === "dark");
+
+        const accentMain = htmlElement.dataset.accentMain;
+        const accentBg = htmlElement.dataset.accentBg;
+        const accentBorder = htmlElement.dataset.accentBorder;
+        if (accentMain) htmlElement.style.setProperty("--color-project-accent", accentMain);
+        if (accentBg) htmlElement.style.setProperty("--color-project-accent-bg", accentBg);
+        if (accentBorder) htmlElement.style.setProperty("--color-project-accent-border", accentBorder);
 
         if (themeToggleButton) {
           themeToggleButton.setAttribute(

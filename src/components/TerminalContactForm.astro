@@ -947,7 +947,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           terminalWindow!.style.maxHeight = "100%";
           terminalWindow!.style.aspectRatio = "";
         } else {
-          terminalWindow!.style.width = "min(760px, calc((100vh - 180px) * 4 / 3), 85vw)";
+          terminalWindow!.style.width = "min(760px, calc((100vh - 220px) * 4 / 3), 85vw)";
           terminalWindow!.style.height = "auto";
           terminalWindow!.style.aspectRatio = "4 / 3";
           terminalWindow!.style.maxHeight = "calc(100% - 1rem)";
@@ -957,17 +957,19 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
       const initialW = Math.min(768, window.innerWidth * 0.9);
       const vh = window.innerHeight;
-      const initialH = Math.max(MIN_TERMINAL_HEIGHT, Math.min(650, vh * 0.75));
+      const footerClearance = 76;
+      const minTop = TOP_BAR_HEIGHT + 8;
+      const availableH = Math.max(MIN_TERMINAL_HEIGHT, vh - minTop - footerClearance);
+      const initialH = Math.max(MIN_TERMINAL_HEIGHT, Math.min(650, availableH, vh * 0.75));
+      terminalWindow!.style.position = "fixed";
       terminalWindow!.style.width = `${initialW}px`;
       terminalWindow!.style.height = `${initialH}px`;
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
-      let newTop = (viewportHeight - initialH) / 2;
-      newTop = Math.max(TOP_BAR_HEIGHT, newTop);
-      newTop = Math.min(newTop, viewportHeight - initialH - 5);
+      let newTop = minTop + Math.max(0, (viewportHeight - minTop - footerClearance - initialH) / 2);
+      newTop = Math.max(TOP_BAR_HEIGHT, Math.min(newTop, viewportHeight - initialH - 5));
       let newLeft = (viewportWidth - initialW) / 2;
-      newLeft = Math.max(5, newLeft);
-      newLeft = Math.min(newLeft, viewportWidth - initialW - 5);
+      newLeft = Math.max(5, Math.min(newLeft, viewportWidth - initialW - 5));
       terminalWindow!.style.top = `${newTop}px`;
       terminalWindow!.style.left = `${newLeft}px`;
     }
@@ -2502,7 +2504,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             terminalWindow!.style.position = "relative";
             terminalWindow!.style.top = "";
             terminalWindow!.style.left = "";
-            terminalWindow!.style.width = "min(760px, calc((100vh - 180px) * 4 / 3), 85vw)";
+            terminalWindow!.style.width = "min(760px, calc((100vh - 220px) * 4 / 3), 85vw)";
             terminalWindow!.style.height = "auto";
             terminalWindow!.style.aspectRatio = "4 / 3";
             terminalWindow!.style.maxHeight = "calc(100% - 1rem)";
@@ -2528,24 +2530,28 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         }
 
         if (!isExited && terminalWindow) {
-          const pos = getTerminalPosition();
-          const currentLeft = pos.left;
-          const currentTop = pos.top;
-          const currentWidth = terminalWindow.offsetWidth;
-          const currentHeight = terminalWindow.offsetHeight;
-          const viewportWidth = window.innerWidth;
-          const viewportHeight = window.innerHeight;
-          let newLeft = currentLeft;
-          let newTop = currentTop;
-          if (currentLeft + currentWidth > viewportWidth - 5)
-            newLeft = Math.max(5, viewportWidth - currentWidth - 5);
-          newLeft = Math.max(5, newLeft);
-          if (currentTop + currentHeight > viewportHeight - 5)
-            newTop = Math.max(TOP_BAR_HEIGHT, viewportHeight - currentHeight - 5);
-          newTop = Math.max(TOP_BAR_HEIGHT, newTop);
-          if (newLeft !== currentLeft || newTop !== currentTop) {
-            terminalWindow.style.left = `${newLeft}px`;
-            terminalWindow.style.top = `${newTop}px`;
+          if (terminalWindow.dataset.terminalInteracted !== "true") {
+            setInitialPositionAndSize();
+          } else {
+            const pos = getTerminalPosition();
+            const currentLeft = pos.left;
+            const currentTop = pos.top;
+            const currentWidth = terminalWindow.offsetWidth;
+            const currentHeight = terminalWindow.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            let newLeft = currentLeft;
+            let newTop = currentTop;
+            if (currentLeft + currentWidth > viewportWidth - 5)
+              newLeft = Math.max(5, viewportWidth - currentWidth - 5);
+            newLeft = Math.max(5, newLeft);
+            if (currentTop + currentHeight > viewportHeight - 5)
+              newTop = Math.max(TOP_BAR_HEIGHT, viewportHeight - currentHeight - 5);
+            newTop = Math.max(TOP_BAR_HEIGHT, newTop);
+            if (newLeft !== currentLeft || newTop !== currentTop) {
+              terminalWindow.style.left = `${newLeft}px`;
+              terminalWindow.style.top = `${newTop}px`;
+            }
           }
           if (currentStep !== 3) updateCommandPrompt();
         }

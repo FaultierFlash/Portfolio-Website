@@ -28,9 +28,15 @@ const { toggleMenuLabel } = Astro.props;
     border: none;
     padding: 0.5rem;
     cursor: pointer;
-    z-index: 1001;
+    z-index: 995;
     margin-left: 0.5rem;
     position: relative;
+    transition: opacity 0.2s ease;
+  }
+
+  .hamburger-button.is-active {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .hamburger-line {
