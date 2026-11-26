@@ -374,15 +374,18 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     overflow-y: auto;
     padding: 1.25rem;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
   }
-  .direct-contact-panel.hidden {
+  .direct-contact-panel.hidden,
+  .terminal-output-container.hidden,
+  .input-area-container.hidden {
     display: none;
   }
   .direct-contact-form {
     width: 100%;
     max-width: 520px;
+    margin: auto;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;

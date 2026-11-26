@@ -46,12 +46,12 @@ const groupBooks = (items: any[]) => {
     return grouped;
 };
 
-// Extract dynamically sorted genres for filter dropdown (collapsed by default)
+// Extract dynamically sorted genres for filter dropdown (collapsed by default; strip internal series: tags)
 const allGenres = Array.from(
     new Set(
         books.flatMap((b: any) => Array.isArray(b.genres) ? b.genres : [])
             .map((g: any) => String(g || '').trim())
-            .filter(Boolean)
+            .filter((g: string) => Boolean(g) && !g.toLowerCase().startsWith('series:'))
     )
 ).sort((a, b) => a.localeCompare(b));
 
