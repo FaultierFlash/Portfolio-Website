@@ -1,0 +1,332 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TextFadeIn from "./TextFadeIn.astro";
+import { urlFor } from "../lib/sanity";
+import { sanitizeHtml } from "../lib/html";
+import { marked } from "marked";
+import type { Locale } from "../i18n/utils";
+
+interface Props {
+  lang: Locale;
+  slug: string | undefined;
+  projectData: any;
+}
+
+const { lang, slug, projectData } = Astro.props;
+const isDe = lang === "de";
+
+const copy = isDe
+  ? {
+      published: "Veröffentlicht",
+      localeCode: "de-DE",
+      heroAltSuffix: "Titelbild",
+      scrollDiscover: "Scrollen zum Entdecken",
+      overview: "Projektübersicht",
+      gallery: "Projektgalerie",
+      documents: "Dokumente & Downloads",
+      fileFallback: "DATEI",
+      nextSteps: "Nächste Schritte",
+      backAll: "Zurück zu allen Projekten",
+      contactBtn: "Kontakt aufnehmen",
+      visitLink: "Projekt besuchen",
+    }
+  : {
+      published: "Published",
+      localeCode: "en-US",
+      heroAltSuffix: "hero image",
+      scrollDiscover: "Scroll to discover",
+      overview: "Project Overview",
+      gallery: "Project Gallery",
+      documents: "Documents & Downloads",
+      fileFallback: "FILE",
+      nextSteps: "Next Steps",
+      backAll: "Back to all projects",
+      contactBtn: "Get in touch",
+      visitLink: "Visit Project",
+    };
+
+const parsedBody = projectData?.body
+  ? sanitizeHtml(marked.parse(projectData.body, { async: false }))
+  : "";
+
+const projectGallery = (projectData?.gallery || []).filter((img: any) => img?.asset);
+
+const projectDocuments = (projectData?.documents || []).filter(
+  (doc: any) => doc.url && (doc.language === "all" || doc.language === lang || !doc.language)
+);
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type ColorClasses = { text: string; borderGhost: string; btn: string; tagBg: string };
+const colors: Record<string, ColorClasses> = {
+  primary: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-primary hover:bg-primary/10 text-primary",
+    btn: "bg-primary hover:bg-orange-600 focus:ring-orange-300 dark:focus:ring-orange-800 text-white",
+    tagBg: "bg-primary/25 dark:bg-primary/20 text-slate-900 dark:text-white !font-black",
+  },
+  blue: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-blue-600 hover:bg-blue-600/10 text-blue-600 dark:text-blue-400 dark:border-blue-500",
+    btn: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-300 dark:focus:ring-blue-800 text-white",
+    tagBg: "bg-blue-500/25 dark:bg-blue-500/20 text-slate-900 dark:text-white !font-black",
+  },
+  green: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-green-600 hover:bg-green-600/10 text-green-600 dark:text-green-400 dark:border-green-500",
+    btn: "bg-green-600 hover:bg-green-700 focus:ring-green-300 dark:focus:ring-green-800 text-white",
+    tagBg: "bg-green-500/25 dark:bg-green-500/20 text-slate-900 dark:text-white !font-black",
+  },
+  purple: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-purple-600 hover:bg-purple-600/10 text-purple-600 dark:text-purple-400 dark:border-purple-500",
+    btn: "bg-purple-600 hover:bg-purple-700 focus:ring-purple-300 dark:focus:ring-purple-800 text-white",
+    tagBg: "bg-purple-500/25 dark:bg-purple-500/20 text-slate-900 dark:text-white !font-black",
+  },
+  rose: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-rose-600 hover:bg-rose-600/10 text-rose-600 dark:text-rose-400 dark:border-rose-500",
+    btn: "bg-rose-600 hover:bg-rose-700 focus:ring-rose-300 dark:focus:ring-rose-800 text-white",
+    tagBg: "bg-rose-500/25 dark:bg-rose-500/20 text-slate-900 dark:text-white !font-black",
+  },
+  gray: {
+    text: "text-slate-900 dark:text-slate-100",
+    borderGhost: "border-gray-700 hover:bg-gray-700/10 text-gray-700 dark:text-gray-400 dark:border-gray-500",
+    btn: "bg-gray-700 hover:bg-gray-800 focus:ring-gray-300 dark:focus:ring-gray-800 text-white",
+    tagBg: "bg-gray-500/25 dark:bg-gray-500/20 text-slate-900 dark:text-white !font-black",
+  },
+};
+
+const pc = colors[projectData?.accentColor || "primary"] || colors.primary;
+const projectOgImage = projectData?.mainImage
+  ? urlFor(projectData.mainImage).width(1200).height(630).fit("crop").auto("format").quality(85).url()
+  : undefined;
+
+const availableLocales: Locale[] =
+  Array.isArray(projectData?.languages) && projectData.languages.length > 0
+    ? projectData.languages
+    : ["en", "de"];
+
+const creativeWorkSchema = {
+  "@context": "https://schema.org",
+  "@type": "CreativeWork",
+  name: projectData.title,
+  description: projectData.description || "",
+  url: `https://marlonmueller.eu/${lang}/projects/${encodeURIComponent(slug || "")}`,
+  ...(projectOgImage ? { image: projectOgImage } : {}),
+  author: {
+    "@type": "Person",
+    name: "Marlon Müller",
+    url: "https://marlonmueller.eu",
+  },
+  ...(Array.isArray(projectData.tags) && projectData.tags.length > 0
+    ? { keywords: projectData.tags.join(", ") }
+    : {}),
+  inLanguage: lang,
+};
+---
+
+<BaseLayout
+    title={projectData.title}
+    description={projectData.description}
+    image={projectOgImage}
+    backgroundEffect={projectData.backgroundEffect}
+    topographyConfig={projectData.topographyConfig}
+    solarConfig={projectData.solarConfig}
+    airflowConfig={projectData.airflowConfig}
+    accentColor={projectData.accentColor || "primary"}
+    availableLocales={availableLocales}
+    extraJsonLd={creativeWorkSchema}
+  >
+    <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
+      <div class="z-10 mt-16 max-w-5xl">
+        <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
+          <h1 class="text-5xl md:text-7xl font-extrabold mb-6 !leading-tight tracking-tight">
+            {projectData.title}
+          </h1>
+        </TextFadeIn>
+
+        <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-950 dark:text-slate-100 text-sm md:text-base font-bold uppercase tracking-wider">
+          {projectData.publishDate && (
+            <time datetime={projectData.publishDate}>
+              {copy.published}:{" "}
+              {new Date(projectData.publishDate).toLocaleDateString(copy.localeCode, {
+                year: "numeric",
+                month: "long",
+              })}
+            </time>
+          )}
+          {projectData.tags && projectData.tags.length > 0 && (
+            <div class="flex flex-wrap justify-center gap-2">
+              {projectData.tags.map((tag: string) => (
+                <span class={`rounded-full px-3 py-1 text-xs font-semibold ${pc.tagBg}`}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {projectData.link && (
+          <div class="mt-5 flex justify-center">
+            <a
+              href={projectData.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all ${pc.borderGhost}`}
+            >
+              <span>{copy.visitLink}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        )}
+      </div>
+
+      {projectData.mainImage && (
+        <div class="hero-image-container w-full max-w-6xl mt-12 z-10 px-4">
+          <img
+            src={urlFor(projectData.mainImage).width(1400).auto("format").quality(85).url()}
+            alt={projectData.mainImage.alt || `${projectData.title} ${copy.heroAltSuffix}`}
+            width="1400"
+            height="788"
+            fetchpriority="high"
+            decoding="async"
+            class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
+            style="max-height: 50vh;"
+          />
+        </div>
+      )}
+
+      <div class="absolute bottom-8 animate-bounce">
+        <p class="text-sm text-slate-900 dark:text-slate-400 font-bold uppercase tracking-widest mb-2">
+          {copy.scrollDiscover}
+        </p>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={`mx-auto opacity-80 ${pc.text}`} aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="19 12 12 19 5 12"></polyline>
+        </svg>
+      </div>
+    </section>
+
+    <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl prose-headings:!text-slate-900 dark:prose-headings:!text-white prose-p:!text-slate-800 dark:prose-p:!text-slate-200 prose-li:!text-slate-800 dark:prose-li:!text-slate-200">
+      <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
+        {projectData.body ? (
+          <div class="markdown-content space-y-6" set:html={parsedBody} />
+        ) : (
+          <section class="content-section mb-10">
+            <h2 class="text-2xl md:text-3xl font-semibold mb-4">{copy.overview}</h2>
+            <p class="text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+              {projectData.description}
+            </p>
+          </section>
+        )}
+
+        {projectGallery.length > 0 && (
+          <section class="gallery-section mt-12 mb-10 not-prose">
+            <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+              {copy.gallery}
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {projectGallery.map((img: any) => (
+                <figure class="group relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 transition-all hover:shadow-xl">
+                  <img
+                    src={urlFor(img).width(1200).auto("format").quality(85).url()}
+                    alt={img.alt || projectData.title}
+                    width="1200"
+                    height="768"
+                    loading="lazy"
+                    decoding="async"
+                    class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  {img.caption && (
+                    <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-400 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+                      {img.caption}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {projectDocuments && projectDocuments.length > 0 && (
+          <section class="documents-section mt-12 mb-10 not-prose">
+            <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+              {copy.documents}
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {projectDocuments.map((doc: any) => (
+                <a
+                  href={`${doc.url}?dl=${encodeURIComponent(doc.originalFilename || doc.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-start gap-4 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all hover:shadow-md group"
+                >
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 font-bold uppercase text-xs font-mono">
+                    {doc.extension || copy.fileFallback}
+                  </div>
+                  <div class="flex-grow min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                      <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
+                        {doc.title}
+                      </h3>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-primary transition-transform group-hover:translate-y-0.5 flex-shrink-0" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                    </div>
+                    {doc.description && (
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                        {doc.description}
+                      </p>
+                    )}
+                    {doc.size && (
+                      <span class="inline-block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">
+                        {formatFileSize(doc.size)}
+                      </span>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">
+          <h2 class="text-2xl md:text-3xl font-semibold mb-4 text-center w-full">
+            {copy.nextSteps}
+          </h2>
+          <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-8 not-prose">
+            <a
+              href={`/${lang}/projects`}
+              class={`px-6 py-3 border rounded-lg transition-colors font-semibold ${pc.borderGhost}`}
+            >
+              &larr; {copy.backAll}
+            </a>
+            <a
+              href={`/${lang}/contact`}
+              class={`px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all font-semibold focus:ring-4 ${pc.btn}`}
+            >
+              {copy.contactBtn}
+            </a>
+          </div>
+        </section>
+      </TextFadeIn>
+    </article>
+  </BaseLayout>
+
+<style>
+  .glow-effect {
+    box-shadow: 0 20px 50px -10px rgba(var(--color-primary-rgb, 255, 125, 26), 0.15);
+  }
+</style>

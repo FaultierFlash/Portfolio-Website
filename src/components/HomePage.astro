@@ -635,7 +635,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                         {hasWidget && (
                             <div 
-                                class={`timeline-parent-card absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${c.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${c.shadow} ${item.openByDefault ? 'active' : ''} ${isTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-195px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
+                                class={`timeline-parent-card absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${c.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${c.shadow} ${item.openByDefault ? 'active' : ''} ${isTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-225px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
                                 style={`left: calc(50% + ${parentDx + visibleOffsetPx}px);`}
                                 aria-hidden={item.openByDefault ? 'false' : 'true'}
                             >
@@ -752,7 +752,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                     </svg>
                                     {/* Subentry Widget Card */}
                                     <div 
-                                        class={`timeline-milestone-card milestone-card-${itemIdx}-${evtIdx} absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${ec.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${ec.shadow} ${evt.openByDefault ? 'active' : ''} ${subIsTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-195px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
+                                        class={`timeline-milestone-card milestone-card-${itemIdx}-${evtIdx} absolute z-30 flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-[1.5px] ${ec.border} rounded-xl pt-5 px-3 pb-3 shadow-lg hover:${ec.shadow} ${evt.openByDefault ? 'active' : ''} ${subIsTopHalf ? 'bottom-1/2 mb-[108px] max-h-[calc(50vh-225px)]' : 'top-1/2 mt-[112px] max-h-[calc(50vh-200px)]'} overflow-hidden`}
                                         style={`left: calc(${evtPct}% + ${milestoneDx}px);`}
                                         aria-hidden={evt.openByDefault ? 'false' : 'true'}
                                     >
@@ -913,8 +913,12 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                         const isParent = evt.type === 'parent';
                         const size = isParent ? 10 : 6;
                         const rowTop = evt.rowIdx * 14;
+                        const dotYear = !Number.isNaN(evt.date.getTime()) ? evt.date.getFullYear() : '';
+                        const fallbackTitle = evt.title || (lang === 'de' ? 'Meilenstein' : 'Milestone');
+                        const dotLabel = dotYear ? `${dotYear} — ${fallbackTitle}` : fallbackTitle;
                         return (
                             <button
+                                type="button"
                                 class={`mobile-strip-dot absolute rounded-full ${dc.dot} transition-all duration-300 cursor-pointer -translate-x-1/2 -translate-y-1/2 ${isParent ? 'border-2 border-white dark:border-slate-900 shadow-sm z-10' : 'z-[9] opacity-70'}`}
                                 style={`left: ${evt.pct}%; top: ${rowTop + 4}px; width: ${size}px; height: ${size}px;`}
                                 data-strip-idx={globalIdx}
@@ -922,7 +926,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 data-milestone-idx={evt.milestoneIdx}
                                 data-dot-left={evt.pct}
                                 data-dot-type={evt.type}
-                                aria-label={evt.title}
+                                aria-label={dotLabel}
+                                title={dotLabel}
                             ></button>
                         );
                     })}
@@ -1760,6 +1765,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         function openCard(card: HTMLElement) {
             card.classList.add('active');
             card.setAttribute('aria-hidden', 'false');
+            pushCardHorizontally(card);
             
             const item = card.closest('.timeline-item') as HTMLElement;
             if (item) {

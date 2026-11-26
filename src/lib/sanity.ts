@@ -131,6 +131,59 @@ export async function getProjects(locale: string) {
   return await sanityClient.fetch(query, { locale });
 }
 
+export async function getProjectBySlug(slug: string | undefined, locale: string) {
+  if (!slug) return null;
+  const query = `*[_type == "project" && slug.current == $slug && $lang in languages][0] {
+    ...,
+    "title": coalesce(title[$lang], title),
+    "description": description[$lang],
+    "body": body[$lang],
+    metrics[] {
+      "label": label[$lang],
+      value,
+      unit
+    },
+    specs {
+      "role": role[$lang],
+      timeline,
+      "status": status[$lang],
+      stack,
+      "outcome": outcome[$lang],
+      repoUrl,
+      paperUrl
+    },
+    customSpecs[] {
+      "label": label[$lang],
+      "value": value[$lang]
+    },
+    showcaseVideos[] {
+      "videoUrl": coalesce(videoFile.asset->url, videoUrl),
+      poster,
+      "caption": caption[$lang],
+      autoplayLoop
+    },
+    cadModels[] {
+      "glbUrl": glbFile.asset->url,
+      "title": title[$lang],
+      "caption": caption[$lang],
+      initialOrbit
+    },
+    documents[] {
+      title,
+      description,
+      language,
+      "url": asset->url,
+      "size": asset->size,
+      "extension": asset->extension,
+      "originalFilename": asset->originalFilename
+    },
+    topographyConfig,
+    solarConfig,
+    airflowConfig
+  }`;
+  return await sanityClient.fetch(query, { slug, lang: locale });
+}
+
 export async function getBooks() {
   const query = `*[_type == "book"] | order(coalesce(sortDate, "0000-00-00") desc) {
     title,

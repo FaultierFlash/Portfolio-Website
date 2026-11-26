@@ -30,6 +30,13 @@ export const project = defineType({
             validation: (rule) => rule.required(),
         }),
         defineField({
+            name: 'publishDate',
+            title: 'Publish Date',
+            type: 'date',
+            description: 'Publication or launch date displayed on project pages and cards.',
+            options: { dateFormat: 'YYYY-MM-DD' },
+        }),
+        defineField({
             name: 'mainImage',
             title: 'Main image',
             type: 'image',

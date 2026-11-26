@@ -2008,12 +2008,33 @@ const firstAccent = firstProj || {
     }
 
     .pw-editorial-desc {
-      max-height: 4.8rem;
+      max-height: none;
+      overflow: visible;
       font-size: 0.85rem;
     }
 
     .pw-scroll-hint {
       display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .pw-stage-grid {
+      grid-template-rows: 150px 1fr;
+    }
+
+    .pw-wheel-column {
+      height: 150px;
+    }
+
+    .pw-drum-wrapper {
+      width: 340px;
+      height: 340px;
+      left: -102px;
+    }
+
+    .pw-pointer-reticle {
+      left: 222px;
     }
   }
 </style>

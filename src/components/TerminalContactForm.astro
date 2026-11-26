@@ -500,7 +500,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
   .ascii-art {
     white-space: pre !important;
     line-height: 1.1;
-    font-size: 0.8rem;
+    font-size: clamp(0.45rem, 1.35vw, 0.8rem);
     margin-bottom: 0.5rem;
   }
   .ascii-art .line-prefix {
@@ -633,8 +633,9 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
   /* Responsive Adjustments */
   @media (max-width: 768px) {
+    .terminal-window .output-line.ascii-art,
     .ascii-art {
-      display: none;
+      display: none !important;
     }
     .terminal-window {
       width: 100% !important;

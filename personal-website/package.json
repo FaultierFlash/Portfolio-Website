@@ -18,6 +18,8 @@
     "styled-components": "^6.1.15"
   },
   "devDependencies": {
+    "@sanity/eslint-config-studio": "^7.0.0",
+    "eslint": "^10.15.0",
     "typescript": "^5.9.3"
   }
 }
