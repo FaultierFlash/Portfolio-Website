@@ -68,6 +68,8 @@ const {
 </style>
 
 <script>
+  import { createCanvasMotionController } from '../utils/canvasMotion';
+
   interface WingPoint {
     x: number;
     y: number;
@@ -439,8 +441,6 @@ const {
       };
     }
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
     containers.forEach((node) => {
       const container = node as HTMLElement;
       const canvas = container.querySelector('.airflow-canvas') as HTMLCanvasElement | null;
@@ -448,19 +448,20 @@ const {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const phasePref = (container.dataset.phase || 'scroll') as string;
+      let phasePref = (container.dataset.phase || 'scroll') as string;
       const rawIntensity = parseFloat(container.dataset.intensity ?? '1.0');
       const rawFlutter = parseFloat(container.dataset.flutter ?? '1.0');
       const rawCursorTurb = parseFloat(container.dataset.cursorTurbulence ?? '1.0');
-      const intensity = Math.max(0.15, Math.min(3.0, Number.isFinite(rawIntensity) ? rawIntensity : 1.0));
-      const flutterGain = Math.max(0, Math.min(3.0, Number.isFinite(rawFlutter) ? rawFlutter : 1.0));
-      const cursorTurbulence = Math.max(0, Math.min(3.0, Number.isFinite(rawCursorTurb) ? rawCursorTurb : 1.0));
+      let intensity = Math.max(0.15, Math.min(3.0, Number.isFinite(rawIntensity) ? rawIntensity : 1.0));
+      let flutterGain = Math.max(0, Math.min(3.0, Number.isFinite(rawFlutter) ? rawFlutter : 1.0));
+      let cursorTurbulence = Math.max(0, Math.min(3.0, Number.isFinite(rawCursorTurb) ? rawCursorTurb : 1.0));
+      let speedScale = 1.0;
       const isAbsolute = container.classList.contains('is-absolute');
 
       let width = 0;
       let height = 0;
-      let isVisible = true;
-      let rafId: number | null = null;
+      let simTimeSec = 0;
+      let cursorImpulseScale = 1.0;
 
       const pointer = { x: -9999, y: -9999, vx: 0, vy: 0, active: false, energy: 0 };
 
@@ -472,7 +473,7 @@ const {
         canvas.width = Math.round(width * dpr);
         canvas.height = Math.round(height * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        if (reducedMotion) renderFrame(0);
+        renderFrame(simTimeSec);
       };
 
       const onPointerMove = (e: PointerEvent) => {
@@ -588,7 +589,8 @@ const {
             let turb = sample.turb * flutterGain;
 
             // Cursor perturbation (vortex + wake), ALSO passed through boundary constraint so cursor NEVER pushes flow through wing!
-            if (cursorLocal && cursorTurbulence > 0) {
+            const effectiveCursorTurb = cursorTurbulence * cursorImpulseScale;
+            if (cursorLocal && effectiveCursorTurb > 0) {
               const dx = px - cursorLocal.px;
               const dy = py - cursorLocal.py;
               const rSq = dx * dx + dy * dy;
@@ -596,12 +598,12 @@ const {
               if (rSq < radSq) {
                 const falloff = Math.exp(-rSq / (radSq * 0.42));
                 const d = Math.sqrt(rSq) + 0.08;
-                const cu = ((-dy / d) * 0.68 * falloff + (pointer.vx / scale) * 0.022 * falloff) * cursorTurbulence;
-                const cv = ((dx / d) * 0.68 * falloff + (pointer.vy / scale) * 0.022 * falloff) * cursorTurbulence;
+                const cu = ((-dy / d) * 0.68 * falloff + (pointer.vx / scale) * 0.022 * falloff) * effectiveCursorTurb;
+                const cv = ((dx / d) * 0.68 * falloff + (pointer.vy / scale) * 0.022 * falloff) * effectiveCursorTurb;
                 const boundedCursor = applyWingBoundary(u + cu, v + cv, px, py, phase);
                 u = boundedCursor.u;
                 v = boundedCursor.v;
-                turb += (0.95 + pointer.energy * 0.85) * falloff * cursorTurbulence;
+                turb += (0.95 + pointer.energy * 0.85) * falloff * effectiveCursorTurb;
               }
             }
 
@@ -785,7 +787,7 @@ const {
 
         // Subtle monochrome frame label in bottom corner of band
         const hudAlpha = Math.min(0.65, 0.42 * scaleAlpha);
-        ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+        ctx.font = '10px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
         ctx.fillStyle = `rgba(${ink}, ${hudAlpha})`;
         ctx.textAlign = 'left';
         const padX = isSmall ? 14 : 24;
@@ -839,37 +841,46 @@ const {
         }
       }
 
-      const animate = (now: number) => {
-        if (!container.isConnected) {
-          cleanupInstance();
-          return;
-        }
-        if (isVisible) {
-          renderFrame(now * 0.001);
-        }
-        rafId = requestAnimationFrame(animate);
+      const motion = createCanvasMotionController(container, {
+        threshold: 0.01,
+        onThemeChange: () => {
+          renderFrame(simTimeSec);
+        },
+        onReduceMotionChange: (state) => {
+          cursorImpulseScale = state.cursorMultiplier;
+        },
+        step: (_nowMs, deltaMs, state) => {
+          cursorImpulseScale = state.cursorMultiplier;
+          simTimeSec += deltaMs * 0.001 * state.speedMultiplier * speedScale;
+          renderFrame(simTimeSec);
+        },
+      });
+      cursorImpulseScale = motion.getState().cursorMultiplier;
+
+      (container as any).__airflowController = {
+        setParams: (params: { intensity?: number; flutter?: number; cursorTurbulence?: number; phase?: string; speedScale?: number }) => {
+          if (typeof params.intensity === 'number') intensity = Math.max(0.15, Math.min(3.0, params.intensity));
+          if (typeof params.flutter === 'number') flutterGain = Math.max(0, Math.min(3.0, params.flutter));
+          if (typeof params.cursorTurbulence === 'number') cursorTurbulence = Math.max(0, Math.min(3.0, params.cursorTurbulence));
+          if (typeof params.phase === 'string') phasePref = params.phase;
+          if (typeof params.speedScale === 'number') speedScale = Math.max(0.1, Math.min(3.0, params.speedScale));
+          if (motion.getState().isPausedByUser) {
+            renderFrame(simTimeSec);
+          }
+        },
+        togglePaused: () => motion.togglePaused(),
+        getState: () => ({
+          intensity,
+          flutter: flutterGain,
+          cursorTurbulence,
+          phase: phasePref,
+          speedScale,
+          motion: motion.getState(),
+        }),
       };
 
-      const observer = new IntersectionObserver(
-        (entries) => {
-          isVisible = entries[0]?.isIntersecting ?? true;
-        },
-        { threshold: 0.01 }
-      );
-      observer.observe(container);
-
-      const themeObserver = new MutationObserver(() => {
-        if (reducedMotion || !isVisible) renderFrame(performance.now() * 0.001);
-      });
-      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
       function cleanupInstance() {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        observer.disconnect();
-        themeObserver.disconnect();
+        motion.destroy();
         window.removeEventListener('resize', resize);
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('touchmove', onTouchMove);
@@ -884,11 +895,7 @@ const {
       window.addEventListener('blur', onPointerLeave);
 
       resize();
-      if (reducedMotion) {
-        renderFrame(0);
-      } else {
-        rafId = requestAnimationFrame(animate);
-      }
+      renderFrame(simTimeSec);
     });
   }
 

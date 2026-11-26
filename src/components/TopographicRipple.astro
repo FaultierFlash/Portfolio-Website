@@ -71,6 +71,7 @@ const {
 
 <script>
   import { getElevationGrid } from '../utils/topoData';
+  import { createCanvasMotionController, type CanvasMotionController, type CanvasMotionState } from '../utils/canvasMotion';
 
   const activeRenderers: TopoRenderer[] = [];
 
@@ -90,11 +91,13 @@ const {
     targetMouseX = -9999;
     targetMouseY = -9999;
     resolvedColor = '#FF7D1A';
-    rafId: number | null = null;
-    isVisible = true;
     destroyed = false;
-    observer: MutationObserver | null = null;
-    io: IntersectionObserver | null = null;
+    motion: CanvasMotionController | null = null;
+    source = 'mars-procedural';
+    lat = 0;
+    lng = 0;
+    intensity = 1.0;
+    scale = 1.0;
     onResize: () => void;
     onMouseMove: (e: MouseEvent) => void;
 
@@ -102,8 +105,16 @@ const {
       this.container = container;
       this.canvas = container.querySelector('canvas')!;
       this.ctx = this.canvas.getContext('2d', { alpha: true })!;
+      this.source = container.dataset.source || 'mars-procedural';
+      this.lat = parseFloat(container.dataset.lat || '0');
+      this.lng = parseFloat(container.dataset.lng || '0');
+      this.intensity = parseFloat(container.dataset.intensity || '1.0');
+      this.scale = parseFloat(container.dataset.scale || '1.0');
 
-      this.onResize = () => this.resize();
+      this.onResize = () => {
+        this.resize();
+        if (this.grid.length > 0) this.draw();
+      };
       this.onMouseMove = (e: MouseEvent) => {
         const rect = this.canvas.getBoundingClientRect();
         this.targetMouseX = e.clientX - rect.left;
@@ -114,26 +125,52 @@ const {
       window.addEventListener('mousemove', this.onMouseMove);
 
       this.resolveColor();
-      this.observer = new MutationObserver(() => this.resolveColor());
-      this.observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class', 'style'],
+
+      this.motion = createCanvasMotionController(container, {
+        threshold: 0.05,
+        onThemeChange: () => {
+          this.resolveColor();
+          if (this.grid.length > 0) this.draw();
+        },
+        step: (_nowMs, deltaMs, state) => this.stepFrame(deltaMs, state),
       });
 
-      this.io = new IntersectionObserver(
-        (entries) => {
-          const visible = entries[0]?.isIntersecting ?? true;
-          this.isVisible = visible;
-          if (visible && !this.destroyed && this.rafId === null && this.grid.length > 0) {
-            this.animate();
-          } else if (!visible && this.rafId !== null) {
-            cancelAnimationFrame(this.rafId);
-            this.rafId = null;
+      (container as any).__topoController = {
+        setParams: async (params: { source?: string; intensity?: number; scale?: number; lat?: number; lng?: number }) => {
+          let reloadGrid = false;
+          if (typeof params.intensity === 'number') this.intensity = Math.max(0.1, Math.min(5, params.intensity));
+          if (typeof params.scale === 'number' && params.scale !== this.scale) {
+            this.scale = Math.max(0.1, Math.min(10, params.scale));
+            reloadGrid = true;
+          }
+          if (params.source && params.source !== this.source) {
+            this.source = params.source;
+            reloadGrid = true;
+          }
+          if (typeof params.lat === 'number' && params.lat !== this.lat) {
+            this.lat = params.lat;
+            reloadGrid = true;
+          }
+          if (typeof params.lng === 'number' && params.lng !== this.lng) {
+            this.lng = params.lng;
+            reloadGrid = true;
+          }
+          if (reloadGrid) {
+            await this.init();
+          } else if (this.grid.length > 0) {
+            this.draw();
           }
         },
-        { threshold: 0.05 }
-      );
-      this.io.observe(container);
+        togglePaused: () => this.motion?.togglePaused() ?? false,
+        getState: () => ({
+          source: this.source,
+          intensity: this.intensity,
+          scale: this.scale,
+          lat: this.lat,
+          lng: this.lng,
+          motion: this.motion?.getState(),
+        }),
+      };
 
       this.init();
     }
@@ -153,18 +190,13 @@ const {
     }
 
     async init() {
-      const source = this.container.dataset.source as any;
-      const lat = parseFloat(this.container.dataset.lat || '0');
-      const lng = parseFloat(this.container.dataset.lng || '0');
-      const scale = parseFloat(this.container.dataset.scale || '1.0');
-
       try {
         this.grid = await getElevationGrid({
-          source,
-          latitude: lat,
-          longitude: lng,
+          source: this.source as any,
+          latitude: this.lat,
+          longitude: this.lng,
           gridSize: this.gridSize,
-          scale,
+          scale: this.scale,
         });
       } catch {
         // Fallback handled in util
@@ -177,11 +209,10 @@ const {
         .map(() => Array(this.gridSize).fill(0));
 
       this.resize();
-      if (this.isVisible) {
-        this.animate();
-      } else {
+      if (this.grid.length > 0) {
         this.draw();
       }
+      this.motion?.kick();
     }
 
     resize() {
@@ -192,39 +223,38 @@ const {
       this.cellSize = Math.max(this.width, this.height) / (this.gridSize - 1);
     }
 
-    animate() {
+    stepFrame(deltaMs: number, state: CanvasMotionState) {
       if (this.destroyed || !document.contains(this.canvas)) {
         this.destroy();
         return;
       }
-      if (!this.isVisible) {
-        this.rafId = null;
-        return;
-      }
+      if (this.grid.length === 0) return;
+
+      const interpRate = Math.min(1, 0.1 * (deltaMs / 16.67) * state.speedMultiplier + 0.02);
       if (this.targetMouseX > -9000) {
-        this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
-        this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+        this.mouseX += (this.targetMouseX - this.mouseX) * interpRate;
+        this.mouseY += (this.targetMouseY - this.mouseY) * interpRate;
       }
 
-      this.updateRipples();
+      this.updateRipples(deltaMs, state);
       this.draw();
-      this.rafId = requestAnimationFrame(() => this.animate());
     }
 
-    updateRipples() {
+    updateRipples(deltaMs: number, state: CanvasMotionState) {
       const mouseCol = Math.floor(this.mouseX / this.cellSize);
       const mouseRow = Math.floor(this.mouseY / this.cellSize);
       const radius = 5;
+      const decay = Math.pow(0.95, Math.max(0.2, deltaMs / 16.67) * state.speedMultiplier);
 
       for (let y = 0; y < this.gridSize; y++) {
         for (let x = 0; x < this.gridSize; x++) {
-          this.rippleGrid[y][x] *= 0.95;
+          this.rippleGrid[y][x] *= decay;
 
           const dx = x - mouseCol;
           const dy = y - mouseRow;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < radius) {
-            this.rippleGrid[y][x] += (radius - dist) * 2;
+            this.rippleGrid[y][x] += (radius - dist) * 2 * state.cursorMultiplier;
           }
         }
       }
@@ -241,7 +271,7 @@ const {
       this.ctx.lineWidth = 1;
 
       const levels = 8;
-      const intensity = parseFloat(this.container.dataset.intensity || '1.0');
+      const intensity = Math.max(0.1, this.intensity);
 
       for (let l = 1; l <= levels; l++) {
         const threshold = l * (20 / intensity);
@@ -328,16 +358,10 @@ const {
     destroy() {
       if (this.destroyed) return;
       this.destroyed = true;
-      if (this.rafId !== null) {
-        cancelAnimationFrame(this.rafId);
-        this.rafId = null;
-      }
+      this.motion?.destroy();
+      this.motion = null;
       window.removeEventListener('resize', this.onResize);
       window.removeEventListener('mousemove', this.onMouseMove);
-      this.observer?.disconnect();
-      this.io?.disconnect();
-      this.observer = null;
-      this.io = null;
       this.container.removeAttribute('data-initialized');
     }
   }

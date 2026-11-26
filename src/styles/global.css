@@ -6,6 +6,7 @@
   --color-primary: #FF7D1A;
   --color-primary-rgb: 255, 125, 26;
   --font-sans: 'Raleway', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -97,6 +98,24 @@ body::-webkit-scrollbar {
   src: url('/fonts/raleway-v34-latin-500.woff2') format('woff2');
 }
 
+/* raleway-600 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/fonts/raleway-latin-600.woff2') format('woff2');
+}
+
+/* raleway-700 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/raleway-latin-700.woff2') format('woff2');
+}
+
 /* raleway-800 - latin */
 @font-face {
   font-display: swap;
@@ -104,4 +123,26 @@ body::-webkit-scrollbar {
   font-style: normal;
   font-weight: 800;
   src: url('/fonts/raleway-v34-latin-800.woff2') format('woff2');
+}
+
+/* jetbrains-mono-400 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/jetbrains-mono-latin-400.woff2') format('woff2');
+}
+
+/* jetbrains-mono-600 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/fonts/jetbrains-mono-latin-600.woff2') format('woff2');
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

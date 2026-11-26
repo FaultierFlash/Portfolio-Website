@@ -48,6 +48,8 @@ const {
 </style>
 
 <script>
+  import { createCanvasMotionController, type CanvasMotionController, type CanvasMotionState } from '../utils/canvasMotion';
+
   class Planet {
     name: string;
     distance: number;
@@ -145,7 +147,7 @@ const {
         ctx.stroke();
       }
 
-      ctx.font = '8px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.font = '8px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.4;
       ctx.textAlign = 'center';
@@ -178,15 +180,12 @@ const {
     speed = 1.0;
     gravityMultiplier = 1.0;
     zoom = 1.0;
+    integrator: 'symplectic' | 'euler' | 'rk4' = 'symplectic';
     color = '#FF7D1A';
     width = 0;
     height = 0;
-    lastTime = 0;
-    isRunning = false;
     destroyed = false;
-    rafId: number | null = null;
-    observer: MutationObserver | null = null;
-    io: IntersectionObserver | null = null;
+    motion: CanvasMotionController | null = null;
     onResize: () => void;
     onMouseMove: (e: MouseEvent) => void;
     onMouseDown: () => void;
@@ -219,32 +218,42 @@ const {
       window.addEventListener('mousedown', this.onMouseDown);
       window.addEventListener('mouseup', this.onMouseUp);
 
-      this.observer = new MutationObserver(() => this.updateColors());
-      this.observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-      });
-
       this.drawStaticFrame();
 
-      this.io = new IntersectionObserver(
-        (entries) => {
-          const isVisible = entries[0]?.isIntersecting ?? false;
-          if (isVisible && !this.isRunning && !this.destroyed) {
-            this.isRunning = true;
-            this.lastTime = performance.now();
-            this.rafId = requestAnimationFrame((t) => this.animate(t));
-          } else if (!isVisible && this.isRunning) {
-            this.isRunning = false;
-            if (this.rafId !== null) {
-              cancelAnimationFrame(this.rafId);
-              this.rafId = null;
-            }
+      this.motion = createCanvasMotionController(container, {
+        threshold: 0.05,
+        onThemeChange: () => {
+          this.updateColors();
+          if (this.motion?.getState().isPausedByUser) {
+            this.drawStaticFrame();
           }
         },
-        { threshold: 0.05 }
-      );
-      this.io.observe(container);
+        step: (nowMs, deltaMs, state) => this.stepFrame(nowMs, deltaMs, state),
+      });
+
+      (container as any).__solarController = {
+        setParams: (params: { speed?: number; gravityMultiplier?: number; zoom?: number; integrator?: 'symplectic' | 'euler' | 'rk4' }) => {
+          if (typeof params.speed === 'number') this.speed = Math.max(0.05, Math.min(10, params.speed));
+          if (typeof params.gravityMultiplier === 'number') this.gravityMultiplier = Math.max(0, Math.min(10, params.gravityMultiplier));
+          if (typeof params.zoom === 'number') {
+            this.zoom = Math.max(0.2, Math.min(5, params.zoom));
+          }
+          if (params.integrator) this.integrator = params.integrator;
+        },
+        reset: () => {
+          this.initPlanets();
+          this.initAsteroids();
+          this.drawStaticFrame();
+        },
+        togglePaused: () => this.motion?.togglePaused() ?? false,
+        getState: () => ({
+          speed: this.speed,
+          gravityMultiplier: this.gravityMultiplier,
+          zoom: this.zoom,
+          integrator: this.integrator,
+          motion: this.motion?.getState(),
+        }),
+      };
     }
 
     drawStaticFrame() {
@@ -281,7 +290,7 @@ const {
         const isDark = document.documentElement.classList.contains('dark');
         this.color = isDark ? '#e2e8f0' : '#475569';
       }
-      if (!this.isRunning && this.ctx) this.drawStaticFrame();
+      if (!this.motion?.getState().shouldAnimate && this.ctx) this.drawStaticFrame();
     }
 
     initPlanets() {
@@ -336,7 +345,7 @@ const {
       this.ctx.resetTransform();
       this.ctx.scale(dpr, dpr);
       this.initPlanets();
-      if (!this.isRunning && this.ctx) this.drawStaticFrame();
+      if (!this.motion?.getState().shouldAnimate && this.ctx) this.drawStaticFrame();
     }
 
     drawSpaceTimeGrid() {
@@ -395,18 +404,14 @@ const {
       this.ctx.globalAlpha = 1.0;
     }
 
-    animate(time: number) {
+    stepFrame(time: number, deltaMs: number, state: CanvasMotionState) {
       if (this.destroyed || !document.contains(this.canvas)) {
         this.destroy();
         return;
       }
-      if (!this.isRunning) {
-        this.rafId = null;
-        return;
-      }
 
-      const dt = Math.min((time - this.lastTime) / 1000, 0.1);
-      this.lastTime = time;
+      const dt = Math.min(deltaMs / 1000, 0.1) * state.speedMultiplier;
+      const effGravity = this.gravityMultiplier * state.cursorMultiplier;
 
       this.ctx.clearRect(0, 0, this.width, this.height);
 
@@ -425,7 +430,7 @@ const {
       this.ctx.stroke();
 
       for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2 + time * 0.0005;
+        const a = (i / 8) * Math.PI * 2 + time * 0.0005 * state.speedMultiplier;
         this.ctx.beginPath();
         this.ctx.moveTo(
           centerX + Math.cos(a) * 18 * this.zoom,
@@ -461,7 +466,7 @@ const {
             const mDistSq = dx * dx + dy * dy;
             const mDist = Math.sqrt(mDistSq);
             if (mDist < 600 && mDist > 0) {
-              const mouseK = 150000 * this.gravityMultiplier;
+              const mouseK = 150000 * effGravity;
               const mouseAccel = mouseK / (mDist + 50);
               p.ax += (dx / mDist) * mouseAccel;
               p.ay += (dy / mDist) * mouseAccel;
@@ -586,25 +591,17 @@ const {
       });
 
       this.ctx.globalAlpha = 1.0;
-      this.rafId = requestAnimationFrame((t) => this.animate(t));
     }
 
     destroy() {
       if (this.destroyed) return;
       this.destroyed = true;
-      this.isRunning = false;
-      if (this.rafId !== null) {
-        cancelAnimationFrame(this.rafId);
-        this.rafId = null;
-      }
+      this.motion?.destroy();
+      this.motion = null;
       window.removeEventListener('resize', this.onResize);
       window.removeEventListener('mousemove', this.onMouseMove);
       window.removeEventListener('mousedown', this.onMouseDown);
       window.removeEventListener('mouseup', this.onMouseUp);
-      this.observer?.disconnect();
-      this.io?.disconnect();
-      this.observer = null;
-      this.io = null;
       this.container.removeAttribute('data-initialized');
     }
   }

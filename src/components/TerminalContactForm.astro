@@ -127,9 +127,9 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 </div>
 
 <style is:global>
-  /* Apply Fira Code font specifically to the terminal wrapper */
   .component-terminal-wrapper {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-variant-numeric: tabular-nums;
   }
 
   /* Styles for the floating terminal window */
