@@ -1,10 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TextFadeIn from "./TextFadeIn.astro";
-import { urlFor } from "../lib/sanity";
-import { sanitizeHtml } from "../lib/html";
-import { marked } from "marked";
+import { getProjectContinuity, urlFor } from "../lib/sanity";
+import { renderTechnicalMarkdown } from "../lib/markdown";
 import type { Locale } from "../i18n/utils";
+import "katex/dist/katex.min.css";
 
 interface Props {
   lang: Locale;
@@ -22,13 +22,32 @@ const copy = isDe
       heroAltSuffix: "Titelbild",
       scrollDiscover: "Scrollen zum Entdecken",
       overview: "Projektübersicht",
+      specsHeading: "Technische Spezifikationen",
+      role: "Rolle",
+      timeline: "Zeitraum",
+      status: "Status",
+      stack: "Methoden & Stack",
+      outcome: "Ergebnis",
+      videos: "Prototyp & Flugtest-Medien",
+      cadHeading: "Interaktive 3D-CAD-Baugruppen",
+      cadHint: "Ziehen zum Drehen · Scrollen zum Zoomen",
+      cadReset: "Ansicht zurücksetzen",
+      tocHeading: "Inhalt",
       gallery: "Projektgalerie",
       documents: "Dokumente & Downloads",
       fileFallback: "DATEI",
+      relatedNotes: "Zugehörige Labor-Notizen",
+      prevProject: "Vorheriges Projekt",
+      nextProject: "Nächstes Projekt",
       nextSteps: "Nächste Schritte",
-      backAll: "Zurück zu allen Projekten",
+      backAll: "Alle Projekte",
       contactBtn: "Kontakt aufnehmen",
       visitLink: "Projekt besuchen",
+      repoLink: "Quellcode",
+      paperLink: "Dokumentation / Paper",
+      closeLightbox: "Schließen",
+      prevImg: "Vorheriges Bild",
+      nextImg: "Nächstes Bild",
     }
   : {
       published: "Published",
@@ -36,22 +55,74 @@ const copy = isDe
       heroAltSuffix: "hero image",
       scrollDiscover: "Scroll to discover",
       overview: "Project Overview",
+      specsHeading: "Technical Specifications",
+      role: "Role",
+      timeline: "Timeline",
+      status: "Status",
+      stack: "Methods & Stack",
+      outcome: "Outcome",
+      videos: "Prototype & Flight-Test Media",
+      cadHeading: "Interactive 3D CAD Assemblies",
+      cadHint: "Drag to orbit · Scroll to zoom",
+      cadReset: "Reset view",
+      tocHeading: "Contents",
       gallery: "Project Gallery",
       documents: "Documents & Downloads",
       fileFallback: "FILE",
+      relatedNotes: "Related Lab Notes",
+      prevProject: "Previous Project",
+      nextProject: "Next Project",
       nextSteps: "Next Steps",
-      backAll: "Back to all projects",
+      backAll: "All Projects",
       contactBtn: "Get in touch",
       visitLink: "Visit Project",
+      repoLink: "Source Repository",
+      paperLink: "Paper / Documentation",
+      closeLightbox: "Close",
+      prevImg: "Previous image",
+      nextImg: "Next image",
     };
 
-const parsedBody = projectData?.body
-  ? sanitizeHtml(marked.parse(projectData.body, { async: false }))
-  : "";
+const [{ html: parsedBody, toc }, continuity] = await Promise.all([
+  Promise.resolve(
+    projectData.body
+      ? renderTechnicalMarkdown(projectData.body)
+      : { html: "", toc: [] }
+  ),
+  slug
+    ? getProjectContinuity(slug, projectData.order, lang)
+    : Promise.resolve({ prevProject: null, nextProject: null, relatedLabEntries: [] }),
+]);
 
-const projectGallery = (projectData?.gallery || []).filter((img: any) => img?.asset);
+const { prevProject, nextProject, relatedLabEntries } = continuity;
 
-const projectDocuments = (projectData?.documents || []).filter(
+const projectMetrics = (Array.isArray(projectData.metrics) ? projectData.metrics : []).filter(
+  (m: any) => m?.value
+);
+
+const specs = projectData.specs || {};
+const customSpecs = (Array.isArray(projectData.customSpecs) ? projectData.customSpecs : []).filter(
+  (row: any) => row?.label && row?.value
+);
+const specEntries: { label: string; value: string; isStack?: boolean }[] = [];
+if (specs.role) specEntries.push({ label: copy.role, value: specs.role });
+if (specs.timeline) specEntries.push({ label: copy.timeline, value: specs.timeline });
+if (specs.status) specEntries.push({ label: copy.status, value: specs.status });
+if (specs.outcome) specEntries.push({ label: copy.outcome, value: specs.outcome });
+const stackItems: string[] = Array.isArray(specs.stack) ? specs.stack.filter(Boolean) : [];
+const hasSpecsSection = specEntries.length > 0 || stackItems.length > 0 || customSpecs.length > 0;
+
+const projectGallery = (projectData.gallery || []).filter((img: any) => img?.asset);
+
+const projectVideos = (Array.isArray(projectData.showcaseVideos) ? projectData.showcaseVideos : []).filter(
+  (v: any) => v?.videoUrl
+);
+
+const projectCadModels = (Array.isArray(projectData.cadModels) ? projectData.cadModels : []).filter(
+  (m: any) => m?.glbUrl
+);
+
+const projectDocuments = (projectData.documents || []).filter(
   (doc: any) => doc.url && (doc.language === "all" || doc.language === lang || !doc.language)
 );
 
@@ -102,13 +173,20 @@ const colors: Record<string, ColorClasses> = {
   },
 };
 
-const pc = colors[projectData?.accentColor || "primary"] || colors.primary;
-const projectOgImage = projectData?.mainImage
-  ? urlFor(projectData.mainImage).width(1200).height(630).fit("crop").auto("format").quality(85).url()
-  : undefined;
+const pc = colors[projectData.accentColor || "primary"] || colors.primary;
+
+const generatedOgFiles = import.meta.glob("/public/og/*.jpg");
+const hasCustomOg =
+  Boolean(slug) && Boolean(generatedOgFiles[`/public/og/${slug}.jpg`]);
+
+const projectOgImage = hasCustomOg
+  ? `/og/${slug}.jpg`
+  : projectData.mainImage
+    ? urlFor(projectData.mainImage).width(1200).height(630).fit("crop").auto("format").quality(85).url()
+    : undefined;
 
 const availableLocales: Locale[] =
-  Array.isArray(projectData?.languages) && projectData.languages.length > 0
+  Array.isArray(projectData.languages) && projectData.languages.length > 0
     ? projectData.languages
     : ["en", "de"];
 
@@ -118,7 +196,9 @@ const creativeWorkSchema = {
   name: projectData.title,
   description: projectData.description || "",
   url: `https://marlonmueller.eu/${lang}/projects/${encodeURIComponent(slug || "")}`,
-  ...(projectOgImage ? { image: projectOgImage } : {}),
+  ...(projectOgImage
+    ? { image: projectOgImage.startsWith("http") ? projectOgImage : `https://marlonmueller.eu${projectOgImage}` }
+    : {}),
   author: {
     "@type": "Person",
     name: "Marlon Müller",
@@ -132,52 +212,60 @@ const creativeWorkSchema = {
 ---
 
 <BaseLayout
-    title={projectData.title}
-    description={projectData.description}
-    image={projectOgImage}
-    backgroundEffect={projectData.backgroundEffect}
-    topographyConfig={projectData.topographyConfig}
-    solarConfig={projectData.solarConfig}
-    airflowConfig={projectData.airflowConfig}
-    accentColor={projectData.accentColor || "primary"}
-    availableLocales={availableLocales}
-    extraJsonLd={creativeWorkSchema}
-  >
-    <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
-      <div class="z-10 mt-16 max-w-5xl">
-        <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
-          <h1 class="text-5xl md:text-7xl font-extrabold mb-6 !leading-tight tracking-tight">
-            {projectData.title}
-          </h1>
-        </TextFadeIn>
+  title={projectData.title}
+  description={projectData.description}
+  image={projectOgImage}
+  backgroundEffect={projectData.backgroundEffect}
+  topographyConfig={projectData.topographyConfig}
+  solarConfig={projectData.solarConfig}
+  airflowConfig={projectData.airflowConfig}
+  accentColor={projectData.accentColor || "primary"}
+  availableLocales={availableLocales}
+  extraJsonLd={creativeWorkSchema}
+>
+  {/* Slim Reading Progress Bar */}
+  {toc.length >= 2 && (
+    <div id="project-read-progress" class="fixed top-[var(--header-height,60px)] left-0 h-[2px] z-[109] pointer-events-none transition-[width] duration-75" style="width: 0%; background-color: var(--color-project-accent, #FF7D1A);"></div>
+  )}
 
-        <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-950 dark:text-slate-100 text-sm md:text-base font-bold uppercase tracking-wider">
-          {projectData.publishDate && (
-            <time datetime={projectData.publishDate}>
-              {copy.published}:{" "}
-              {new Date(projectData.publishDate).toLocaleDateString(copy.localeCode, {
-                year: "numeric",
-                month: "long",
-              })}
-            </time>
-          )}
-          {projectData.tags && projectData.tags.length > 0 && (
-            <div class="flex flex-wrap justify-center gap-2">
-              {projectData.tags.map((tag: string) => (
-                <span class={`rounded-full px-3 py-1 text-xs font-semibold ${pc.tagBg}`}>
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+  <section class="project-hero-section relative flex flex-col items-center justify-center min-h-[100vh] w-full px-4 text-center">
+    <div class="z-10 mt-16 max-w-5xl">
+      <TextFadeIn targetSelectors="h1" blockStaggerDelay={0} baseDelay={50} wordDelay={35}>
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 !leading-tight tracking-tight">
+          {projectData.title}
+        </h1>
+      </TextFadeIn>
 
-        {projectData.link && (
-          <div class="mt-5 flex justify-center">
+      <div class="project-meta flex flex-wrap justify-center items-center gap-4 text-slate-950 dark:text-slate-100 text-sm md:text-base font-bold uppercase tracking-wider">
+        {projectData.publishDate && (
+          <time datetime={projectData.publishDate}>
+            {copy.published}:{" "}
+            {new Date(projectData.publishDate).toLocaleDateString(copy.localeCode, {
+              year: "numeric",
+              month: "long",
+            })}
+          </time>
+        )}
+        {projectData.tags && projectData.tags.length > 0 && (
+          <div class="flex flex-wrap justify-center gap-2">
+            {projectData.tags.map((tag: string) => (
+              <span class={`rounded-full px-3 py-1 text-xs font-semibold ${pc.tagBg}`}>
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Conditional Action Links (External URL / Repository / Paper) */}
+      {(projectData.link || specs.repoUrl || specs.paperUrl) && (
+        <div class="mt-5 flex flex-wrap justify-center gap-2.5">
+          {projectData.link && (
             <a
               href={projectData.link}
               target="_blank"
               rel="noopener noreferrer"
+              data-umami-event="project-external-link"
               class={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all ${pc.borderGhost}`}
             >
               <span>{copy.visitLink}</span>
@@ -187,143 +275,585 @@ const creativeWorkSchema = {
                 <line x1="10" y1="14" x2="21" y2="3"></line>
               </svg>
             </a>
-          </div>
-        )}
-      </div>
-
-      {projectData.mainImage && (
-        <div class="hero-image-container w-full max-w-6xl mt-12 z-10 px-4">
-          <img
-            src={urlFor(projectData.mainImage).width(1400).auto("format").quality(85).url()}
-            alt={projectData.mainImage.alt || `${projectData.title} ${copy.heroAltSuffix}`}
-            width="1400"
-            height="788"
-            fetchpriority="high"
-            decoding="async"
-            class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
-            style="max-height: 50vh;"
-          />
+          )}
+          {specs.repoUrl && (
+            <a
+              href={specs.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-umami-event="project-external-link"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-current transition-all"
+            >
+              <span>{copy.repoLink}</span>
+            </a>
+          )}
+          {specs.paperUrl && (
+            <a
+              href={specs.paperUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-umami-event="project-external-link"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-current transition-all"
+            >
+              <span>{copy.paperLink}</span>
+            </a>
+          )}
         </div>
       )}
 
-      <div class="absolute bottom-8 animate-bounce">
-        <p class="text-sm text-slate-900 dark:text-slate-400 font-bold uppercase tracking-widest mb-2">
-          {copy.scrollDiscover}
-        </p>
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={`mx-auto opacity-80 ${pc.text}`} aria-hidden="true">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <polyline points="19 12 12 19 5 12"></polyline>
-        </svg>
+      {/* Conditional KPI Metrics Strip */}
+      {projectMetrics.length > 0 && (
+        <div class="mt-6 flex flex-wrap justify-center gap-2.5 sm:gap-3">
+          {projectMetrics.slice(0, 4).map((m: any) => (
+            <div class="inline-flex flex-col items-center px-3.5 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md">
+              <span class="font-mono tabular-nums text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                {m.value}{m.unit ? ` ${m.unit}` : ""}
+              </span>
+              {m.label && (
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {m.label}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {projectData.mainImage && (
+      <div class="hero-image-container w-full max-w-6xl mt-10 z-10 px-4">
+        <img
+          src={urlFor(projectData.mainImage).width(1400).auto("format").quality(85).url()}
+          alt={projectData.mainImage.alt || `${projectData.title} ${copy.heroAltSuffix}`}
+          width="1400"
+          height="788"
+          fetchpriority="high"
+          decoding="async"
+          class="w-full rounded-2xl shadow-2xl object-cover glow-effect"
+          style="max-height: 50vh;"
+        />
       </div>
-    </section>
+    )}
 
-    <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl mx-auto px-4 py-20 max-w-4xl prose-headings:!text-slate-900 dark:prose-headings:!text-white prose-p:!text-slate-800 dark:prose-p:!text-slate-200 prose-li:!text-slate-800 dark:prose-li:!text-slate-200">
-      <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
-        {projectData.body ? (
-          <div class="markdown-content space-y-6" set:html={parsedBody} />
-        ) : (
-          <section class="content-section mb-10">
-            <h2 class="text-2xl md:text-3xl font-semibold mb-4">{copy.overview}</h2>
-            <p class="text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
-              {projectData.description}
-            </p>
-          </section>
-        )}
+    <div class="absolute bottom-8 animate-bounce">
+      <p class="text-sm text-slate-900 dark:text-slate-400 font-bold uppercase tracking-widest mb-2">
+        {copy.scrollDiscover}
+      </p>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={`mx-auto opacity-80 ${pc.text}`} aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <polyline points="19 12 12 19 5 12"></polyline>
+      </svg>
+    </div>
+  </section>
 
-        {projectGallery.length > 0 && (
-          <section class="gallery-section mt-12 mb-10 not-prose">
-            <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
-              {copy.gallery}
+  <div class="relative max-w-7xl mx-auto px-4">
+    <div class="flex items-start justify-center gap-10">
+      <article class="project-detail-page prose prose-slate dark:prose-invert prose-lg lg:prose-xl py-20 max-w-4xl w-full prose-headings:!text-slate-900 dark:prose-headings:!text-white prose-p:!text-slate-800 dark:prose-p:!text-slate-200 prose-li:!text-slate-800 dark:prose-li:!text-slate-200">
+        {/* Conditional Blueprint Specifications Header (only populated fields render) */}
+        {hasSpecsSection && (
+          <section class="specs-sheet not-prose mb-12 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/65 dark:bg-slate-900/65 backdrop-blur-md p-5 sm:p-6">
+            <h2 class="text-xs font-mono font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-4">
+              {copy.specsHeading}
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {projectGallery.map((img: any) => (
-                <figure class="group relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 transition-all hover:shadow-xl">
-                  <img
-                    src={urlFor(img).width(1200).auto("format").quality(85).url()}
-                    alt={img.alt || projectData.title}
-                    width="1200"
-                    height="768"
-                    loading="lazy"
-                    decoding="async"
-                    class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                  {img.caption && (
-                    <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-400 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
-                      {img.caption}
-                    </figcaption>
-                  )}
-                </figure>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {specEntries.map((entry) => (
+                <div class="border-l-2 pl-3" style="border-color: var(--color-project-accent-border, rgba(255,125,26,0.45));">
+                  <dt class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {entry.label}
+                  </dt>
+                  <dd class="text-sm font-semibold text-slate-900 dark:text-slate-100 mt-0.5">
+                    {entry.value}
+                  </dd>
+                </div>
               ))}
-            </div>
-          </section>
-        )}
-
-        {projectDocuments && projectDocuments.length > 0 && (
-          <section class="documents-section mt-12 mb-10 not-prose">
-            <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
-              {copy.documents}
-            </h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {projectDocuments.map((doc: any) => (
-                <a
-                  href={`${doc.url}?dl=${encodeURIComponent(doc.originalFilename || doc.title)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-start gap-4 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all hover:shadow-md group"
-                >
-                  <div class="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 font-bold uppercase text-xs font-mono">
-                    {doc.extension || copy.fileFallback}
-                  </div>
-                  <div class="flex-grow min-w-0">
-                    <div class="flex items-center justify-between gap-2">
-                      <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
-                        {doc.title}
-                      </h3>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-primary transition-transform group-hover:translate-y-0.5 flex-shrink-0" aria-hidden="true">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
-                    </div>
-                    {doc.description && (
-                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                        {doc.description}
-                      </p>
-                    )}
-                    {doc.size && (
-                      <span class="inline-block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">
-                        {formatFileSize(doc.size)}
+              {customSpecs.map((row: any) => (
+                <div class="border-l-2 pl-3" style="border-color: var(--color-project-accent-border, rgba(255,125,26,0.45));">
+                  <dt class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {row.label}
+                  </dt>
+                  <dd class="text-sm font-semibold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+              {stackItems.length > 0 && (
+                <div class="sm:col-span-2 border-l-2 pl-3" style="border-color: var(--color-project-accent-border, rgba(255,125,26,0.45));">
+                  <dt class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    {copy.stack}
+                  </dt>
+                  <dd class="flex flex-wrap gap-1.5">
+                    {stackItems.map((tech: string) => (
+                      <span class="px-2.5 py-0.5 rounded-md text-xs font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700">
+                        {tech}
                       </span>
-                    )}
-                  </div>
-                </a>
-              ))}
-            </div>
+                    ))}
+                  </dd>
+                </div>
+              )}
+            </dl>
           </section>
         )}
 
-        <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800">
-          <h2 class="text-2xl md:text-3xl font-semibold mb-4 text-center w-full">
-            {copy.nextSteps}
-          </h2>
-          <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-8 not-prose">
-            <a
-              href={`/${lang}/projects`}
-              class={`px-6 py-3 border rounded-lg transition-colors font-semibold ${pc.borderGhost}`}
-            >
-              &larr; {copy.backAll}
-            </a>
-            <a
-              href={`/${lang}/contact`}
-              class={`px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all font-semibold focus:ring-4 ${pc.btn}`}
-            >
-              {copy.contactBtn}
-            </a>
-          </div>
-        </section>
-      </TextFadeIn>
-    </article>
-  </BaseLayout>
+        <TextFadeIn targetSelectors="h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>
+          {projectData.body ? (
+            <div class="markdown-content space-y-6" set:html={parsedBody} />
+          ) : (
+            <section class="content-section mb-10">
+              <h2 class="text-2xl md:text-3xl font-semibold mb-4">{copy.overview}</h2>
+              <p class="text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+                {projectData.description}
+              </p>
+            </section>
+          )}
+
+          {/* Conditional Prototype Videos */}
+          {projectVideos.length > 0 && (
+            <section class="videos-section mt-12 mb-10 not-prose">
+              <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+                {copy.videos}
+              </h2>
+              <div class="grid grid-cols-1 gap-6">
+                {projectVideos.map((vid: any) => (
+                  <figure class="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-950">
+                    <video
+                      src={vid.videoUrl}
+                      poster={vid.poster ? urlFor(vid.poster).width(1280).auto("format").quality(85).url() : undefined}
+                      controls
+                      playsinline
+                      preload="metadata"
+                      autoplay={vid.autoplayLoop !== false}
+                      loop={vid.autoplayLoop !== false}
+                      muted={vid.autoplayLoop !== false}
+                      class="w-full aspect-video object-cover"
+                    ></video>
+                    {vid.caption && (
+                      <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-300 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80">
+                        {vid.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Conditional 3D CAD Inspection Viewport */}
+          {projectCadModels.length > 0 && (
+            <section class="cad-section mt-12 mb-10 not-prose">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
+                  {copy.cadHeading}
+                </h2>
+                <span class="font-mono text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {copy.cadHint}
+                </span>
+              </div>
+              <div class="space-y-6">
+                {projectCadModels.map((model: any, idx: number) => (
+                  <figure class="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/70 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70">
+                      <span class="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">
+                        {model.title || `CAD-0${idx + 1}.glb`}
+                      </span>
+                      <button
+                        type="button"
+                        class="cad-reset-btn font-mono text-[11px] uppercase tracking-wider px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700 hover:border-primary text-slate-600 dark:text-slate-300 hover:text-primary transition-colors cursor-pointer"
+                        data-cad-index={idx}
+                        data-initial-orbit={model.initialOrbit || "auto auto auto"}
+                      >
+                        {copy.cadReset}
+                      </button>
+                    </div>
+                    <div class="relative w-full h-[380px] sm:h-[440px]">
+                      <model-viewer
+                        id={`cad-viewer-${idx}`}
+                        src={model.glbUrl}
+                        alt={model.title || projectData.title}
+                        camera-controls
+                        shadow-intensity="0.8"
+                        touch-action="pan-y"
+                        camera-orbit={model.initialOrbit || "auto auto auto"}
+                        data-umami-event="cad-model-interact"
+                        class="w-full h-full block bg-transparent"
+                      ></model-viewer>
+                    </div>
+                    {model.caption && (
+                      <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-400 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60">
+                        {model.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Gallery Section with Lightbox Trigger */}
+          {projectGallery.length > 0 && (
+            <section class="gallery-section mt-12 mb-10 not-prose">
+              <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+                {copy.gallery}
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {projectGallery.map((img: any, gIdx: number) => {
+                  const fullSrc = urlFor(img).width(1800).auto("format").quality(90).url();
+                  const thumbSrc = urlFor(img).width(1200).auto("format").quality(85).url();
+                  return (
+                    <figure class="group relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 transition-all hover:shadow-xl">
+                      <button
+                        type="button"
+                        class="open-lightbox-btn block w-full text-left cursor-zoom-in relative focus:outline-none focus:ring-2 focus:ring-primary"
+                        data-lb-index={gIdx}
+                        data-lb-src={fullSrc}
+                        data-lb-alt={img.alt || projectData.title}
+                        data-lb-caption={img.caption || ""}
+                        aria-label={`${img.caption || img.alt || projectData.title} (${gIdx + 1}/${projectGallery.length})`}
+                      >
+                        <img
+                          src={thumbSrc}
+                          alt={img.alt || projectData.title}
+                          width="1200"
+                          height="768"
+                          loading="lazy"
+                          decoding="async"
+                          class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        />
+                        <span class="pointer-events-none absolute top-2.5 right-2.5 w-7 h-7 rounded-lg bg-slate-950/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                        </span>
+                      </button>
+                      {img.caption && (
+                        <figcaption class="p-3 text-xs text-slate-600 dark:text-slate-400 font-medium italic border-t border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+                          {img.caption}
+                        </figcaption>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Documents Section */}
+          {projectDocuments && projectDocuments.length > 0 && (
+            <section class="documents-section mt-12 mb-10 not-prose">
+              <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+                {copy.documents}
+              </h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {projectDocuments.map((doc: any) => (
+                  <a
+                    href={`${doc.url}?dl=${encodeURIComponent(doc.originalFilename || doc.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-start gap-4 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all hover:shadow-md group"
+                  >
+                    <div class="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 font-bold uppercase text-xs font-mono">
+                      {doc.extension || copy.fileFallback}
+                    </div>
+                    <div class="flex-grow min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
+                          {doc.title}
+                        </h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-primary transition-transform group-hover:translate-y-0.5 flex-shrink-0" aria-hidden="true">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                      </div>
+                      {doc.description && (
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                          {doc.description}
+                        </p>
+                      )}
+                      {doc.size && (
+                        <span class="inline-block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">
+                          {formatFileSize(doc.size)}
+                        </span>
+                      )}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Conditional Related Lab Notes (only when notes enabled AND linked entries exist) */}
+          {relatedLabEntries.length > 0 && (
+            <section class="related-notes-section mt-12 mb-10 not-prose">
+              <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-900 dark:text-white">
+                {copy.relatedNotes}
+              </h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {relatedLabEntries.map((entry: any) => (
+                  <a
+                    href={`/${lang}/notes#${entry.slug?.current || ""}`}
+                    class="flex flex-col justify-between gap-2 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/55 dark:bg-slate-900/55 hover:border-primary/60 transition-all"
+                  >
+                    <div class="flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <span>{entry.category || "NOTE"}</span>
+                      {entry.date && <span>{entry.date}</span>}
+                    </div>
+                    <span class="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {entry.title}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Case Study Continuity Footer */}
+          <section class="content-section mb-10 pt-10 border-t border-gray-200 dark:border-gray-800 not-prose">
+            {(prevProject || nextProject) && (
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                {prevProject ? (
+                  <a
+                    href={`/${lang}/projects/${prevProject.slug?.current || ""}`}
+                    class="group flex flex-col gap-1 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-primary/60 transition-all text-left"
+                  >
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      &larr; {copy.prevProject}
+                    </span>
+                    <span class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                      {prevProject.title}
+                    </span>
+                  </a>
+                ) : (
+                  <div class="hidden sm:block" />
+                )}
+                {nextProject && (
+                  <a
+                    href={`/${lang}/projects/${nextProject.slug?.current || ""}`}
+                    class="group flex flex-col gap-1 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-primary/60 transition-all text-right sm:items-end"
+                  >
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      {copy.nextProject} &rarr;
+                    </span>
+                    <span class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                      {nextProject.title}
+                    </span>
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <a
+                href={`/${lang}/projects`}
+                class={`px-6 py-3 border rounded-lg transition-colors font-semibold ${pc.borderGhost}`}
+              >
+                &larr; {copy.backAll}
+              </a>
+              <a
+                href={`/${lang}/contact`}
+                class={`px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all font-semibold focus:ring-4 ${pc.btn}`}
+              >
+                {copy.contactBtn}
+              </a>
+            </div>
+          </section>
+        </TextFadeIn>
+      </article>
+
+      {/* Sticky Blueprint TOC (only on xl+ and >= 2 headings) */}
+      {toc.length >= 2 && (
+        <aside class="hidden xl:block w-56 shrink-0 pt-24 sticky top-6 self-start">
+          <nav aria-label={copy.tocHeading} class="border-l border-slate-200 dark:border-slate-800 pl-4 space-y-2">
+            <div class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-3">
+              {copy.tocHeading}
+            </div>
+            <ul class="space-y-1.5 text-xs">
+              {toc.map((item) => (
+                <li class={item.level === 3 ? "pl-3" : ""}>
+                  <a
+                    href={`#${item.id}`}
+                    class="toc-link block py-0.5 text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors line-clamp-2"
+                  >
+                    {item.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+      )}
+    </div>
+  </div>
+
+  {/* Restrained Gallery Lightbox Dialog */}
+  {projectGallery.length > 0 && (
+    <dialog
+      id="project-lightbox"
+      aria-label={copy.gallery}
+      class="fixed inset-0 m-auto max-w-[94vw] max-h-[92vh] w-full sm:w-[960px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 text-slate-900 dark:text-slate-100 p-0 backdrop:bg-slate-950/80 backdrop:backdrop-blur-sm shadow-2xl overflow-hidden"
+    >
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+        <span id="lb-counter" class="font-mono tabular-nums text-xs font-bold text-slate-500 dark:text-slate-400">
+          01 / {String(projectGallery.length).padStart(2, "0")}
+        </span>
+        <div class="flex items-center gap-2">
+          {projectGallery.length > 1 && (
+            <>
+              <button
+                type="button"
+                id="lb-prev"
+                aria-label={copy.prevImg}
+                class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary flex items-center justify-center transition-colors cursor-pointer"
+              >
+                &larr;
+              </button>
+              <button
+                type="button"
+                id="lb-next"
+                aria-label={copy.nextImg}
+                class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary flex items-center justify-center transition-colors cursor-pointer"
+              >
+                &rarr;
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            id="lb-close"
+            aria-label={copy.closeLightbox}
+            class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary font-mono text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            ESC
+          </button>
+        </div>
+      </div>
+      <div class="p-3 sm:p-5 flex flex-col items-center justify-center bg-slate-100/50 dark:bg-slate-900/50">
+        <img id="lb-img" src="" alt="" class="max-h-[70vh] w-auto max-w-full rounded-xl object-contain" />
+      </div>
+      <p id="lb-caption" class="px-4 py-3 text-xs sm:text-sm text-center text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 hidden"></p>
+    </dialog>
+  )}
+</BaseLayout>
+
+{projectCadModels.length > 0 && (
+  <script type="module" is:inline>
+    import 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js';
+  </script>
+)}
+
+<script>
+  let cleanupProjectDetail: (() => void) | null = null;
+
+  function initProjectDetail() {
+    if (cleanupProjectDetail) {
+      cleanupProjectDetail();
+      cleanupProjectDetail = null;
+    }
+
+    const cleanups: Array<() => void> = [];
+
+    // 1. Reading progress bar
+    const progressEl = document.getElementById("project-read-progress");
+    if (progressEl) {
+      const onScroll = () => {
+        const docH = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        const pct = Math.max(0, Math.min(100, (window.scrollY / docH) * 100));
+        progressEl.style.width = `${pct.toFixed(1)}%`;
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+      cleanups.push(() => window.removeEventListener("scroll", onScroll));
+    }
+
+    // 2. Restrained Gallery Lightbox
+    const dialog = document.getElementById("project-lightbox") as HTMLDialogElement | null;
+    const triggers = Array.from(document.querySelectorAll(".open-lightbox-btn")) as HTMLElement[];
+    if (dialog && triggers.length > 0) {
+      const lbImg = document.getElementById("lb-img") as HTMLImageElement | null;
+      const lbCap = document.getElementById("lb-caption");
+      const lbCounter = document.getElementById("lb-counter");
+      const prevBtn = document.getElementById("lb-prev");
+      const nextBtn = document.getElementById("lb-next");
+      const closeBtn = document.getElementById("lb-close");
+      let currentIndex = 0;
+
+      const showSlide = (idx: number) => {
+        const wrapped = (idx + triggers.length) % triggers.length;
+        currentIndex = wrapped;
+        const t = triggers[wrapped];
+        if (!t || !lbImg) return;
+        lbImg.src = t.dataset.lbSrc || "";
+        lbImg.alt = t.dataset.lbAlt || "";
+        if (lbCounter) {
+          lbCounter.textContent = `${String(wrapped + 1).padStart(2, "0")} / ${String(triggers.length).padStart(2, "0")}`;
+        }
+        if (lbCap) {
+          const cap = t.dataset.lbCaption || "";
+          lbCap.textContent = cap;
+          lbCap.classList.toggle("hidden", !cap);
+        }
+      };
+
+      triggers.forEach((btn, idx) => {
+        const onClick = () => {
+          showSlide(idx);
+          if (!dialog.open) dialog.showModal();
+        };
+        btn.addEventListener("click", onClick);
+        cleanups.push(() => btn.removeEventListener("click", onClick));
+      });
+
+      const onPrev = () => showSlide(currentIndex - 1);
+      const onNext = () => showSlide(currentIndex + 1);
+      const onClose = () => dialog.close();
+      const onBackdrop = (e: MouseEvent) => {
+        if (e.target === dialog) dialog.close();
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (!dialog.open) return;
+        if (e.key === "ArrowLeft") onPrev();
+        else if (e.key === "ArrowRight") onNext();
+      };
+
+      prevBtn?.addEventListener("click", onPrev);
+      nextBtn?.addEventListener("click", onNext);
+      closeBtn?.addEventListener("click", onClose);
+      dialog.addEventListener("click", onBackdrop);
+      document.addEventListener("keydown", onKey);
+      cleanups.push(() => {
+        prevBtn?.removeEventListener("click", onPrev);
+        nextBtn?.removeEventListener("click", onNext);
+        closeBtn?.removeEventListener("click", onClose);
+        dialog.removeEventListener("click", onBackdrop);
+        document.removeEventListener("keydown", onKey);
+      });
+    }
+
+    // 3. CAD Reset camera buttons
+    document.querySelectorAll(".cad-reset-btn").forEach((btn) => {
+      const onReset = () => {
+        const idx = (btn as HTMLElement).dataset.cadIndex;
+        const orbit = (btn as HTMLElement).dataset.initialOrbit || "auto auto auto";
+        const viewer = document.getElementById(`cad-viewer-${idx}`) as any;
+        if (viewer) {
+          viewer.cameraOrbit = orbit;
+          if (typeof viewer.jumpCameraToGoal === "function") viewer.jumpCameraToGoal();
+        }
+      };
+      btn.addEventListener("click", onReset);
+      cleanups.push(() => btn.removeEventListener("click", onReset));
+    });
+
+    cleanupProjectDetail = () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }
+
+  document.addEventListener("astro:page-load", initProjectDetail);
+  document.addEventListener("astro:before-swap", () => {
+    if (cleanupProjectDetail) {
+      cleanupProjectDetail();
+      cleanupProjectDetail = null;
+    }
+  });
+</script>
 
 <style>
   .glow-effect {

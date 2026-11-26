@@ -1,6 +1,7 @@
 # build output
 dist/
 public/studio/
+public/og/
 public/Marlon_Hendrik_Mueller_CV.pdf
 public/Marlon_Hendrik_Mueller_Lebenslauf.pdf
 

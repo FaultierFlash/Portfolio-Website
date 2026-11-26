@@ -191,6 +191,33 @@ export async function getProjectBySlug(slug: string | undefined, locale: string)
   return await sanityClient.fetch(query, { slug, lang: locale });
 }
 
+export async function getProjectContinuity(slug: string, currentOrder: number | undefined, locale: string) {
+  const query = `{
+    "all": *[_type == "project" && $lang in languages] | order(order asc) {
+      title,
+      slug,
+      accentColor,
+      order
+    },
+    "notesEnabled": *[_type == "notesSettings"][0].enabled == true,
+    "relatedLabEntries": *[_type == "labEntry" && status == "published" && relatedProject->slug.current == $slug && (!defined(language) || language == $lang)] | order(date desc)[0...4] {
+      title,
+      slug,
+      date,
+      category
+    }
+  }`;
+  const res = await sanityClient.fetch(query, { slug, lang: locale });
+  const list: any[] = res?.all || [];
+  const idx = list.findIndex((p: any) => p?.slug?.current === slug);
+  const prevProject = idx > 0 ? list[idx - 1] : null;
+  const nextProject = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null;
+  const notesEnabled = res?.notesEnabled === true;
+  const relatedLabEntries = notesEnabled ? (res?.relatedLabEntries || []) : [];
+  void currentOrder;
+  return { prevProject, nextProject, relatedLabEntries };
+}
+
 export async function getBooks() {
   const query = `*[_type == "book"] | order(coalesce(sortDate, "0000-00-00") desc) {
     title,

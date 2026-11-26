@@ -164,6 +164,169 @@ export const project = defineType({
             type: 'url',
         }),
         defineField({
+            name: 'metrics',
+            title: 'Key Metrics / KPIs (Optional)',
+            type: 'array',
+            description: 'Up to 4 quantitative highlights shown on featured slides and project headers (omitted if empty).',
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        {
+                            name: 'label',
+                            title: 'Metric Label',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                        { name: 'value', title: 'Value', type: 'string' },
+                        { name: 'unit', title: 'Unit (Optional)', type: 'string' },
+                    ],
+                    preview: {
+                        select: { label: 'label.en', value: 'value', unit: 'unit' },
+                        prepare({ label, value, unit }) {
+                            return { title: `${value || ''} ${unit || ''}`.trim() || 'Metric', subtitle: label || '' }
+                        },
+                    },
+                },
+            ],
+        }),
+        defineField({
+            name: 'specs',
+            title: 'Technical Specifications (Optional)',
+            type: 'object',
+            description: 'Every sub-field is optional; only populated entries appear on the project page.',
+            options: { collapsible: true, collapsed: true },
+            fields: [
+                {
+                    name: 'role',
+                    title: 'Role & Ownership',
+                    type: 'object',
+                    fields: [
+                        { name: 'en', title: 'English', type: 'string' },
+                        { name: 'de', title: 'German', type: 'string' },
+                    ],
+                },
+                { name: 'timeline', title: 'Timeline / Period', type: 'string' },
+                {
+                    name: 'status',
+                    title: 'Project Status',
+                    type: 'object',
+                    fields: [
+                        { name: 'en', title: 'English', type: 'string' },
+                        { name: 'de', title: 'German', type: 'string' },
+                    ],
+                },
+                { name: 'stack', title: 'Core Stack / Methods', type: 'array', of: [{ type: 'string' }], options: { layout: 'tags' } },
+                {
+                    name: 'outcome',
+                    title: 'Key Outcome / Validation',
+                    type: 'object',
+                    fields: [
+                        { name: 'en', title: 'English', type: 'string' },
+                        { name: 'de', title: 'German', type: 'string' },
+                    ],
+                },
+                { name: 'repoUrl', title: 'Source Repository URL', type: 'url' },
+                { name: 'paperUrl', title: 'Paper / Documentation URL', type: 'url' },
+            ],
+        }),
+        defineField({
+            name: 'customSpecs',
+            title: 'Custom Specification Rows (Optional)',
+            type: 'array',
+            description: 'Add arbitrary domain-specific rows (e.g. Airfoil, Mass Budget, Sensors).',
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        {
+                            name: 'label',
+                            title: 'Label',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                        {
+                            name: 'value',
+                            title: 'Value',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                    ],
+                    preview: {
+                        select: { title: 'label.en', subtitle: 'value.en' },
+                    },
+                },
+            ],
+        }),
+        defineField({
+            name: 'showcaseVideos',
+            title: 'Prototype / Flight-Test Videos (Optional)',
+            type: 'array',
+            description: 'Upload short MP4/WebM prototype loops or link an external video asset.',
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        { name: 'videoFile', title: 'Video File (MP4/WebM)', type: 'file', options: { accept: 'video/mp4,video/webm' } },
+                        { name: 'videoUrl', title: 'Or External Video URL', type: 'url' },
+                        { name: 'poster', title: 'Poster Frame (Optional)', type: 'image', options: { hotspot: true } },
+                        {
+                            name: 'caption',
+                            title: 'Caption',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                        { name: 'autoplayLoop', title: 'Muted Autoplay Loop?', type: 'boolean', initialValue: true },
+                    ],
+                },
+            ],
+        }),
+        defineField({
+            name: 'cadModels',
+            title: '3D CAD Assemblies (.glb / .gltf, Optional)',
+            type: 'array',
+            description: 'Upload exported .glb/.gltf prototype CAD models for interactive 3D orbit inspection.',
+            of: [
+                {
+                    type: 'object',
+                    fields: [
+                        { name: 'glbFile', title: '3D Model (.glb / .gltf)', type: 'file', options: { accept: '.glb,.gltf,model/gltf-binary,model/gltf+json' }, validation: (rule) => rule.required() },
+                        {
+                            name: 'title',
+                            title: 'Model Title',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                        {
+                            name: 'caption',
+                            title: 'Caption',
+                            type: 'object',
+                            fields: [
+                                { name: 'en', title: 'English', type: 'string' },
+                                { name: 'de', title: 'German', type: 'string' },
+                            ],
+                        },
+                        { name: 'initialOrbit', title: 'Initial Camera Orbit (Optional)', type: 'string', description: 'e.g. "45deg 65deg 105%"' },
+                    ],
+                },
+            ],
+        }),
+        defineField({
             name: 'backgroundEffect',
             title: 'Background Effect',
             type: 'string',
