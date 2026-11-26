@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install website dependencies
+        run: npm ci
+
+      - name: Lint website
+        run: npm run lint
+
+      - name: Typecheck Astro & TypeScript
+        run: npm run typecheck
+
+      - name: Build Astro SSR bundle
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+        run: npx astro build
+
+      - name: Install Sanity Studio dependencies
+        run: npm ci --legacy-peer-deps --prefix personal-website
+
+      - name: Lint Sanity Studio
+        run: npm run lint --prefix personal-website
+
+      - name: Build Sanity Studio
+        run: npm run build --prefix personal-website

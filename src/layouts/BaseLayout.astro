@@ -250,6 +250,17 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   "@type": "BreadcrumbList",
   "itemListElement": breadcrumbItems,
 } : null;
+
+const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID?.trim() || "";
+const requestHost = Astro.url.hostname.toLowerCase();
+const isNonProdRuntime =
+  !import.meta.env.PROD ||
+  requestHost === "localhost" ||
+  requestHost === "127.0.0.1" ||
+  requestHost.endsWith(".netlify.app") ||
+  process.env.CONTEXT === "deploy-preview" ||
+  process.env.CONTEXT === "branch-deploy";
+const shouldLoadUmami = Boolean(umamiWebsiteId) && !isNonProdRuntime;
 ---
 
 <!doctype html>
@@ -319,6 +330,9 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
     <ThemeScript />
     {/* Critical for preventing FOUC for theme */}
     <ClientRouter />
+    {shouldLoadUmami && (
+      <script is:inline defer src="https://cloud.umami.is/script.js" data-website-id={umamiWebsiteId}></script>
+    )}
     <script is:inline define:vars={{ accentColorMap: JSON.stringify(accentColorMap) }}>
       // Expose color map globally so homepage scroll JS can update the accent vars
       window.__accentColorMap = JSON.parse(accentColorMap);
