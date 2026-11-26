@@ -347,25 +347,126 @@ sortedTimelineItems.forEach((item: any, pIdx: number) => {
     }
 });
 mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+const defaultCredibilityBar = 'B.Sc. Engineering Science @ TUM | Co-Founder @ Odonatum e.V. | Studienstiftung';
+const credibilityRaw: string = homeData?.credibilityBar || defaultCredibilityBar;
+const credibilitySegments: string[] = credibilityRaw.split('|').map((s: string) => s.trim()).filter(Boolean);
+
+const categoryLabels: Record<string, { en: string; de: string }> = {
+  engineering: { en: 'Engineering', de: 'Ingenieurwesen' },
+  research: { en: 'Research & Honors', de: 'Forschung & Stipendien' },
+  software: { en: 'Software', de: 'Software' },
+  venture: { en: 'Venture', de: 'Gründung' },
+};
+const timelineCategories: string[] = Array.from(
+  new Set(timelineItems.map((it: any) => it.category).filter(Boolean))
+) as string[];
+
+const cvPdfHref = lang === 'de' ? '/Marlon_Hendrik_Mueller_Lebenslauf.pdf' : '/Marlon_Hendrik_Mueller_CV.pdf';
+
+interface CadRailItem {
+  id: string;
+  num: string;
+  label: string;
+  isTimeline?: boolean;
+}
+const cadRailItems: CadRailItem[] = [
+  { id: 'hero-section', num: '00', label: lang === 'de' ? 'Start' : 'Hero' },
+];
+if (timelineItems.length > 0) {
+  cadRailItems.push({ id: 'timeline', num: String(cadRailItems.length).padStart(2, '0'), label: lang === 'de' ? 'Reise' : 'Journey', isTimeline: true });
+}
+featuredProjects.forEach((p: any, idx: number) => {
+  cadRailItems.push({
+    id: `featured-${idx}`,
+    num: String(cadRailItems.length).padStart(2, '0'),
+    label: p.title || `Project ${idx + 1}`,
+  });
+});
+if (showSpinWheel && nonFeaturedProjects.length > 0) {
+  cadRailItems.push({ id: 'wheel-section', num: String(cadRailItems.length).padStart(2, '0'), label: lang === 'de' ? 'Roulette' : 'More' });
+}
+cadRailItems.push({ id: 'contact-section', num: String(cadRailItems.length).padStart(2, '0'), label: lang === 'de' ? 'Kontakt' : 'Contact' });
 ---
 
 <BaseLayout hidePageScrollbar={true} showFooter={false} overrides={overrides} projects={allProjects}>
+  {/* Right-Edge CAD Elevation & Integrated Timeline Progress Rail (Desktop) */}
+  <nav
+    id="cad-elevation-rail"
+    aria-label={lang === 'de' ? 'Abschnitts-Navigation' : 'Section elevation navigation'}
+    class="hidden md:flex fixed right-3 lg:right-5 top-1/2 -translate-y-1/2 z-[65] flex-col items-end gap-1.5 pointer-events-auto select-none"
+  >
+    <div class="flex flex-col items-end gap-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/75 dark:bg-slate-950/75 backdrop-blur-md px-2 py-2.5 shadow-sm">
+      {cadRailItems.map((sec, idx) => (
+        <div class="cad-rail-entry flex flex-col items-end w-full" data-rail-target={sec.id} data-rail-idx={idx}>
+          <button
+            type="button"
+            class="cad-rail-btn group flex items-center justify-end gap-2 px-1.5 py-1 rounded-md text-right transition-all cursor-pointer w-full"
+            data-target-id={sec.id}
+            aria-label={`${sec.num} ${sec.label}`}
+          >
+            <span class="cad-rail-label hidden xl:inline-block max-w-[110px] truncate text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+              {sec.label}
+            </span>
+            <span class="font-mono tabular-nums text-[10px] font-bold text-slate-400 dark:text-slate-500 group-hover:text-primary transition-colors">
+              {sec.num}
+            </span>
+            <span class="cad-rail-tick w-3 h-[2px] rounded-full bg-slate-300 dark:bg-slate-700 group-hover:w-5 group-hover:bg-primary transition-all"></span>
+          </button>
+
+          {sec.isTimeline && (
+            <div
+              id="cad-rail-timeline-sync"
+              class="cad-rail-timeline-sub overflow-hidden max-h-0 opacity-0 transition-all duration-300 w-full pr-1.5"
+              aria-hidden="true"
+            >
+              <div class="mt-1 mb-1.5 pl-1.5 border-r-2 border-primary/50 pr-2 flex flex-col items-end gap-1">
+                <div class="flex items-center gap-1.5 font-mono tabular-nums text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                  <span>{startYear}</span>
+                  <span class="text-primary" id="cad-rail-tl-pct">0%</span>
+                  <span>{endYear}</span>
+                </div>
+                <div class="w-20 h-1 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div id="cad-rail-tl-bar" class="h-full bg-primary rounded-full transition-all duration-150" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </nav>
+
   <div class="scroll-container">
     {/* Section 1: Introduction */}
-    <section class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
+    <section id="hero-section" class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
         config={(homeData?.backgroundEffect === 'solar' || homeData?.backgroundEffect === 'stars') ? homeData?.solarConfig : homeData?.backgroundEffect === 'airflow' ? homeData?.airflowConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
       
-      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 pb-14 md:py-0">
-        <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-1.5 md:mb-6 tracking-tight">
+      <div class="z-10 text-center px-4 max-w-4xl w-full flex-1 flex flex-col items-center justify-center pt-2 sm:pt-4 pb-16 md:py-0">
+        <h1 class="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-1.5 md:mb-4 tracking-tight">
           {homeData?.heroTitle || t("page.home.title")}
         </h1>
-        <p class="text-base sm:text-lg md:text-2xl mb-3 md:mb-8 font-bold opacity-90">
+        <p class="text-base sm:text-lg md:text-2xl mb-2 md:mb-4 font-bold opacity-90">
           {homeData?.heroSubtitle || t("page.home.description")}
         </p>
+
+        {/* Credibility & Affiliation Micro-Bar */}
+        {credibilitySegments.length > 0 && (
+          <div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 mb-3 md:mb-6 font-mono text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-300 tracking-wide">
+            {credibilitySegments.map((seg, i) => (
+              <Fragment>
+                <span>{seg}</span>
+                {i < credibilitySegments.length - 1 && (
+                  <span aria-hidden="true" class="text-slate-400 dark:text-slate-600 font-normal select-none">|</span>
+                )}
+              </Fragment>
+            ))}
+          </div>
+        )}
 
         {homeData?.profileImage && (
           <img
@@ -375,19 +476,57 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
             height="224"
             fetchpriority="high"
             decoding="async"
-            class="mx-auto rounded-full w-28 h-28 sm:w-36 sm:h-36 md:w-56 md:h-56 object-cover shadow-2xl mb-2.5 md:mb-8 border-4 border-white dark:border-gray-800"
+            class="mx-auto rounded-full w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 object-cover shadow-2xl mb-2.5 md:mb-6 border-4 border-white dark:border-gray-800"
           />
         )}
 
         {homeData?.aboutText && (
-          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-2 md:mb-10 leading-relaxed font-semibold opacity-80">
+          <p class="text-xs sm:text-sm md:text-lg max-w-xl mx-auto mb-3 md:mb-6 leading-relaxed font-semibold opacity-80">
             {homeData.aboutText}
           </p>
         )}
+
+        {/* Hero Quick-Action Trio */}
+        <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+          <a
+            href={`/${lang}/projects`}
+            class="inline-flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full bg-[#FF7D1A] hover:bg-orange-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FF7D1A]/20 transition-all hover:-translate-y-0.5"
+          >
+            <span>{lang === 'de' ? 'Projekte' : 'Explore Projects'}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </a>
+
+          <div class="inline-flex items-center rounded-full border border-slate-300 dark:border-slate-700 bg-white/75 dark:bg-slate-900/75 backdrop-blur-sm shadow-sm overflow-hidden">
+            <a
+              href={`/${lang}/cv`}
+              class="px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 hover:text-primary dark:hover:text-primary transition-colors"
+            >
+              {lang === 'de' ? 'Lebenslauf' : 'Curriculum Vitae'}
+            </a>
+            <a
+              href={cvPdfHref}
+              download={lang === 'de' ? 'Marlon_Hendrik_Mueller_Lebenslauf.pdf' : 'Marlon_Hendrik_Mueller_CV.pdf'}
+              data-umami-event="cv-pdf-download"
+              aria-label={lang === 'de' ? 'Lebenslauf PDF herunterladen' : 'Download CV PDF'}
+              title={lang === 'de' ? 'PDF direkt herunterladen' : 'Download PDF directly'}
+              class="px-2.5 py-2 sm:py-2.5 border-l border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary hover:bg-primary/10 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </a>
+          </div>
+
+          <button
+            id="hero-contact-jump"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white/75 dark:bg-slate-900/75 backdrop-blur-sm text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 hover:border-primary hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+          >
+            <span>{lang === 'de' ? 'Kontakt' : 'Contact'}</span>
+          </button>
+        </div>
       </div>
 
       {featuredProjects.length > 0 && (
-        <button id="scroll-down-btn" class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Zu den Projekten scrollen' : 'Scroll to projects'}>
+        <button id="scroll-down-btn" class="absolute bottom-3 md:bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 md:gap-1.5 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Zu den Projekten scrollen' : 'Scroll to projects'}>
            <span class="text-xs font-bold tracking-widest uppercase text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors">{lang === 'de' ? 'Reise beginnen' : 'Start Journey'}</span>
            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-bounce text-slate-800 dark:text-slate-400 group-hover:text-primary transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
         </button>
@@ -399,12 +538,48 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     <section class="scroll-section timeline-section relative flex flex-col justify-center min-h-[100vh] w-full overflow-hidden" id="timeline">
         <DynamicBackground effect="grid" isAbsolute={true} />
         
-        <div class="timeline-header relative md:absolute pt-8 md:pt-0 md:top-5 w-full text-center z-10 pointer-events-none px-4">
+        <div class="timeline-header relative md:absolute pt-6 md:pt-0 md:top-4 w-full text-center z-30 pointer-events-none px-4">
             <h2 class="text-3xl md:text-5xl font-black heading-font w-fit mx-auto">{lang === 'de' ? 'Meine Reise' : 'My Journey'}</h2>
-            <p class="hidden md:block text-slate-600 dark:text-slate-400 mt-1 uppercase tracking-widest text-xs font-black">{lang === 'de' ? 'Hover über ein Event für Details' : 'Hover events for details'}</p>
+            <div class="hidden md:flex items-center justify-center flex-wrap gap-2 mt-1.5">
+              <p class="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 uppercase tracking-widest text-[10px] font-black bg-white/75 dark:bg-slate-950/75 backdrop-blur-sm px-3 py-1 rounded-full border border-slate-200/80 dark:border-slate-800/80">
+                <span>{lang === 'de' ? 'Ziehen / Scrollen' : 'Drag track / Scroll'}</span>
+                <span aria-hidden="true" class="opacity-40">·</span>
+                <span>{lang === 'de' ? 'Karten anklicken' : 'Click milestones'}</span>
+                <span aria-hidden="true" class="opacity-40">·</span>
+                <span>{lang === 'de' ? 'Karten frei verschiebbar' : 'Drag cards to arrange'}</span>
+              </p>
+              <button
+                id="timeline-jump-present"
+                type="button"
+                class="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer"
+              >
+                <span>{lang === 'de' ? 'Zu Heute' : 'Jump to Present'}</span>
+                <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+            {timelineCategories.length > 0 && (
+              <div class="timeline-filter-bar pointer-events-auto mt-2 flex items-center justify-center flex-wrap gap-1.5" role="group" aria-label={lang === 'de' ? 'Timeline-Filter' : 'Timeline category filter'}>
+                <button
+                  type="button"
+                  class="timeline-cat-btn is-active px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-primary bg-primary text-white transition-colors cursor-pointer"
+                  data-filter-category="all"
+                >
+                  {lang === 'de' ? 'Alle' : 'All'}
+                </button>
+                {timelineCategories.map((cat) => (
+                  <button
+                    type="button"
+                    class="timeline-cat-btn px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                    data-filter-category={cat}
+                  >
+                    {categoryLabels[cat]?.[lang === 'de' ? 'de' : 'en'] || cat}
+                  </button>
+                ))}
+              </div>
+            )}
             <p class="block md:hidden text-slate-600 dark:text-slate-400 mt-2 uppercase tracking-widest text-center text-[10px] font-black">{lang === 'de' ? 'Scrollen zum Erkunden · Tippe auf Punkte zum Navigieren' : 'Scroll to explore · Tap dots to navigate'}</p>
         </div>        
-        <div class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20" id="timeline-scroll-area" style="transform: translateY(-6px);">
+        <div tabindex="0" aria-label={lang === 'de' ? 'Horizontale Zeitleiste (Pfeiltasten links/rechts nutzen)' : 'Horizontal journey timeline (use Left/Right arrow keys)'} class="timeline-container hidden md:flex w-full overflow-x-auto items-center relative h-full no-scrollbar cursor-grab active:cursor-grabbing z-20 focus:outline-none" id="timeline-scroll-area" style="transform: translateY(-6px);">
             {/* The Track Canvas */}
             <div class="timeline-track flex flex-row items-center relative h-full shrink-0" id="timeline-track" style={`width: ${timelineWidthPx}px; min-width: ${timelineWidthPx}px; margin: 0 25vw 0 0;`}>
                 
@@ -611,7 +786,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     const hasActiveCardOnLoad = item.openByDefault || (item.milestoneEvents && item.milestoneEvents.some((evt: any) => evt.openByDefault));
 
                     return (
-                    <div class={`timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10 hover:z-30 pointer-events-none ${hasActiveCardOnLoad ? 'has-active-card' : ''}`} style={`left: ${styles.left}; width: ${isDuration ? styles.width : '0px'}; transform: translate(0, -50%);`}>
+                    <div data-category={item.category || 'all'} class={`timeline-item opacity-0 translate-x-12 transition-all duration-1000 absolute top-1/2 group z-10 hover:z-30 pointer-events-none ${hasActiveCardOnLoad ? 'has-active-card' : ''}`} style={`left: ${styles.left}; width: ${isDuration ? styles.width : '0px'}; transform: translate(0, -50%);`}>
                         
                         {showConnector && (
                             <>
@@ -640,7 +815,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                 aria-hidden={item.openByDefault ? 'false' : 'true'}
                             >
                                 {/* Drag Handle */}
-                                <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
+                                <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center gap-1.5 cursor-grab active:cursor-grabbing z-40" title={lang === 'de' ? 'Karte ziehen zum Verschieben' : 'Drag card to reposition'}>
+                                    <span class="text-[9px] leading-none tracking-tighter text-slate-400 dark:text-slate-500 select-none" aria-hidden="true">⋮⋮</span>
                                     <div class="w-8 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
                                 </div>
 
@@ -757,7 +933,8 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                                         aria-hidden={evt.openByDefault ? 'false' : 'true'}
                                     >
                                         {/* Drag Handle */}
-                                        <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-40">
+                                        <div class="drag-handle absolute top-0 inset-x-0 h-6 flex items-center justify-center gap-1.5 cursor-grab active:cursor-grabbing z-40" title={lang === 'de' ? 'Karte ziehen zum Verschieben' : 'Drag card to reposition'}>
+                                            <span class="text-[9px] leading-none tracking-tighter text-slate-400 dark:text-slate-500 select-none" aria-hidden="true">⋮⋮</span>
                                             <div class="w-8 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
                                         </div>
 
@@ -968,7 +1145,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     })();
 
                     return (
-                        <div class={`mobile-timeline-card relative border-l-[3px] ${c.border} bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-lg transition-all flex flex-col gap-3`} data-timeline-idx={idx} data-title={item.title}>
+                        <div data-category={item.category || 'all'} class={`mobile-timeline-card relative border-l-[3px] ${c.border} bg-[var(--color-card-bg)] border border-[var(--color-card-border)] rounded-2xl p-5 shadow-lg transition-all flex flex-col gap-3`} data-timeline-idx={idx} data-title={item.title}>
                             {eventHref && <a href={eventHref} class="absolute inset-0 z-10 rounded-2xl" aria-label={lang === 'de' ? `Projekt ${item.title} ansehen` : `View ${item.title} project`}></a>}
                             
                             {widgetImage && (
@@ -1146,7 +1323,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
         const pc = colors[projectColor] || colors.primary;
         
         return (
-          <section class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug?.current || ''} data-accent-color={projectColor}>
+          <section id={`featured-${index}`} class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug?.current || ''} data-accent-color={projectColor}>
             <DynamicBackground 
               effect={project.backgroundEffect || "none"} 
               config={(project.backgroundEffect === 'solar' || project.backgroundEffect === 'stars') ? project.solarConfig : project.backgroundEffect === 'airflow' ? project.airflowConfig : project.topographyConfig}
@@ -1163,6 +1340,22 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
                     </span>
                   ))}
                 </div>
+                {Array.isArray(project.metrics) && project.metrics.filter((m: any) => m?.value).length > 0 && (
+                  <div class="flex flex-wrap gap-1.5 md:gap-2.5 justify-center md:justify-start">
+                    {project.metrics.filter((m: any) => m?.value).slice(0, 4).map((m: any) => (
+                      <div class="inline-flex items-baseline gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 backdrop-blur-sm">
+                        <span class="font-mono tabular-nums text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                          {m.value}{m.unit ? ` ${m.unit}` : ''}
+                        </span>
+                        {m.label && (
+                          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            {m.label}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p class="text-xs sm:text-sm md:text-xl leading-relaxed max-w-xl font-medium opacity-90 mx-auto md:mx-0 line-clamp-2 sm:line-clamp-3 md:line-clamp-none">
                   {project.description}
                 </p>
@@ -1225,7 +1418,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     {/* Section: Spin the Wheel (non-featured projects) */}
     {showSpinWheel && nonFeaturedProjects.length > 0 && (
-      <section class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-accent-color="primary">
+      <section id="wheel-section" class="scroll-section wheel-section relative flex flex-col items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-accent-color="primary">
         <HomeSpinWheel projects={nonFeaturedProjects} lang={lang} />
         <button class="nav-up-btn absolute top-3 md:top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 md:gap-2 group cursor-pointer p-1 md:p-2 z-20" aria-label={lang === 'de' ? 'Vorheriger Abschnitt' : 'Previous Slide'}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
@@ -1239,7 +1432,7 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
     )}
 
     {/* Section: Contact & Footer */}
-    <section class="scroll-section contact-section relative flex flex-col justify-between min-h-[100vh] min-h-[100dvh] h-[100vh] h-[100dvh] w-full overflow-hidden" data-accent-color="primary">
+    <section id="contact-section" class="scroll-section contact-section relative flex flex-col justify-between min-h-[100vh] min-h-[100dvh] h-[100vh] h-[100dvh] w-full overflow-hidden" data-accent-color="primary">
       <button class="nav-up-btn hidden md:flex absolute top-2.5 left-1/2 -translate-x-1/2 flex-col items-center gap-1 group cursor-pointer p-1.5 z-20" aria-label={lang === 'de' ? 'Vorheriger Abschnitt' : 'Previous Slide'}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 group-hover:text-primary transition-colors group-hover:-translate-y-1"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
         <span class="text-xs font-semibold tracking-widest uppercase text-gray-500 group-hover:text-primary transition-colors">{lang === 'de' ? 'Zurück' : 'Back'}</span>
@@ -2480,6 +2673,163 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     setupMobileContactLayout();
 
+    // --- Hero Contact Jump ---
+    const heroContactJumpBtn = document.getElementById('hero-contact-jump');
+    if (heroContactJumpBtn) {
+      const onHeroContactClick = () => {
+        document.getElementById('contact-section')?.scrollIntoView({ behavior: 'smooth' });
+      };
+      heroContactJumpBtn.addEventListener('click', onHeroContactClick);
+      cleanupFns.push(() => heroContactJumpBtn.removeEventListener('click', onHeroContactClick));
+    }
+
+    // --- Integrated Right-Edge CAD Elevation Rail & Timeline Progress Sync ---
+    const cadRail = document.getElementById('cad-elevation-rail');
+    if (cadRail) {
+      const railEntries = cadRail.querySelectorAll('.cad-rail-entry');
+      const tlSyncBox = document.getElementById('cad-rail-timeline-sync');
+      const tlSyncBar = document.getElementById('cad-rail-tl-bar');
+      const tlSyncPct = document.getElementById('cad-rail-tl-pct');
+      const observedSections = document.querySelectorAll('.scroll-section[id]');
+
+      const updateRailTimelineProgress = () => {
+        if (!timelineContainer || !tlSyncBar || !tlSyncPct) return;
+        const maxScroll = Math.max(1, timelineContainer.scrollWidth - timelineContainer.clientWidth);
+        const pct = Math.max(0, Math.min(100, Math.round((timelineContainer.scrollLeft / maxScroll) * 100)));
+        tlSyncBar.style.width = `${pct}%`;
+        tlSyncPct.textContent = `${pct}%`;
+      };
+
+      const setActiveRailSection = (activeId: string) => {
+        railEntries.forEach((entry) => {
+          const el = entry as HTMLElement;
+          const isMatch = el.dataset.railTarget === activeId;
+          el.classList.toggle('is-active', isMatch);
+        });
+        if (tlSyncBox) {
+          const isTl = activeId === 'timeline';
+          tlSyncBox.classList.toggle('is-open', isTl);
+          tlSyncBox.setAttribute('aria-hidden', isTl ? 'false' : 'true');
+          if (isTl) updateRailTimelineProgress();
+        }
+      };
+
+      cadRail.querySelectorAll('.cad-rail-btn').forEach((btn) => {
+        const onRailBtnClick = () => {
+          const targetId = (btn as HTMLElement).dataset.targetId;
+          if (targetId) {
+            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+          }
+        };
+        btn.addEventListener('click', onRailBtnClick);
+        cleanupFns.push(() => btn.removeEventListener('click', onRailBtnClick));
+      });
+
+      if (timelineContainer) {
+        timelineContainer.addEventListener('scroll', updateRailTimelineProgress, { passive: true });
+        cleanupFns.push(() => timelineContainer.removeEventListener('scroll', updateRailTimelineProgress));
+      }
+
+      if (observedSections.length > 0) {
+        const railObserver = new IntersectionObserver((entries) => {
+          if (disposed) return;
+          let best: IntersectionObserverEntry | null = null;
+          entries.forEach((e) => {
+            if (e.isIntersecting && (!best || e.intersectionRatio > best.intersectionRatio)) {
+              best = e;
+            }
+          });
+          if (best) {
+            const id = ((best as IntersectionObserverEntry).target as HTMLElement).id;
+            if (id) setActiveRailSection(id);
+          }
+        }, { root: container, threshold: [0.35, 0.55, 0.75] });
+        observedSections.forEach((s) => railObserver.observe(s));
+        activeObservers.push(railObserver);
+      }
+
+      setActiveRailSection('hero-section');
+    }
+
+    // --- Timeline Power Controls: Jump to Present, Category Filter & Keyboard Stepping ---
+    const jumpPresentBtn = document.getElementById('timeline-jump-present');
+    if (jumpPresentBtn && timelineContainer) {
+      const onJumpPresent = () => {
+        const presentEl = document.getElementById('actual-present-marker');
+        if (presentEl) {
+          const trackRect = timelineContainer.getBoundingClientRect();
+          const markerRect = presentEl.getBoundingClientRect();
+          const desired = timelineContainer.scrollLeft + (markerRect.left - trackRect.left) - timelineContainer.clientWidth * 0.65;
+          timelineContainer.scrollTo({ left: Math.max(0, desired), behavior: 'smooth' });
+        } else {
+          timelineContainer.scrollTo({ left: timelineContainer.scrollWidth - timelineContainer.clientWidth, behavior: 'smooth' });
+        }
+      };
+      jumpPresentBtn.addEventListener('click', onJumpPresent);
+      cleanupFns.push(() => jumpPresentBtn.removeEventListener('click', onJumpPresent));
+    }
+
+    const catFilterBtns = document.querySelectorAll('.timeline-cat-btn');
+    if (catFilterBtns.length > 0) {
+      const desktopItems = document.querySelectorAll('#timeline-revealed-past .timeline-item');
+      const mobileCardNodes = document.querySelectorAll('.mobile-timeline-card');
+      catFilterBtns.forEach((btn) => {
+        const onCatClick = () => {
+          const cat = (btn as HTMLElement).dataset.filterCategory || 'all';
+          catFilterBtns.forEach((b) => {
+            const isSel = b === btn;
+            b.classList.toggle('is-active', isSel);
+            b.classList.toggle('bg-primary', isSel);
+            b.classList.toggle('border-primary', isSel);
+            b.classList.toggle('text-white', isSel);
+            b.classList.toggle('bg-white/80', !isSel);
+            b.classList.toggle('dark:bg-slate-900/80', !isSel);
+            b.classList.toggle('text-slate-600', !isSel);
+            b.classList.toggle('dark:text-slate-300', !isSel);
+          });
+          desktopItems.forEach((el) => {
+            const node = el as HTMLElement;
+            const match = cat === 'all' || node.dataset.category === cat;
+            node.style.opacity = match ? '' : '0.16';
+            node.style.pointerEvents = match ? '' : 'none';
+          });
+          mobileCardNodes.forEach((el) => {
+            const node = el as HTMLElement;
+            const match = cat === 'all' || node.dataset.category === cat;
+            node.classList.toggle('hidden', !match);
+          });
+        };
+        btn.addEventListener('click', onCatClick);
+        cleanupFns.push(() => btn.removeEventListener('click', onCatClick));
+      });
+    }
+
+    if (timelineContainer) {
+      let focusedMilestoneIdx = -1;
+      const onTimelineKeydown = (e: KeyboardEvent) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        const triggers = Array.from(
+          timelineContainer.querySelectorAll('#timeline-revealed-past .timeline-parent-capsule, #timeline-revealed-past .timeline-parent-point')
+        ) as HTMLElement[];
+        if (triggers.length === 0) return;
+        e.preventDefault();
+        if (e.key === 'ArrowRight') {
+          focusedMilestoneIdx = Math.min(triggers.length - 1, focusedMilestoneIdx + 1);
+        } else {
+          focusedMilestoneIdx = Math.max(0, focusedMilestoneIdx <= 0 ? 0 : focusedMilestoneIdx - 1);
+        }
+        const target = triggers[focusedMilestoneIdx];
+        if (target) {
+          const trRect = target.getBoundingClientRect();
+          const ctRect = timelineContainer.getBoundingClientRect();
+          const nextLeft = timelineContainer.scrollLeft + (trRect.left - ctRect.left) - ctRect.width * 0.45;
+          timelineContainer.scrollTo({ left: Math.max(0, nextLeft), behavior: 'smooth' });
+        }
+      };
+      timelineContainer.addEventListener('keydown', onTimelineKeydown);
+      cleanupFns.push(() => timelineContainer.removeEventListener('keydown', onTimelineKeydown));
+    }
+
     activeHomeCleanup = () => {
       disposed = true;
       activeTimeouts.forEach((id) => clearTimeout(id));
@@ -2758,6 +3108,21 @@ mobileStripEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
   #mobile-strip-title-text.active {
       transform: translateY(0);
+      opacity: 1;
+  }
+
+  .cad-rail-entry.is-active .cad-rail-label {
+      color: var(--color-text);
+  }
+  .cad-rail-entry.is-active .cad-rail-tick {
+      width: 1.5rem;
+      background-color: var(--color-project-accent, #FF7D1A);
+  }
+  .cad-rail-entry.is-active .cad-rail-btn span:nth-child(2) {
+      color: var(--color-project-accent, #FF7D1A);
+  }
+  .cad-rail-timeline-sub.is-open {
+      max-height: 44px;
       opacity: 1;
   }
 </style>

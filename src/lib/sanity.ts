@@ -34,6 +34,7 @@ export async function getHomePageData(locale: string) {
   const query = `*[_type == "homePage"][0] {
     "heroTitle": heroTitle[$locale],
     "heroSubtitle": heroSubtitle[$locale],
+    "credibilityBar": credibilityBar[$locale],
     "aboutText": aboutText[$locale],
     profileImage,
     backgroundEffect,
@@ -46,6 +47,11 @@ export async function getHomePageData(locale: string) {
       mainImage,
       "description": description[$locale],
       tags,
+      metrics[]{
+        "label": label[$locale],
+        value,
+        unit
+      },
       backgroundEffect,
       topographyConfig,
       solarConfig,
@@ -59,6 +65,7 @@ export async function getHomePageData(locale: string) {
     "timeline": timeline[($locale == "de" && isVisibleDe != false) || ($locale == "en" && isVisibleEn != false)]{
       "title": title[$locale],
       "description": description[$locale],
+      category,
       startDate,
       endDate,
       isOngoing,

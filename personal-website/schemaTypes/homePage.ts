@@ -29,6 +29,16 @@ export const homePage = defineType({
         localeString('Hero Title', 'heroTitle'),
         localeText('Hero Subtitle', 'heroSubtitle', 2),
         defineField({
+            name: 'credibilityBar',
+            title: 'Hero Credibility Micro-Bar',
+            type: 'object',
+            description: 'Concise credential summary separated by "|" below the hero subtitle.',
+            fields: [
+                defineField({ name: 'en', title: 'English', type: 'string', initialValue: 'B.Sc. Engineering Science @ TUM | Co-Founder @ Odonatum e.V. | Studienstiftung' }),
+                defineField({ name: 'de', title: 'German', type: 'string', initialValue: 'B.Sc. Engineering Science @ TUM | Co-Founder @ Odonatum e.V. | Studienstiftung' }),
+            ],
+        }),
+        defineField({
             name: 'profileImage',
             title: 'Profile Image',
             type: 'image',
@@ -178,6 +188,20 @@ export const homePage = defineType({
                     fields: [
                         localeString('Milestone Title', 'title'),
                         localeText('Detailed Info (shown on hover)', 'description', 3),
+                        defineField({
+                            name: 'category',
+                            title: 'Category (Optional Filter)',
+                            type: 'string',
+                            description: 'Optional domain tag for timeline filtering.',
+                            options: {
+                                list: [
+                                    { title: 'Engineering & Robotics', value: 'engineering' },
+                                    { title: 'Research & Honors', value: 'research' },
+                                    { title: 'Software & Systems', value: 'software' },
+                                    { title: 'Venture & Leadership', value: 'venture' },
+                                ],
+                            },
+                        }),
                         defineField({ name: 'startDate', title: 'Start Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' }, validation: Rule => Rule.required() }),
                         defineField({ name: 'endDate', title: 'End Date', type: 'date', options: { dateFormat: 'YYYY-MM-DD' } }),
                         defineField({ name: 'isOngoing', title: 'Is Ongoing?', type: 'boolean', description: 'Check this if the item continues to the present day.', initialValue: false }),
