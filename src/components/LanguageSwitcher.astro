@@ -1,6 +1,5 @@
 ---
 // src/components/LanguageSwitcher.astro
-// No longer needs accentColor prop - reads from CSS custom property set by JS
 const locales = ["de", "en"] as const;
 type Locale = (typeof locales)[number];
 
@@ -12,20 +11,25 @@ const targetAbbreviation = targetLocale.toUpperCase();
 
 function getPathWithoutLocale(path: string, locale: Locale): string {
   const prefix = `/${locale}`;
-  if (path === prefix) return "/";
+  if (path === prefix || path === `${prefix}/`) return "/";
   if (path.startsWith(`${prefix}/`)) return path.substring(prefix.length);
   if (path === "/") return "/";
   return path;
 }
 
 const pathWithoutLocale = getPathWithoutLocale(currentPath, currentLocale);
-const targetPathSegment =
-  pathWithoutLocale === "/" ? "" : pathWithoutLocale.startsWith("/") ? pathWithoutLocale : `/${pathWithoutLocale}`;
-const targetUrl = `/${targetLocale}${targetPathSegment}`;
+const normalizedSegment =
+  pathWithoutLocale === "/"
+    ? "/"
+    : (pathWithoutLocale.startsWith("/") ? pathWithoutLocale : `/${pathWithoutLocale}`).replace(/\/+$/, "");
+
+const targetUrl =
+  normalizedSegment === "/" ? `/${targetLocale}/` : `/${targetLocale}${normalizedSegment}`;
 ---
 
 <a
   href={targetUrl}
+  data-astro-reload
   class="language-switcher-button"
   aria-label={`Switch language to ${targetLocale === "de" ? "German" : "English"}`}
   hreflang={targetLocale}

@@ -4,6 +4,7 @@
 // absolute page numbering, Table of Contents pages, left-side ribbon bookmark navigation,
 // rapid page-riffle animations on desktop, and single-page touch-swipe mode on mobile.
 import { urlFor } from "../lib/sanity";
+import { sanitizeHtml } from "../lib/html";
 import { marked } from "marked";
 
 interface Props {
@@ -13,10 +14,10 @@ interface Props {
 
 const { entries, locale } = Astro.props;
 
-// Pre-render markdown and image URLs on the server
+// Pre-render and sanitize markdown and image URLs on the server
 const processedEntries = entries.map((entry: any, idx: number) => ({
   ...entry,
-  renderedBody: entry.body ? marked.parse(entry.body) : "",
+  renderedBody: entry.body ? sanitizeHtml(marked.parse(entry.body, { async: false })) : "",
   processedImages: (entry.images || []).map((img: any) => ({
     url: img.asset ? urlFor(img).width(800).auto('format').quality(85).url() : null,
     alt: img.alt || "",
@@ -27,6 +28,7 @@ const processedEntries = entries.map((entry: any, idx: number) => ({
 
 const t = {
   en: {
+    pageHeading: "Lab Notebook",
     emptyTitle: "Notebook Empty",
     emptyMessage: "No entries have been recorded yet. Check back soon.",
     entryLabel: "Entry",
@@ -41,6 +43,7 @@ const t = {
     tocPage: "Page",
   },
   de: {
+    pageHeading: "Labor-Notizbuch",
     emptyTitle: "Notizbuch leer",
     emptyMessage: "Es wurden noch keine Einträge erfasst. Schau bald wieder vorbei.",
     entryLabel: "Eintrag",
@@ -68,7 +71,15 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 };
 ---
 
-<div class="notebook-outer" id="lab-notebook">
+<div
+  class="notebook-outer"
+  id="lab-notebook"
+  data-locale={locale}
+  data-entries={JSON.stringify(processedEntries)}
+  data-category-config={JSON.stringify(categoryConfig)}
+  data-labels={JSON.stringify(labels)}
+>
+  <h1 class="sr-only">{labels.pageHeading}</h1>
   {entries.length === 0 ? (
     <div class="notebook-empty">
       <h2>{labels.emptyTitle}</h2>
@@ -77,21 +88,37 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   ) : (
     <Fragment>
       {/* Physical Bookmark Ribbon Tab */}
-      <div class="bookmark-ribbon" id="bookmark-ribbon" title={labels.tocTitle}></div>
+      <button
+        type="button"
+        class="bookmark-ribbon"
+        id="bookmark-ribbon"
+        title={labels.tocTitle}
+        aria-label={labels.tocTitle}
+      ></button>
 
       {/* The Notebook */}
       <div class="notebook" id="notebook-main">
         {/* Left cover edge */}
         <div class="cover-edge left-cover"></div>
 
-        {/* Left Page (or Single Page on Mobile) */}
+        {/* Left Page (or Single Page on Mobile) — includes SSR TOC index fallback for SEO */}
         <div class="page left-page" id="left-page">
           <div class="page-texture"></div>
           <div class="ruled-lines"></div>
           <div class="page-content left-content" id="left-content">
-            {/* Populated dynamically */}
+            <div class="toc-page">
+              <h2 class="toc-header">{labels.tocTitle}</h2>
+              <ul class="toc-items-list">
+                {processedEntries.map((entry: any) => (
+                  <li class="toc-item-btn">
+                    <span class="toc-col-date">{entry.date || ""}</span>
+                    <span class="toc-col-desc">{entry.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div class="page-number-label left-page-num" id="left-page-num"></div>
+          <div class="page-number-label left-page-num" id="left-page-num">1</div>
         </div>
 
         {/* Spine */}
@@ -102,9 +129,11 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           <div class="page-texture"></div>
           <div class="ruled-lines"></div>
           <div class="page-content right-content" id="right-content">
-            {/* Populated dynamically */}
+            {processedEntries[0] && (
+              <div class="entry-body" set:html={processedEntries[0].renderedBody} />
+            )}
           </div>
-          <div class="page-number-label right-page-num" id="right-page-num"></div>
+          <div class="page-number-label right-page-num" id="right-page-num">2</div>
         </div>
 
         {/* Turning page overlay for 3D animation */}
@@ -129,11 +158,11 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
       {/* Navigation */}
       <div class="notebook-nav">
-        <button class="nav-btn prev-btn" id="prev-btn" aria-label={labels.prevLabel} title={labels.prevLabel}>
+        <button type="button" class="nav-btn prev-btn" id="prev-btn" aria-label={labels.prevLabel} title={labels.prevLabel}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </button>
         <span class="page-indicator" id="page-indicator"></span>
-        <button class="nav-btn next-btn" id="next-btn" aria-label={labels.nextLabel} title={labels.nextLabel}>
+        <button type="button" class="nav-btn next-btn" id="next-btn" aria-label={labels.nextLabel} title={labels.nextLabel}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
       </div>
@@ -141,45 +170,48 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   )}
 </div>
 
-{/* Pass data to client JS */}
-<script is:inline define:vars={{
-  entriesJSON: JSON.stringify(processedEntries),
-  categoryConfigJSON: JSON.stringify(categoryConfig),
-  labelsJSON: JSON.stringify(labels),
-  localeVal: locale,
-}}>
-  window.__labNotebookData = {
-    entries: JSON.parse(entriesJSON),
-    categoryConfig: JSON.parse(categoryConfigJSON),
-    labels: JSON.parse(labelsJSON),
-    locale: localeVal,
-  };
-</script>
-
 <script>
-  function initLabNotebook() {
-    const data = (window as any).__labNotebookData;
-    if (!data || !data.entries.length) return;
+  import { escapeHtml } from "../lib/html";
 
-    const notebook = document.getElementById("lab-notebook")!;
+  let activeKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
+  let activeResizeHandler: (() => void) | null = null;
+
+  function cleanupLabNotebook() {
+    if (activeKeydownHandler) {
+      document.removeEventListener("keydown", activeKeydownHandler);
+      activeKeydownHandler = null;
+    }
+    if (activeResizeHandler) {
+      window.removeEventListener("resize", activeResizeHandler);
+      activeResizeHandler = null;
+    }
+  }
+
+  function initLabNotebook() {
+    cleanupLabNotebook();
+    const notebookEl = document.getElementById("lab-notebook");
+    if (!notebookEl) return;
+    const notebook: HTMLElement = notebookEl;
+
+    const entries = JSON.parse(notebook.dataset.entries || "[]");
+    if (!entries.length) return;
+
     if (notebook.dataset.notebookInit === "true") return;
     notebook.dataset.notebookInit = "true";
 
-    const { entries, categoryConfig, labels } = data;
+    const categoryConfig = JSON.parse(notebook.dataset.categoryConfig || "{}");
+    const labels = JSON.parse(notebook.dataset.labels || "{}");
+    const locale = notebook.dataset.locale || "en";
 
-    // Fisher-Yates shuffle
-    const shuffled = [...entries];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    // Preserve chronological order (newest first from Sanity)
+    const orderedEntries: any[] = [...entries];
 
     // DOM references
     const leftContent = document.getElementById("left-content")!;
     const rightContent = document.getElementById("right-content")!;
     const pageIndicator = document.getElementById("page-indicator")!;
-    const prevBtn = document.getElementById("prev-btn")!;
-    const nextBtn = document.getElementById("next-btn")!;
+    const prevBtn = document.getElementById("prev-btn") as HTMLButtonElement | null;
+    const nextBtn = document.getElementById("next-btn") as HTMLButtonElement | null;
     
     const leftNumLabel = document.getElementById("left-page-num")!;
     const rightNumLabel = document.getElementById("right-page-num")!;
@@ -190,7 +222,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     const turningFrontNum = document.getElementById("turning-front-num")!;
     const turningBackNum = document.getElementById("turning-back-num")!;
 
-    const ribbonTab = document.getElementById("bookmark-ribbon")!;
+    const ribbonTab = document.getElementById("bookmark-ribbon");
 
     // Global book layout state
     let bookPages: any[] = [];
@@ -205,7 +237,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     function formatDate(dateStr: string): string {
       if (!dateStr) return "";
       const d = new Date(dateStr + "T00:00:00");
-      return d.toLocaleDateString(data.locale === "de" ? "de-DE" : "en-US", {
+      return d.toLocaleDateString(locale === "de" ? "de-DE" : "en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -218,7 +250,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       const day = String(d.getDate()).padStart(2, "0");
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const year = String(d.getFullYear()).substring(2);
-      return data.locale === "de" ? `${day}.${month}.${year}` : `${month}/${day}/${year}`;
+      return locale === "de" ? `${day}.${month}.${year}` : `${month}/${day}/${year}`;
     }
 
     // Dynamic pagination algorithm
@@ -238,7 +270,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       measureDiv.style.fontFamily = '"Georgia", serif';
       document.body.appendChild(measureDiv);
 
-      const paginatedEntries = shuffled.map((entry) => {
+      const paginatedEntries = orderedEntries.map((entry) => {
         // Collect images
         const imagesHTML = entry.processedImages && entry.processedImages.length > 0
           ? entry.processedImages
@@ -246,8 +278,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             .map(
               (img: any) => `
               <figure class="entry-figure">
-                <img src="${img.url}" alt="${img.alt}" loading="lazy" />
-                ${img.caption ? `<figcaption>${img.caption}</figcaption>` : ""}
+                <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt)}" width="350" height="196" loading="lazy" />
+                ${img.caption ? `<figcaption>${escapeHtml(img.caption)}</figcaption>` : ""}
               </figure>
             `
             )
@@ -284,17 +316,26 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             // Split paragraph by sentences if it exceeds the space
             if (elHeight > currentLimit) {
               if (el.tagName === "P") {
-                const sentences = el.innerHTML.split(/(?<=\. )/);
+                const tokens: Node[] = [];
+                el.childNodes.forEach((node) => {
+                  if (node.nodeType === Node.TEXT_NODE) {
+                    (node.textContent || "")
+                      .split(/(?<=\. )/)
+                      .filter(Boolean)
+                      .forEach((part) => tokens.push(document.createTextNode(part)));
+                  } else {
+                    tokens.push(node.cloneNode(true));
+                  }
+                });
                 let tempP = document.createElement("p");
                 measureDiv.innerHTML = "";
                 measureDiv.appendChild(tempP);
 
-                for (let sentence of sentences) {
-                  tempP.innerHTML += sentence;
-                  measureDiv.appendChild(tempP);
-                  if (tempP.offsetHeight > currentLimit - currentHeight) {
-                    tempP.innerHTML = tempP.innerHTML.substring(0, tempP.innerHTML.length - sentence.length);
-                    if (tempP.innerHTML.trim()) {
+                for (const token of tokens) {
+                  tempP.appendChild(token);
+                  if (tempP.offsetHeight > currentLimit - currentHeight && tempP.childNodes.length > 1) {
+                    tempP.removeChild(token);
+                    if (tempP.textContent?.trim() || tempP.children.length > 0) {
                       currentElements.push(tempP.cloneNode(true) as Element);
                     }
                     pages.push(currentElements.map((e) => e.outerHTML).join(""));
@@ -303,12 +344,12 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
                     currentLimit = normalMax;
 
                     tempP = document.createElement("p");
-                    tempP.innerHTML = sentence;
+                    tempP.appendChild(token);
                     measureDiv.innerHTML = "";
                     measureDiv.appendChild(tempP);
                   }
                 }
-                if (tempP.innerHTML.trim()) {
+                if (tempP.textContent?.trim() || tempP.children.length > 0) {
                   currentElements.push(tempP.cloneNode(true) as Element);
                   currentHeight = tempP.offsetHeight;
                 }
@@ -342,7 +383,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
       // TOC calculation
       const entriesPerPage = mobileMode ? 10 : 12;
-      const numTOCPages = Math.ceil(shuffled.length / entriesPerPage);
+      const numTOCPages = Math.ceil(orderedEntries.length / entriesPerPage);
       const tocPageCount = mobileMode ? numTOCPages : numTOCPages + (numTOCPages % 2 === 0 ? 0 : 1);
 
       let currentAbsolutePageNum = tocPageCount + 1;
@@ -390,7 +431,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       });
 
       // Build TOC entries map
-      const tocItems = shuffled.map((entry, idx) => ({
+      const tocItems = orderedEntries.map((entry, idx) => ({
         title: entry.title,
         date: formatTOCDate(entry.date),
         absolutePageNumber: entryStartPages[idx]
@@ -431,9 +472,9 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
             (item: any) => `
             <li>
               <button class="toc-item-btn" data-page="${item.absolutePageNumber}">
-                <span class="toc-col-date">${item.date}</span>
-                <span class="toc-col-desc">${item.title}</span>
-                <span class="toc-col-page">${item.absolutePageNumber}</span>
+                <span class="toc-col-date">${escapeHtml(item.date)}</span>
+                <span class="toc-col-desc">${escapeHtml(item.title)}</span>
+                <span class="toc-col-page">${escapeHtml(item.absolutePageNumber)}</span>
               </button>
             </li>
           `
@@ -442,7 +483,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
         return `
           <div class="toc-page">
-            <div class="page-ribbon"></div>
+            <button type="button" class="page-ribbon" aria-label="${escapeHtml(labels.tocTitle)}"></button>
             <h2 class="toc-header">${labels.tocTitle}</h2>
             <div class="toc-table">
               <div class="toc-table-header">
@@ -461,30 +502,30 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       if (page.type === "metadata") {
         const entry = page.entry;
         const cat = categoryConfig[entry.category] || categoryConfig.observation;
-        const projectHref = entry.relatedProject
-          ? `/${data.locale}/projects/${entry.relatedProject.slug.current}`
+        const projectHref = entry.relatedProject?.slug?.current
+          ? `/${locale}/projects/${entry.relatedProject.slug.current}`
           : null;
 
         const tagsHTML = (entry.tags || [])
-          .map((tag: string) => `<span class="tag">#${tag}</span>`)
+          .map((tag: string) => `<span class="tag">#${escapeHtml(tag)}</span>`)
           .join("");
 
         const projectHTML = projectHref
           ? `
-          <a href="${projectHref}" class="project-link">
-            <span class="project-link-label">${labels.relatedProject}</span>
-            <span class="project-link-title">${entry.relatedProject.title} &rarr;</span>
+          <a href="${escapeHtml(projectHref)}" class="project-link">
+            <span class="project-link-label">${escapeHtml(labels.relatedProject)}</span>
+            <span class="project-link-title">${escapeHtml(entry.relatedProject.title)} &rarr;</span>
           </a>
         `
           : "";
 
         return `
           <div class="metadata-page">
-            <div class="entry-number">${labels.entryLabel} #${String(entry.entryNumber).padStart(3, "0")}</div>
-            <div class="entry-date">${formatDate(entry.date)}</div>
-            <div class="stamp" style="--stamp-color: ${cat.color}">
-              <span class="stamp-icon">${cat.icon}</span>
-              <span class="stamp-label">${cat.label}</span>
+            <div class="entry-number">${escapeHtml(labels.entryLabel)} #${escapeHtml(String(entry.entryNumber).padStart(3, "0"))}</div>
+            <div class="entry-date">${escapeHtml(formatDate(entry.date))}</div>
+            <div class="stamp" style="--stamp-color: ${escapeHtml(cat.color)}">
+              <span class="stamp-icon">${escapeHtml(cat.icon)}</span>
+              <span class="stamp-label">${escapeHtml(cat.label)}</span>
             </div>
             ${tagsHTML ? `<div class="entry-tags">${tagsHTML}</div>` : ""}
             ${projectHTML}
@@ -493,7 +534,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       }
 
       if (page.type === "content") {
-        const titleHTML = page.entryTitle ? `<h2 class="entry-title">${page.entryTitle}</h2>` : "";
+        const titleHTML = page.entryTitle ? `<h2 class="entry-title">${escapeHtml(page.entryTitle)}</h2>` : "";
         return `
           ${titleHTML}
           <div class="entry-body">${page.contentHTML}</div>
@@ -503,6 +544,19 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       return "";
     }
 
+    function updateNavState(isAtStart: boolean, isAtEnd: boolean, isAtToc: boolean) {
+      if (prevBtn) {
+        prevBtn.classList.toggle("disabled", isAtStart);
+        prevBtn.disabled = isAtStart;
+      }
+      if (nextBtn) {
+        nextBtn.classList.toggle("disabled", isAtEnd);
+        nextBtn.disabled = isAtEnd;
+      }
+      notebook.classList.toggle("at-toc", isAtToc);
+      notebook.parentElement?.classList.toggle("at-toc", isAtToc);
+    }
+
     function renderView(index: number) {
       if (isMobile()) {
         currentIndex = Math.max(0, Math.min(index, bookPages.length - 1));
@@ -510,12 +564,15 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
         leftContent.innerHTML = getPageHTML(activePage);
         leftNumLabel.textContent = activePage ? String(activePage.absolutePageNumber) : "";
-        
+
         pageIndicator.textContent = `${currentIndex + 1} ${labels.ofLabel} ${bookPages.length}`;
-        
-        prevBtn.classList.toggle("disabled", currentIndex === 0);
-        nextBtn.classList.toggle("disabled", currentIndex >= bookPages.length - 1);
-        
+
+        updateNavState(
+          currentIndex === 0,
+          currentIndex >= bookPages.length - 1,
+          currentIndex === 0
+        );
+
         bindTOCLinks();
       } else {
         currentIndex = Math.max(0, Math.min(Math.floor(index / 2) * 2, Math.max(0, bookPages.length - 2)));
@@ -539,10 +596,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       const totalSpreads = Math.ceil(bookPages.length / 2);
       pageIndicator.textContent = `${currentSpreadLabel} ${labels.ofLabel} ${totalSpreads}`;
 
-      prevBtn.classList.toggle("disabled", index === 0);
-      nextBtn.classList.toggle("disabled", index >= bookPages.length - 2);
-
-      notebook.classList.toggle("at-toc", index === 0);
+      updateNavState(index === 0, index >= bookPages.length - 2, index === 0);
     }
 
     function bindTOCLinks() {
@@ -569,24 +623,27 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       if (isMobile()) {
         if (targetIndex === currentIndex) return;
         isAnimating = true;
-        
-        leftContent.style.transition = "opacity 0.15s ease, transform 0.15s ease";
-        leftContent.style.opacity = "0";
-        leftContent.style.transform = targetIndex > currentIndex ? "translateX(-12px)" : "translateX(12px)";
-        
-        await new Promise((r) => setTimeout(r, 150));
-        
-        renderView(targetIndex);
-        
-        leftContent.style.transform = targetIndex > currentIndex ? "translateX(12px)" : "translateX(-12px)";
-        leftContent.offsetHeight;
-        leftContent.style.opacity = "1";
-        leftContent.style.transform = "translateX(0)";
-        
-        await new Promise((r) => setTimeout(r, 150));
-        leftContent.style.transition = "";
-        leftContent.style.transform = "";
-        isAnimating = false;
+        try {
+          leftContent.style.transition = "opacity 0.15s ease, transform 0.15s ease";
+          leftContent.style.opacity = "0";
+          leftContent.style.transform = targetIndex > currentIndex ? "translateX(-12px)" : "translateX(12px)";
+
+          await new Promise((r) => setTimeout(r, 150));
+
+          renderView(targetIndex);
+
+          leftContent.style.transform = targetIndex > currentIndex ? "translateX(12px)" : "translateX(-12px)";
+          leftContent.offsetHeight;
+          leftContent.style.opacity = "1";
+          leftContent.style.transform = "translateX(0)";
+
+          await new Promise((r) => setTimeout(r, 150));
+        } finally {
+          leftContent.style.transition = "";
+          leftContent.style.transform = "";
+          leftContent.style.opacity = "";
+          isAnimating = false;
+        }
         return;
       }
 
@@ -600,47 +657,52 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       const direction = targetSpread > currentSpread ? "next" : "prev";
       const steps = Math.abs(targetSpread - currentSpread);
 
-      if (steps > 1) {
-        turningPage.classList.add("fast-riffle");
-      } else {
-        turningPage.classList.remove("fast-riffle");
-      }
+      try {
+        if (steps > 1) {
+          turningPage.classList.add("fast-riffle");
+        } else {
+          turningPage.classList.remove("fast-riffle");
+        }
 
-      for (let i = 0; i < steps; i++) {
-        const nextIdx = direction === "next" ? currentIndex + 2 : currentIndex - 2;
-        const currentLeft = bookPages[currentIndex];
-        const currentRight = bookPages[currentIndex + 1];
-        const nextLeft = bookPages[nextIdx];
-        const nextRight = bookPages[nextIdx + 1];
+        for (let i = 0; i < steps; i++) {
+          const nextIdx = direction === "next" ? currentIndex + 2 : currentIndex - 2;
+          const currentLeft = bookPages[currentIndex];
+          const currentRight = bookPages[currentIndex + 1];
+          const nextLeft = bookPages[nextIdx];
+          const nextRight = bookPages[nextIdx + 1];
 
-        await new Promise<void>((resolve) => {
-          if (direction === "next") {
-            turningFrontContent.innerHTML = getPageHTML(currentRight);
-            turningFrontNum.textContent = currentRight ? String(currentRight.absolutePageNumber) : "";
+          await new Promise<void>((resolve) => {
+            if (direction === "next") {
+              turningFrontContent.innerHTML = getPageHTML(currentRight);
+              turningFrontNum.textContent = currentRight ? String(currentRight.absolutePageNumber) : "";
 
-            turningBackContent.innerHTML = getPageHTML(nextLeft);
-            turningBackNum.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
+              turningBackContent.innerHTML = getPageHTML(nextLeft);
+              turningBackNum.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
 
-            rightContent.innerHTML = getPageHTML(nextRight);
-            rightNumLabel.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
-          } else {
-            turningFrontContent.innerHTML = getPageHTML(nextRight);
-            turningFrontNum.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
+              rightContent.innerHTML = getPageHTML(nextRight);
+              rightNumLabel.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
+            } else {
+              turningFrontContent.innerHTML = getPageHTML(nextRight);
+              turningFrontNum.textContent = nextRight ? String(nextRight.absolutePageNumber) : "";
 
-            turningBackContent.innerHTML = getPageHTML(currentLeft);
-            turningBackNum.textContent = currentLeft ? String(currentLeft.absolutePageNumber) : "";
+              turningBackContent.innerHTML = getPageHTML(currentLeft);
+              turningBackNum.textContent = currentLeft ? String(currentLeft.absolutePageNumber) : "";
 
-            leftContent.innerHTML = getPageHTML(nextLeft);
-            leftNumLabel.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
-          }
+              leftContent.innerHTML = getPageHTML(nextLeft);
+              leftNumLabel.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
+            }
 
-          turningPage.style.display = "block";
-          turningPage.offsetHeight;
-          turningPage.classList.add("turning", `turn-${direction}`);
+            turningPage.style.display = "block";
+            turningPage.offsetHeight;
+            turningPage.classList.add("turning", `turn-${direction}`);
 
-          turningPage.addEventListener(
-            "animationend",
-            () => {
+            let settled = false;
+            let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+            const finishStep = () => {
+              if (settled) return;
+              settled = true;
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+
               if (direction === "next") {
                 leftContent.innerHTML = getPageHTML(nextLeft);
                 leftNumLabel.textContent = nextLeft ? String(nextLeft.absolutePageNumber) : "";
@@ -657,24 +719,26 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
               const totalSpreads = Math.ceil(bookPages.length / 2);
               pageIndicator.textContent = `${currentSpreadLabel} ${labels.ofLabel} ${totalSpreads}`;
 
-              prevBtn.classList.toggle("disabled", currentIndex === 0);
-              nextBtn.classList.toggle("disabled", currentIndex >= bookPages.length - 2);
-
-              notebook.classList.toggle("at-toc", currentIndex === 0);
+              updateNavState(currentIndex === 0, currentIndex >= bookPages.length - 2, currentIndex === 0);
 
               resolve();
-            },
-            { once: true }
-          );
-        });
-      }
+            };
 
-      bindTOCLinks();
-      isAnimating = false;
+            turningPage.addEventListener("animationend", finishStep, { once: true });
+            fallbackTimer = setTimeout(finishStep, 900);
+          });
+        }
+
+        bindTOCLinks();
+      } finally {
+        turningPage.classList.remove("turning", "turn-next", "turn-prev", "fast-riffle");
+        turningPage.style.display = "none";
+        isAnimating = false;
+      }
     }
 
     // Ribbon tab click interaction (when not on TOC page)
-    ribbonTab.addEventListener("click", () => {
+    ribbonTab?.addEventListener("click", () => {
       if (currentIndex !== 0) {
         lastReadPageIndex = currentIndex;
         flipToPageIndex(0);
@@ -682,7 +746,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     });
 
     // Control buttons interaction
-    nextBtn.addEventListener("click", () => {
+    nextBtn?.addEventListener("click", () => {
       const step = isMobile() ? 1 : 2;
       const maxIdx = isMobile() ? bookPages.length - 1 : bookPages.length - 2;
       if (currentIndex < maxIdx) {
@@ -690,7 +754,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       }
     });
 
-    prevBtn.addEventListener("click", () => {
+    prevBtn?.addEventListener("click", () => {
       const step = isMobile() ? 1 : 2;
       if (currentIndex > 0) {
         flipToPageIndex(currentIndex - step);
@@ -698,7 +762,22 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     });
 
     // Keyboard controls
-    document.addEventListener("keydown", (e) => {
+    activeKeydownHandler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable ||
+        activeEl?.tagName === "INPUT" ||
+        activeEl?.tagName === "TEXTAREA" ||
+        activeEl?.tagName === "SELECT" ||
+        activeEl?.isContentEditable ||
+        document.querySelector('[role="dialog"][aria-modal="true"], .cmd-backdrop.open')
+      ) {
+        return;
+      }
       const step = isMobile() ? 1 : 2;
       const maxIdx = isMobile() ? bookPages.length - 1 : bookPages.length - 2;
       if (e.key === "ArrowRight" && currentIndex < maxIdx) {
@@ -706,7 +785,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       } else if (e.key === "ArrowLeft" && currentIndex > 0) {
         flipToPageIndex(currentIndex - step);
       }
-    });
+    };
+    document.addEventListener("keydown", activeKeydownHandler);
 
     // Touch Swipe Gestures
     let touchStartX = 0;
@@ -746,14 +826,16 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
     // Resize Handler
     let wasMobile = isMobile();
-    window.addEventListener("resize", () => {
+    activeResizeHandler = () => {
       const currentlyMobile = isMobile();
       if (currentlyMobile !== wasMobile) {
         wasMobile = currentlyMobile;
+        isAnimating = false;
         buildBook();
         renderView(currentIndex);
       }
-    });
+    };
+    window.addEventListener("resize", activeResizeHandler);
 
     // Initialize physical book
     buildBook();
@@ -761,6 +843,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   }
 
   document.addEventListener("astro:page-load", initLabNotebook);
+  document.addEventListener("astro:before-swap", cleanupLabNotebook);
 </script>
 
 <style>
@@ -1119,7 +1202,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   }
   .entry-figure :global(img) {
     width: 100%;
-    height: auto;
+    height: 196px;
+    object-fit: cover;
     border-radius: 4px;
     border: 1px solid var(--paper-line);
   }
@@ -1173,6 +1257,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     width: 20px;
     height: calc(100% + 28px);
     background: #c0392b;
+    border: none;
+    padding: 0;
     box-shadow: 2px 4px 8px rgba(0,0,0,0.18);
     z-index: 10;
     cursor: pointer;
@@ -1362,6 +1448,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     width: 20px;
     height: 24px;
     background: #c0392b;
+    border: none;
+    padding: 0;
     z-index: 20;
     transform: translateY(-24px);
     cursor: pointer;
@@ -1375,7 +1463,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
   }
 
   /* Hide the external tab when the book is open to the TOC, let the internal ribbon be shown */
-  :global(.notebook.at-toc) .bookmark-ribbon {
+  .notebook-outer.at-toc .bookmark-ribbon {
     display: none;
   }
 

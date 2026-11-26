@@ -14,7 +14,7 @@ const { books, locale, title, subtitle } = Astro.props;
 const groupBooks = (items: any[]) => {
     const enriched = items.map(book => ({
         ...book,
-        coverUrl: book.cover ? urlFor(book.cover).width(400).url() : null
+        coverUrl: book.cover ? urlFor(book.cover).width(400).auto('format').quality(85).url() : null
     }));
 
     const grouped: any[] = [];
@@ -57,7 +57,7 @@ const totalFinishedCount = finishedBooksRaw.length;
 const currentYear = new Date().getFullYear();
 const thisYearFinishedCount = finishedBooksRaw.filter(b => {
     if (!b.dateFinished) return false;
-    const year = new Date(b.dateFinished).getFullYear();
+    const year = parseInt(String(b.dateFinished).slice(0, 4), 10);
     return year === currentYear;
 }).length;
 
@@ -70,13 +70,14 @@ const t = {
     finished: "Archives",
     readReview: "Read Thoughts",
     close: "Close",
+    closeSeries: "Close Series",
     progress: "Progress",
     author: "by",
     rating: "Personal Rating",
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
   },
   de: {
     title: "Persönliche Bibliothek",
@@ -86,13 +87,14 @@ const t = {
     finished: "Archiv",
     readReview: "Gedanken lesen",
     close: "Schließen",
+    closeSeries: "Reihe schließen",
     progress: "Fortschritt",
     author: "von",
     rating: "Persönliche Bewertung",
     series: "Serie",
     physical: "Physisch",
     totalRead: "Gelesene Bücher",
-    thisYearRead: `In ${currentYear} gelesen`
+    thisYearRead: `In ${currentYear} gelesen`, books: "Bücher", expandSeries: "Reihe öffnen", back: "Zurück", noThoughts: "Noch keine Notizen vorhanden.", vol: "Bd.", noCover: "Kein Cover", seriesBooks: "Bücher der Reihe"
   }
 }[locale] || {
     title: "Personal Library",
@@ -102,13 +104,14 @@ const t = {
     finished: "Archives",
     readReview: "Read Thoughts",
     close: "Close",
+    closeSeries: "Close Series",
     progress: "Progress",
     author: "by",
     rating: "Personal Rating",
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
 };
 
 ---
@@ -116,9 +119,9 @@ const t = {
 <section id="library" class="relative py-24 px-4 overflow-hidden bg-[var(--color-surface)] backdrop-blur-sm border-t border-b border-black/5 dark:border-white/5">
     <div id="library-container" class="max-w-[1600px] mx-auto relative z-10 transition-all duration-700">
         <div class="mb-16 text-center">
-            <h2 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
+            <h1 class="text-4xl md:text-5xl font-black mb-6 tracking-tight text-[var(--color-text)] uppercase italic">
                 {(title || t.title)?.replace(/Libary/g, 'Library').replace(/libary/g, 'library')}
-            </h2>
+            </h1>
             <p class="text-lg text-[var(--color-text-dim)] max-w-2xl mx-auto font-medium leading-relaxed">
                 {subtitle || t.subtitle}
             </p>
@@ -150,10 +153,10 @@ const t = {
         {/* --- Currently Reading --- */}
         {reading.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
+                <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.reading}</span>
                     <span class="h-[1px] flex-1" style="background-color: var(--color-project-accent-border)"></span>
-                </h3>
+                </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {reading.map(item => {
                         return (
@@ -161,13 +164,13 @@ const t = {
                                 <div class="flex gap-6">
                                     <div class="w-24 h-36 flex-shrink-0 bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-lg transform group-hover:scale-105 transition-transform duration-500">
                                         {item.cover ? (
-                                            <img src={urlFor(item.cover).width(200).url()} alt={item.title} class="w-full h-full object-cover" />
+                                            <img src={urlFor(item.cover).width(200).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover" />
                                         ) : (
-                                            <div class="w-full h-full flex items-center justify-center text-xs opacity-20 uppercase font-black">No Cover</div>
+                                            <div class="w-full h-full flex items-center justify-center text-xs opacity-20 uppercase font-black">{t.noCover}</div>
                                         )}
                                     </div>
                                     <div class="flex-1">
-                                        <h4 class="text-lg font-black mb-1 line-clamp-2 text-[var(--color-text)]">{item.title}</h4>
+                                        <h3 class="text-lg font-black mb-1 line-clamp-2 text-[var(--color-text)]">{item.title}</h3>
                                         <p class="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-4">{t.author} {item.author}</p>
                                         
                                         <div class="space-y-2">
@@ -191,10 +194,10 @@ const t = {
         {/* --- Finished Archives --- */}
         {finished.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
+                <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.finished}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
-                </h3>
+                </h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-12">
                     {finished.map((item: any) => {
                         if (item.type === 'series') {
@@ -202,26 +205,28 @@ const t = {
                                 <div class="series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName}>
                                     {/* --- Stack View --- */}
                                     <div class="series-stack-view group relative flex flex-col items-center">
-                                        <button 
+                                        <button
+                                            type="button"
                                             class="open-series-btn relative w-full aspect-[2/3] transition-all duration-500 hover:-translate-y-2"
+                                            aria-expanded="false"
                                             data-series-name={item.seriesName}
                                         >
                                             <div class="absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-xl translate-x-3 -translate-y-3 opacity-40 shadow-sm transition-transform group-hover:translate-x-4 group-hover:-translate-y-4"></div>
                                             <div class="absolute inset-0 bg-slate-400 dark:bg-slate-600 rounded-xl translate-x-1.5 -translate-y-1.5 opacity-60 shadow-md transition-transform group-hover:translate-x-2 group-hover:-translate-y-2"></div>
                                             <div class="absolute inset-0 bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-black/5 dark:border-white/5 z-10 transition-transform group-hover:scale-[1.02]">
                                                 {item.cover ? (
-                                                    <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover" />
+                                                    <img src={urlFor(item.cover).width(300).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover" />
                                                 ) : (
                                                     <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-black">{item.seriesName}</div>
                                                 )}
                                             </div>
                                             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden" style="background-color: var(--color-project-accent-bg); border: 1px solid var(--color-project-accent-border)">
-                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} Books</span>
-                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full">Expand Series</span>
+                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} {t.books}</span>
+                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full">{t.expandSeries}</span>
                                             </div>
                                         </button>
-                                        <h4 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h4>
-                                        <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h4>
+                                        <h3 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h3>
+                                        <h3 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h3>
                                     </div>
 
                                     {/* --- Expanded Shelf View --- */}
@@ -233,12 +238,12 @@ const t = {
                                                         {item.seriesName}
                                                     </h3>
                                                     <p class="text-[10px] font-black uppercase tracking-[0.3em] mt-1" style="color: var(--color-project-accent)">
-                                                        {item.books.length} {t.series} Books
+                                                        {item.books.length} {t.seriesBooks}
                                                     </p>
                                                 </div>
-                                                <button class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
+                                                <button type="button" class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    {t.close} {t.series}
+                                                    {t.closeSeries}
                                                 </button>
                                             </div>
                                             
@@ -246,12 +251,13 @@ const t = {
                                                 {item.books.map((book: any) => {
                                                     return (
                                                         <div class="group relative flex flex-col items-center">
-                                                            <button 
+                                                            <button
+                                                                type="button"
                                                                 class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]"
                                                                 data-item={JSON.stringify(book)}
                                                             >
                                                                 {book.cover ? (
-                                                                    <img src={urlFor(book.cover).width(300).url()} alt={book.title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                                    <img src={urlFor(book.cover).width(300).auto('format').quality(85).url()} alt={book.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                                 ) : (
                                                                     <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{book.title}</div>
                                                                 )}
@@ -259,7 +265,7 @@ const t = {
                                                                     <span class="text-[10px] font-black uppercase tracking-widest px-3 py-2 border border-[var(--color-project-accent-border)] rounded-full text-[var(--color-text)]">{t.readReview}</span>
                                                                 </div>
                                                             </button>
-                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. {book.seriesOrder}</h4>
+                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">{t.vol} {book.seriesOrder}</h4>
                                                             <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{book.title}</h4>
                                                         </div>
                                                     );
@@ -273,12 +279,13 @@ const t = {
 
                         return (
                             <div class="group relative flex flex-col items-center">
-                                <button 
+                                <button
+                                    type="button"
                                     class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]"
                                     data-item={JSON.stringify(item)}
                                 >
                                     {item.cover ? (
-                                        <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        <img src={urlFor(item.cover).width(300).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                     ) : (
                                         <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{item.title}</div>
                                     )}
@@ -286,7 +293,7 @@ const t = {
                                         <span class="text-[10px] font-black uppercase tracking-widest px-3 py-2 border border-[var(--color-project-accent-border)] rounded-full text-[var(--color-text)]">{t.readReview}</span>
                                     </div>
                                 </button>
-                                <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h4>
+                                <h3 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-70 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h3>
                             </div>
                         );
                     })}
@@ -297,10 +304,10 @@ const t = {
         {/* --- Shortlist --- */}
         {shortlist.length > 0 && (
             <div class="mb-20">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
+                <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.shortlist}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
-                </h3>
+                </h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-12">
                     {shortlist.map((item: any) => {
                         if (item.type === 'series') {
@@ -308,26 +315,28 @@ const t = {
                                 <div class="series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName}>
                                     {/* --- Stack View --- */}
                                     <div class="series-stack-view group relative flex flex-col items-center">
-                                        <button 
+                                        <button
+                                            type="button"
                                             class="open-series-btn relative w-full aspect-[2/3] transition-all duration-500 hover:-translate-y-2"
+                                            aria-expanded="false"
                                             data-series-name={item.seriesName}
                                         >
                                             <div class="absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-xl translate-x-3 -translate-y-3 opacity-40 shadow-sm transition-transform group-hover:translate-x-4 group-hover:-translate-y-4"></div>
                                             <div class="absolute inset-0 bg-slate-400 dark:bg-slate-600 rounded-xl translate-x-1.5 -translate-y-1.5 opacity-60 shadow-md transition-transform group-hover:translate-x-2 group-hover:-translate-y-2"></div>
                                             <div class="absolute inset-0 bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-black/5 dark:border-white/5 z-10 transition-transform group-hover:scale-[1.02] grayscale group-hover:grayscale-0 transition-all duration-500">
                                                 {item.cover ? (
-                                                    <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover" />
+                                                    <img src={urlFor(item.cover).width(300).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover" />
                                                 ) : (
                                                     <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-black">{item.seriesName}</div>
                                                 )}
                                             </div>
                                             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px] z-20 rounded-xl overflow-hidden" style="background-color: var(--color-project-accent-bg); border: 1px solid var(--color-project-accent-border)">
-                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} Books</span>
-                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full text-center mx-2">Expand Series</span>
+                                                <span class="text-[12px] font-black uppercase tracking-tight text-[var(--color-text)] mb-2">{item.books.length} {t.books}</span>
+                                                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)] px-3 py-1.5 border border-[var(--color-project-accent-border)] rounded-full text-center mx-2">{t.expandSeries}</span>
                                             </div>
                                         </button>
-                                        <h4 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h4>
-                                        <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h4>
+                                        <h3 class="mt-4 text-[10px] font-black text-center uppercase tracking-widest" style="color: var(--color-project-accent)">{t.series}</h3>
+                                        <h3 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.seriesName}</h3>
                                     </div>
 
                                     {/* --- Expanded Shelf View --- */}
@@ -339,12 +348,12 @@ const t = {
                                                         {item.seriesName}
                                                     </h3>
                                                     <p class="text-[10px] font-black uppercase tracking-[0.3em] mt-1" style="color: var(--color-project-accent)">
-                                                        {item.books.length} {t.series} Books
+                                                        {item.books.length} {t.seriesBooks}
                                                     </p>
                                                 </div>
-                                                <button class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
+                                                <button type="button" class="close-series-btn flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] border border-[var(--color-text)]/5">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    {t.close} {t.series}
+                                                    {t.closeSeries}
                                                 </button>
                                             </div>
                                             
@@ -354,7 +363,7 @@ const t = {
                                                         <div class="group relative flex flex-col items-center">
                                                             <div class="relative w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]">
                                                                 {book.cover ? (
-                                                                    <img src={urlFor(book.cover).width(300).url()} alt={book.title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                                    <img src={urlFor(book.cover).width(300).auto('format').quality(85).url()} alt={book.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                                 ) : (
                                                                     <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{book.title}</div>
                                                                 )}
@@ -365,7 +374,7 @@ const t = {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">Vol. {book.seriesOrder}</h4>
+                                                            <h4 class="text-[8px] font-black uppercase tracking-widest mb-1" style="color: var(--color-project-accent)">{t.vol} {book.seriesOrder}</h4>
                                                             <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{book.title}</h4>
                                                         </div>
                                                     );
@@ -381,7 +390,7 @@ const t = {
                             <div class="group relative flex flex-col items-center">
                                 <div class="relative w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)] grayscale group-hover:grayscale-0 opacity-60 group-hover:opacity-100 transition-all duration-500">
                                     {item.cover ? (
-                                        <img src={urlFor(item.cover).width(300).url()} alt={item.title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        <img src={urlFor(item.cover).width(300).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                     ) : (
                                         <div class="w-full h-full flex items-center justify-center text-[10px] opacity-20 uppercase font-bold text-center p-4">{item.title}</div>
                                     )}
@@ -392,7 +401,7 @@ const t = {
                                         </div>
                                     )}
                                 </div>
-                                <h4 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h4>
+                                <h3 class="text-xs font-black text-center line-clamp-1 w-full px-2 opacity-50 group-hover:opacity-100 transition-opacity text-[var(--color-text)]">{item.title}</h3>
                             </div>
                         );
                     })}
@@ -404,7 +413,7 @@ const t = {
 </div> {/* end library-container (100) */}
 
 {/* --- Side Detail Panel --- */}
-<aside id="review-panel" class="fixed top-[var(--header-height,60px)] right-0 h-[calc(100vh-var(--header-height,60px))] w-full lg:w-[450px] xl:w-[500px] z-[100] translate-x-full opacity-0 pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] bg-[var(--color-bg)]/98 backdrop-blur-2xl border-l border-black/10 dark:border-white/20 flex flex-col" style="box-shadow: var(--panel-shadow)">
+<aside id="review-panel" role="dialog" aria-modal="false" aria-labelledby="modal-title" inert data-locale={locale} data-no-thoughts={t.noThoughts} class="fixed top-[var(--header-height,60px)] right-0 h-[calc(100vh-var(--header-height,60px))] w-full lg:w-[450px] xl:w-[500px] z-[100] translate-x-full opacity-0 pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] bg-[var(--color-bg)]/98 backdrop-blur-2xl border-l border-black/10 dark:border-white/20 flex flex-col" style="box-shadow: var(--panel-shadow)">
     <div class="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-10 relative">
         <div id="panel-content">
             <div id="single-book-view" class="flex flex-col gap-10">
@@ -428,35 +437,37 @@ const t = {
             <div id="series-books-view" class="hidden">
                 <h3 id="modal-series-name" class="text-3xl font-black text-[var(--color-text)] mb-4 italic uppercase"></h3>
                 <p class="text-[10px] font-black uppercase tracking-widest mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
-                    <span>{t.series} Books</span>
+                    <span>{t.seriesBooks}</span>
                     <span class="h-[1px] flex-1 bg-black/5 dark:bg-white/5"></span>
                 </p>
                 <div id="series-grid" class="flex flex-col gap-4"></div>
             </div>
         </div>
 
-        <button class="absolute top-8 right-8 p-3 rounded-full bg-[var(--color-text)]/10 hover:bg-[var(--color-text)]/20 transition-all close-panel-btn hover:rotate-90 group z-20 border border-[var(--color-text)]/10">
+        <button type="button" class="absolute top-8 right-8 p-3 rounded-full bg-[var(--color-text)]/10 hover:bg-[var(--color-text)]/20 transition-all close-panel-btn hover:rotate-90 group z-20 border border-[var(--color-text)]/10" aria-label={t.close}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--color-text)] opacity-70 group-hover:opacity-100 transition-opacity"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
-        <button id="modal-back-btn" class="hidden absolute top-6 left-6 flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all border border-[var(--color-text)]/10 z-10">
+        <button type="button" id="modal-back-btn" class="hidden absolute top-6 left-6 flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 transition-all border border-[var(--color-text)]/10 z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--color-text)]"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)]">Back</span>
+                <span class="text-[8px] font-black uppercase tracking-widest text-[var(--color-text)]">{t.back}</span>
         </button>
     </div>
 </aside>
 </section>
 
 <script>
+    let activeEscapeHandler: ((e: KeyboardEvent) => void) | null = null;
     function initLibrary() {
-        const panel = document.getElementById('review-panel');
+        const panel = document.getElementById('review-panel') as HTMLElement | null;
         if (!panel) return;
+        const panelEl: HTMLElement = panel;
 
         // Teleport the panel to body to ensure fixed positioning works regardless of parent transforms
-        if (panel.parentElement !== document.body) {
-            document.body.appendChild(panel);
+        if (panelEl.parentElement !== document.body) {
+            document.body.appendChild(panelEl);
         }
 
-        const closeBtns = document.querySelectorAll('.close-panel-btn');
+        const closeBtns = panelEl.querySelectorAll('.close-panel-btn');
         const openBtns = document.querySelectorAll('.open-review-btn');
         const openSeriesBtns = document.querySelectorAll('.open-series-btn');
         const libraryContainer = document.getElementById('library-container');
@@ -465,13 +476,15 @@ const t = {
         const singleView = document.getElementById('single-book-view');
         const seriesView = document.getElementById('series-books-view');
 
-
         const modalTitle = document.getElementById('modal-title');
         const modalAuthor = document.getElementById('modal-author');
         const modalReview = document.getElementById('modal-review');
         const modalRating = document.getElementById('modal-rating');
         const modalGenres = document.getElementById('modal-genres');
         const modalCover = document.getElementById('modal-cover');
+
+        let lastFocusedElement: HTMLElement | null = null;
+        panelEl.inert = !panelEl.classList.contains('translate-x-0');
 
         function showBook(book: any, isFromSeries = false) {
             if (!singleView || !seriesView || !backBtn) return;
@@ -482,8 +495,9 @@ const t = {
 
             if (modalTitle) modalTitle.textContent = book.title;
             if (modalAuthor) modalAuthor.textContent = book.author;
-            const review = document.documentElement.lang === 'de' ? book.reviewDe : book.reviewEn;
-            if (modalReview) modalReview.textContent = review || 'No thoughts recorded yet.';
+            const activeLocale = panelEl.dataset.locale || document.documentElement.lang;
+            const review = activeLocale === 'de' ? book.reviewDe : book.reviewEn;
+            if (modalReview) modalReview.textContent = review || panelEl.dataset.noThoughts || 'No thoughts recorded yet.';
             
             if (modalRating) {
                 modalRating.innerHTML = '';
@@ -510,10 +524,11 @@ const t = {
             }
         }
 
-        function openPanel() {
-            if (!panel) return;
-            panel.classList.remove('translate-x-full', 'opacity-0', 'pointer-events-none');
-            panel.classList.add('translate-x-0', 'opacity-100');
+        function openPanel(trigger?: HTMLElement | null) {
+            lastFocusedElement = trigger || (document.activeElement as HTMLElement | null);
+            panelEl.inert = false;
+            panelEl.classList.remove('translate-x-full', 'opacity-0', 'pointer-events-none');
+            panelEl.classList.add('translate-x-0', 'opacity-100');
             
             if (libraryContainer && window.innerWidth >= 1024) {
                 const shiftWidth = window.innerWidth >= 1280 ? '500px' : '450px';
@@ -521,18 +536,26 @@ const t = {
             }
 
             if (window.innerWidth < 1024) {
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                panelEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+
+            const firstCloseBtn = panelEl.querySelector('.close-panel-btn') as HTMLElement | null;
+            firstCloseBtn?.focus({ preventScroll: true });
         }
 
         function closePanel() {
-            if (!panel) return;
-            panel.classList.add('translate-x-full', 'opacity-0', 'pointer-events-none');
-            panel.classList.remove('translate-x-0', 'opacity-100');
+            panelEl.classList.add('translate-x-full', 'opacity-0', 'pointer-events-none');
+            panelEl.classList.remove('translate-x-0', 'opacity-100');
+            panelEl.inert = true;
             
             if (libraryContainer) {
                 libraryContainer.style.paddingRight = '0';
             }
+
+            if (lastFocusedElement && document.contains(lastFocusedElement)) {
+                lastFocusedElement.focus({ preventScroll: true });
+            }
+            lastFocusedElement = null;
         }
 
         // Attach events
@@ -542,9 +565,21 @@ const t = {
                 const coverUrl = btn.querySelector('img')?.src;
                 showBook(item, false);
                 if (modalCover) {
-                modalCover.innerHTML = coverUrl ? `<img src="${coverUrl}" class="w-full h-full object-cover" />` : '<div class="w-full h-full flex items-center justify-center opacity-10 uppercase font-black">#</div>';
+                    modalCover.textContent = '';
+                    if (coverUrl) {
+                        const img = document.createElement('img');
+                        img.src = coverUrl;
+                        img.alt = item.title || '';
+                        img.className = 'w-full h-full object-cover';
+                        modalCover.appendChild(img);
+                    } else {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'w-full h-full flex items-center justify-center opacity-10 uppercase font-black';
+                        placeholder.textContent = '#';
+                        modalCover.appendChild(placeholder);
+                    }
                 }
-                openPanel();
+                openPanel(btn as HTMLElement);
             });
         });
 
@@ -556,6 +591,7 @@ const t = {
                 document.querySelectorAll('.series-container.is-expanded').forEach(other => {
                     if (other !== container) {
                         other.classList.remove('is-expanded');
+                        other.querySelector('.open-series-btn')?.setAttribute('aria-expanded', 'false');
                         const otherExpanded = other.querySelector('.series-expanded-view');
                         const otherStack = other.querySelector('.series-stack-view');
                         if (otherExpanded) {
@@ -572,6 +608,7 @@ const t = {
 
                 if (stackView && expandedView) {
                     container.classList.add('is-expanded');
+                    btn.setAttribute('aria-expanded', 'true');
                     stackView.classList.add('hidden');
                     expandedView.classList.remove('hidden');
                     
@@ -592,14 +629,17 @@ const t = {
                 const container = btn.closest('.series-container');
                 const stackView = container?.querySelector('.series-stack-view');
                 const expandedView = container?.querySelector('.series-expanded-view');
+                const openSeriesBtn = container?.querySelector('.open-series-btn') as HTMLElement | null;
 
                 if (container && stackView && expandedView) {
                     expandedView.classList.add('opacity-0', 'scale-95');
+                    openSeriesBtn?.setAttribute('aria-expanded', 'false');
                     
                     setTimeout(() => {
                         expandedView.classList.add('hidden');
                         stackView.classList.remove('hidden');
                         container.classList.remove('is-expanded');
+                        openSeriesBtn?.focus({ preventScroll: true });
                     }, 500);
                 }
             });
@@ -611,13 +651,29 @@ const t = {
         });
 
         closeBtns.forEach(btn => btn.addEventListener('click', closePanel));
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+        if (activeEscapeHandler) document.removeEventListener('keydown', activeEscapeHandler);
+        activeEscapeHandler = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            if (panelEl.classList.contains('translate-x-0')) {
+                closePanel();
+                return;
+            }
+            const expandedCloseBtn = document.querySelector('.series-container.is-expanded .close-series-btn') as HTMLButtonElement | null;
+            if (expandedCloseBtn) {
+                expandedCloseBtn.click();
+            }
+        };
+        document.addEventListener('keydown', activeEscapeHandler);
     }
 
     // Initialize on load and on swap
     document.addEventListener('astro:page-load', initLibrary);
     // Cleanup on navigation to prevent duplicate panels in body
     document.addEventListener('astro:before-swap', () => {
+        if (activeEscapeHandler) {
+            document.removeEventListener('keydown', activeEscapeHandler);
+            activeEscapeHandler = null;
+        }
         const panel = document.body.querySelector('#review-panel');
         if (panel) panel.remove();
     });

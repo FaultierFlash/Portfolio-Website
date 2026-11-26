@@ -10,44 +10,56 @@ interface Props {
   intensity?: number;
   scale?: number;
   color?: string; // Hex code or CSS variable
+  isAbsolute?: boolean;
 }
 
-const { 
-  source = 'mars-procedural', 
-  lat = 0, 
-  lng = 0, 
+const {
+  source = 'mars-procedural',
+  lat = 0,
+  lng = 0,
   intensity = 1.0,
   scale = 1.0,
-  color = 'var(--color-primary)' 
+  color = 'var(--color-project-accent, var(--color-primary))',
+  isAbsolute = false,
 } = Astro.props;
 ---
 
-<div class="topography-container" 
-     data-source={source} 
-     data-lat={lat} 
-     data-lng={lng} 
-     data-intensity={intensity} 
-     data-scale={scale}
-     data-color={color}>
-  <canvas id="topoCanvas"></canvas>
+<div
+  class={`topography-container ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}
+  data-source={source}
+  data-lat={lat}
+  data-lng={lng}
+  data-intensity={intensity}
+  data-scale={scale}
+  data-color={color}
+  aria-hidden="true"
+>
+  <canvas class="topo-canvas"></canvas>
 </div>
 
 <style>
   .topography-container {
-    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     z-index: -1;
     pointer-events: none;
-    opacity: 0.2; /* Increased from 0.15 */
+    opacity: 0.2;
     background: transparent;
     transition: opacity 0.3s ease;
   }
 
+  .topography-container.is-fixed {
+    position: fixed;
+  }
+
+  .topography-container.is-absolute {
+    position: absolute;
+  }
+
   :global(.dark) .topography-container {
-    opacity: 0.5; /* Increased from 0.35 */
+    opacity: 0.5;
   }
 
   canvas {
@@ -60,6 +72,8 @@ const {
 <script>
   import { getElevationGrid } from '../utils/topoData';
 
+  const activeRenderers: TopoRenderer[] = [];
+
   class TopoRenderer {
     container: HTMLElement;
     canvas: HTMLCanvasElement;
@@ -70,24 +84,72 @@ const {
     cellSize = 0;
     width = 0;
     height = 0;
-    
-    mouseX = 0;
-    mouseY = 0;
-    targetMouseX = 0;
-    targetMouseY = 0;
+
+    mouseX = -9999;
+    mouseY = -9999;
+    targetMouseX = -9999;
+    targetMouseY = -9999;
+    resolvedColor = '#FF7D1A';
+    rafId: number | null = null;
+    isVisible = true;
+    destroyed = false;
+    observer: MutationObserver | null = null;
+    io: IntersectionObserver | null = null;
+    onResize: () => void;
+    onMouseMove: (e: MouseEvent) => void;
 
     constructor(container: HTMLElement) {
       this.container = container;
       this.canvas = container.querySelector('canvas')!;
       this.ctx = this.canvas.getContext('2d', { alpha: true })!;
-      
-      window.addEventListener('resize', () => this.resize());
-      window.addEventListener('mousemove', (e) => {
-        this.targetMouseX = e.clientX;
-        this.targetMouseY = e.clientY;
+
+      this.onResize = () => this.resize();
+      this.onMouseMove = (e: MouseEvent) => {
+        const rect = this.canvas.getBoundingClientRect();
+        this.targetMouseX = e.clientX - rect.left;
+        this.targetMouseY = e.clientY - rect.top;
+      };
+
+      window.addEventListener('resize', this.onResize);
+      window.addEventListener('mousemove', this.onMouseMove);
+
+      this.resolveColor();
+      this.observer = new MutationObserver(() => this.resolveColor());
+      this.observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style'],
       });
 
+      this.io = new IntersectionObserver(
+        (entries) => {
+          const visible = entries[0]?.isIntersecting ?? true;
+          this.isVisible = visible;
+          if (visible && !this.destroyed && this.rafId === null && this.grid.length > 0) {
+            this.animate();
+          } else if (!visible && this.rafId !== null) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+          }
+        },
+        { threshold: 0.05 }
+      );
+      this.io.observe(container);
+
       this.init();
+    }
+
+    resolveColor() {
+      const raw = this.container.dataset.color || 'var(--color-project-accent, var(--color-primary))';
+      if (!raw.includes('var(')) {
+        this.resolvedColor = raw;
+        return;
+      }
+      const styles = getComputedStyle(this.container);
+      const accent =
+        styles.getPropertyValue('--color-project-accent').trim() ||
+        styles.getPropertyValue('--color-primary').trim() ||
+        '#FF7D1A';
+      this.resolvedColor = accent;
     }
 
     async init() {
@@ -95,42 +157,58 @@ const {
       const lat = parseFloat(this.container.dataset.lat || '0');
       const lng = parseFloat(this.container.dataset.lng || '0');
       const scale = parseFloat(this.container.dataset.scale || '1.0');
-      
+
       try {
         this.grid = await getElevationGrid({
           source,
           latitude: lat,
           longitude: lng,
           gridSize: this.gridSize,
-          scale: scale
+          scale,
         });
-      } catch (e) {
+      } catch {
         // Fallback handled in util
       }
 
-      // Initialize ripple grid with zeros
-      this.rippleGrid = Array(this.gridSize).fill(0).map(() => Array(this.gridSize).fill(0));
+      if (this.destroyed || !document.contains(this.canvas)) return;
+
+      this.rippleGrid = Array(this.gridSize)
+        .fill(0)
+        .map(() => Array(this.gridSize).fill(0));
 
       this.resize();
-      this.animate();
+      if (this.isVisible) {
+        this.animate();
+      } else {
+        this.draw();
+      }
     }
 
     resize() {
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
+      this.width = this.container.clientWidth || window.innerWidth;
+      this.height = this.container.clientHeight || window.innerHeight;
       this.canvas.width = this.width;
       this.canvas.height = this.height;
       this.cellSize = Math.max(this.width, this.height) / (this.gridSize - 1);
     }
 
     animate() {
-      // Smooth mouse follow
-      this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
-      this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+      if (this.destroyed || !document.contains(this.canvas)) {
+        this.destroy();
+        return;
+      }
+      if (!this.isVisible) {
+        this.rafId = null;
+        return;
+      }
+      if (this.targetMouseX > -9000) {
+        this.mouseX += (this.targetMouseX - this.mouseX) * 0.1;
+        this.mouseY += (this.targetMouseY - this.mouseY) * 0.1;
+      }
 
       this.updateRipples();
       this.draw();
-      requestAnimationFrame(() => this.animate());
+      this.rafId = requestAnimationFrame(() => this.animate());
     }
 
     updateRipples() {
@@ -140,13 +218,11 @@ const {
 
       for (let y = 0; y < this.gridSize; y++) {
         for (let x = 0; x < this.gridSize; x++) {
-          // Decpate ripple
           this.rippleGrid[y][x] *= 0.95;
 
-          // Add mouse influence
           const dx = x - mouseCol;
           const dy = y - mouseRow;
-          const dist = Math.sqrt(dx*dx + dy*dy);
+          const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < radius) {
             this.rippleGrid[y][x] += (radius - dist) * 2;
           }
@@ -156,13 +232,12 @@ const {
 
     getContourValue(x: number, y: number) {
       if (x < 0 || y < 0 || x >= this.gridSize || y >= this.gridSize) return 0;
-      return this.grid[y][x] + this.rippleGrid[y][x];
+      return (this.grid[y]?.[x] ?? 0) + (this.rippleGrid[y]?.[x] ?? 0);
     }
 
     draw() {
       this.ctx.clearRect(0, 0, this.width, this.height);
-      const color = this.container.dataset.color || 'var(--color-primary)';
-      this.ctx.strokeStyle = color;
+      this.ctx.strokeStyle = this.resolvedColor;
       this.ctx.lineWidth = 1;
 
       const levels = 8;
@@ -171,9 +246,8 @@ const {
       for (let l = 1; l <= levels; l++) {
         const threshold = l * (20 / intensity);
         this.ctx.beginPath();
-        // Increased base alpha to 0.4 and scale to 0.6
         this.ctx.globalAlpha = 0.5 + (l / levels) * 0.5;
-        
+
         for (let y = 0; y < this.gridSize - 1; y++) {
           for (let x = 0; x < this.gridSize - 1; x++) {
             this.drawMarchingSquare(x, y, threshold);
@@ -181,6 +255,7 @@ const {
         }
         this.ctx.stroke();
       }
+      this.ctx.globalAlpha = 1.0;
     }
 
     drawMarchingSquare(x: number, y: number, threshold: number) {
@@ -199,35 +274,89 @@ const {
       const py = y * this.cellSize;
       const s = this.cellSize;
 
-      // Interpolation helpers
-      const lerp = (v_a: number, v_b: number, t: number) => (t - v_a) / (v_b - v_a);
-      
+      const lerp = (v_a: number, v_b: number, t: number) => {
+        const diff = v_b - v_a;
+        return diff === 0 ? 0.5 : (t - v_a) / diff;
+      };
+
       const top = { x: px + s * lerp(v1, v2, threshold), y: py };
       const right = { x: px + s, y: py + s * lerp(v2, v3, threshold) };
       const bottom = { x: px + s * lerp(v4, v3, threshold), y: py + s };
       const left = { x: px, y: py + s * lerp(v1, v4, threshold) };
 
       switch (config) {
-        case 1: case 14: this.line(left, bottom); break;
-        case 2: case 13: this.line(bottom, right); break;
-        case 3: case 12: this.line(left, right); break;
-        case 4: case 11: this.line(top, right); break;
-        case 5: this.line(top, left); this.line(right, bottom); break;
-        case 6: case 9: this.line(top, bottom); break;
-        case 7: case 8: this.line(top, left); break;
-        case 10: this.line(top, right); this.line(left, bottom); break;
+        case 1:
+        case 14:
+          this.line(left, bottom);
+          break;
+        case 2:
+        case 13:
+          this.line(bottom, right);
+          break;
+        case 3:
+        case 12:
+          this.line(left, right);
+          break;
+        case 4:
+        case 11:
+          this.line(top, right);
+          break;
+        case 5:
+          this.line(top, left);
+          this.line(right, bottom);
+          break;
+        case 6:
+        case 9:
+          this.line(top, bottom);
+          break;
+        case 7:
+        case 8:
+          this.line(top, left);
+          break;
+        case 10:
+          this.line(top, right);
+          this.line(left, bottom);
+          break;
       }
     }
 
-    line(p1: {x:number, y:number}, p2: {x:number, y:number}) {
+    line(p1: { x: number; y: number }, p2: { x: number; y: number }) {
       this.ctx.moveTo(p1.x, p1.y);
       this.ctx.lineTo(p2.x, p2.y);
     }
+
+    destroy() {
+      if (this.destroyed) return;
+      this.destroyed = true;
+      if (this.rafId !== null) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = null;
+      }
+      window.removeEventListener('resize', this.onResize);
+      window.removeEventListener('mousemove', this.onMouseMove);
+      this.observer?.disconnect();
+      this.io?.disconnect();
+      this.observer = null;
+      this.io = null;
+      this.container.removeAttribute('data-initialized');
+    }
   }
 
-  // Initialize on page load
+  function cleanupTopoRenderers() {
+    while (activeRenderers.length > 0) {
+      activeRenderers.pop()?.destroy();
+    }
+  }
+
+  document.addEventListener('astro:before-swap', cleanupTopoRenderers);
   document.addEventListener('astro:page-load', () => {
+    cleanupTopoRenderers();
     const containers = document.querySelectorAll('.topography-container');
-    containers.forEach(c => new TopoRenderer(c as HTMLElement));
+    containers.forEach((c) => {
+      if (!c.hasAttribute('data-initialized')) {
+        c.setAttribute('data-initialized', 'true');
+        activeRenderers.push(new TopoRenderer(c as HTMLElement));
+      }
+    });
   });
 </script>

@@ -2,20 +2,20 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CvDocument from '../../components/CvDocument.astro';
 import { getCvData } from '../../lib/sanity';
-import { useTranslations } from '../../i18n/utils';
 
 const cvData = await getCvData('de');
-const t = useTranslations('de');
-const pageTitle = `${cvData.personalInfo.name} — Lebenslauf (CV)`;
+const pageTitle = "Lebenslauf (CV)";
+const pageDescription = `Akademischer Lebenslauf von ${cvData.personalInfo?.name || "Marlon Müller"} – Ingenieurwissenschaften an der TUM, Odonatum e.V., Erfahrung, Kompetenzen und PDF-Export.`;
 ---
 
 <BaseLayout 
-  title={pageTitle} 
+  title={pageTitle}
+  description={pageDescription}
   backgroundEffect="grid" 
   accentColor="primary"
   showFooter={true}
 >
-  <main class="min-h-screen pt-20 pb-16 flex justify-center">
+  <div class="min-h-screen pt-20 pb-16 flex justify-center">
     <CvDocument cvData={cvData} locale="de" />
-  </main>
+  </div>
 </BaseLayout>

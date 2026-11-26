@@ -39,6 +39,8 @@ const { pathSegments, containerAriaLabel = "Current page path" } = Astro.props;
   .logo-area {
     display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
     color: var(--color-text, #333);
     font-family:
       "Raleway", monospace, sans-serif; /* Ensure Raleway is loaded */
@@ -58,6 +60,10 @@ const { pathSegments, containerAriaLabel = "Current page path" } = Astro.props;
     /* This ensures both links and plain text spans get the 800 weight */
   }
 
+  .logo-area a {
+    flex-shrink: 0;
+  }
+
   /* If you specifically want links to be a different weight, you can override here: */
   /* .logo-area a { font-weight: normal; } */
 
@@ -72,11 +78,25 @@ const { pathSegments, containerAriaLabel = "Current page path" } = Astro.props;
     color: var(--color-secondary, #6c757d);
     user-select: none;
     font-weight: inherit; /* Separators typically shouldn't be bold */
+    flex-shrink: 0;
   }
 
   .path-text {
-    /* Any specific styles for the non-clickable text if needed beyond what's shared. */
-    /* For example, if it needed a slightly different color: */
-    /* color: var(--color-text-slightly-dimmed); */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1024px) {
+    .logo-area {
+      font-size: 1.15rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .logo-area {
+      font-size: 1.05rem;
+    }
   }
 </style>

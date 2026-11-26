@@ -1,48 +1,57 @@
-# Astro Starter Kit: Basics
+# Portfolio Website — Marlon Müller
+
+Personal portfolio website built with **Astro**, **Tailwind CSS v4**, **Sanity CMS**, and deployed on **Netlify**.
+
+## Tech Stack
+
+- **Framework:** [Astro](https://astro.build/) (`@astrojs/netlify` SSR adapter + ClientRouter view transitions)
+- **Styling:** Tailwind CSS v4 (`@tailwindcss/vite`, `@tailwindcss/typography`)
+- **CMS:** Sanity (`personal-website/` studio built into `public/studio`)
+- **Email & Verification:** Resend + JWT double-opt-in flow (`/api/contact/initiate` -> `/api/contact/verify`)
+- **PDF & OG Generation:** Puppeteer (`scripts/generate-cv-pdf.mjs`, `scripts/generate-og-image.mjs`)
+
+## Local Development
+
+1. Copy `.env.example` to `.env` and fill in your Sanity, Resend, and `JWT_SECRET` values.
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Start the Astro dev server:
+   ```sh
+   npm run dev
+   ```
+4. Build for production (generates CV PDFs first, then runs `astro build`):
+   ```sh
+   npm run build
+   ```
+
+## Scripts
+
+| Command | Action |
+| :--- | :--- |
+| `npm run dev` | Start local Astro dev server (`localhost:4321`) |
+| `npm run build` | Generate `/en/cv` and `/de/cv` PDFs and build site to `./dist/` |
+| `npm run preview` | Preview `./dist/` build locally |
+| `npm run generate:pdf` | Export CV PDFs to `public/` using Puppeteer |
+| `npm run lint` | Run ESLint across project source files |
+| `npm run typecheck` | Run `astro check` and `tsc --noEmit` |
+
+## Sanity Studio
+
+The Sanity Studio workspace lives in `personal-website/`:
 
 ```sh
-npm create astro@latest -- --template basics
+npm run build --prefix personal-website
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/basics)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/basics)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/basics/devcontainer.json)
+This builds the embedded studio into `public/studio/`.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Project Structure
 
-![just-the-basics](https://github.com/withastro/astro/assets/2244813/a0a5533c-a856-4198-8470-2d67b1d7c554)
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── layouts/
-│   │   └── Layout.astro
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- `src/pages/` — Bilingual (`/en/`, `/de/`) routes, API endpoints, dynamic `sitemap.xml.ts`, and `404.astro`
+- `src/components/` — Reusable UI components (`HomePage.astro`, interactive timeline, `BookArchive.astro`, `LabNotebook.astro`, `TerminalContactForm.astro`, `CvDocument.astro`, `HomeSpinWheel.astro`, canvas backgrounds)
+- `src/lib/` — Sanity queries (`sanity.ts`), Resend email templates (`email.ts`), JWT/HTML helpers (`jwt.ts`, `html.ts`)
+- `src/i18n/` — Localization JSON dictionaries and helpers
+- `personal-website/` — Sanity Studio v3 schemas and configuration
+- `scripts/` — PDF/OG generators and Sanity sync/upload utilities

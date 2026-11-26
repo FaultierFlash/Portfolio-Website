@@ -18,7 +18,8 @@
     "astro": "astro",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "astro check && tsc --noEmit"
+    "typecheck": "astro check && tsc --noEmit",
+    "indexnow": "node scripts/ping-indexnow.mjs"
   },
   "dependencies": {
     "@astrojs/netlify": "^8.2.3",
@@ -29,14 +30,12 @@
     "astro": "^7.2.4",
     "jsonwebtoken": "^9.0.3",
     "marked": "^17.0.5",
-    "nodemailer": "^9.0.5",
     "resend": "^4.8.0",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/nodemailer": "^6.4.24",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "eslint": "^9.39.4",

@@ -1,12 +1,13 @@
 ---
-// src/pages/en/contact.astro
+// src/pages/de/contact.astro
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import TerminalContactForm from "../../components/TerminalContactForm.astro";
-import { useTranslations } from "../../i18n/utils";
+import { useTranslations } from "../../i18n/utils"; import { getProjects, getTranslationOverrides } from "../../lib/sanity";
 
-const lang = "de"; // Or Astro.currentLocale
-const t = useTranslations(lang);
-const pageTitle = t("nav.contact") || "Contact";
+const lang = "de"; const [overrides, projects] = await Promise.all([getTranslationOverrides(lang), getProjects(lang)]); const t = useTranslations(lang, overrides);
+
+const pageTitle = t("nav.contact") || "Kontakt";
+const pageDescription = "Kontaktiere Marlon Müller direkt über das interaktive Web-Terminal.";
 
 // Gather all terminal translations
 const terminalTranslations = {
@@ -39,7 +40,7 @@ const terminalTranslations = {
 ---
 
 {/* Pass hidePageScrollbar={true} to BaseLayout */}
-<BaseLayout title={pageTitle} hidePageScrollbar={true}>
+<BaseLayout title={pageTitle} description={pageDescription} hidePageScrollbar={true} overrides={overrides} projects={projects}>
   {/* Pass translations as a prop */}
-  <TerminalContactForm translations={terminalTranslations} />
+  <TerminalContactForm translations={terminalTranslations} projects={projects} currentLocale={lang} />
 </BaseLayout>

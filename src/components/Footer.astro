@@ -3,17 +3,25 @@
 import { useTranslations, type Locale } from "../i18n/utils";
 import AudioPlayer from "./AudioPlayer.astro";
 
-const currentLocale = (Astro.currentLocale as Locale) || "de";
-const t = useTranslations(currentLocale);
+interface Props {
+  locale?: Locale;
+  overrides?: Record<string, string>;
+}
+
+const currentLocale = Astro.props.locale || (Astro.currentLocale as Locale) || "en";
+const t = useTranslations(currentLocale, Astro.props.overrides);
 const currentYear = new Date().getFullYear();
+const rightsText = currentLocale === "de" ? "Alle Rechte vorbehalten." : "All rights reserved.";
 ---
 
 <footer class="site-footer">
   <div class="footer-content">
-    <p>&copy; {currentYear} Marlon Müller. All rights reserved.</p>
+    <p>&copy; {currentYear} Marlon Müller. {rightsText}</p>
     <p>
-      <a href={`/${currentLocale}/privacy-policy`}>{t("footer.privacy")}</a> |
-      <a href={`/${currentLocale}/terms-of-service`}>{t("footer.terms")}</a> |
+      <a href={`/${currentLocale}/privacy-policy`}>{t("footer.privacy")}</a>
+      <span class="footer-sep" aria-hidden="true">|</span>
+      <a href={`/${currentLocale}/terms-of-service`}>{t("footer.terms")}</a>
+      <span class="footer-sep" aria-hidden="true">|</span>
       <a href={`/${currentLocale}/impressum`}>{t("footer.impressum")}</a>
     </p>
   </div>
@@ -32,7 +40,7 @@ const currentYear = new Date().getFullYear();
       var(--color-bg, #f8f9fa)
     ); /* Use a background variable */
     position: relative;
-    z-index: 50; /* Ensure it covers the fixed wheel */
+    z-index: 105; /* Ensure it covers the fixed wheel and sits above terminal */
     color: var(--color-secondary, #475569); /* Use a secondary text color */
     padding: 1rem 1.5rem 1.15rem;
     text-align: center;
@@ -58,6 +66,11 @@ const currentYear = new Date().getFullYear();
 
   .footer-content a:hover {
     text-decoration: underline;
+  }
+
+  .footer-sep {
+    margin: 0 0.45rem;
+    opacity: 0.5;
   }
 
   /* Audio Widget Placeholder */

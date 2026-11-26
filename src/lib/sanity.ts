@@ -5,7 +5,7 @@ export const sanityClient = createClient({
   projectId: import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'k4t36b6u',
   dataset: import.meta.env.PUBLIC_SANITY_DATASET || 'production',
   apiVersion: '2024-03-12', // use current date (YYYY-MM-DD) to target the latest API version
-  useCdn: false, // Disabled CDN to ensure slider values hot-reload immediately
+  useCdn: import.meta.env.PROD,
 });
 
 const builder = createImageUrlBuilder(sanityClient);
@@ -23,9 +23,8 @@ export async function getTranslationOverrides(locale: string) {
   }`;
   const result = await sanityClient.fetch(query, { locale });
 
-  // Convert array to object: { "key": "value" }
   const overrides: Record<string, string> = {};
-  result.forEach((item: any) => {
+  (result || []).forEach((item: any) => {
     overrides[item.key] = item.value;
   });
   return overrides;
@@ -40,7 +39,8 @@ export async function getHomePageData(locale: string) {
     backgroundEffect,
     topographyConfig,
     solarConfig,
-    featuredProjects[]->{
+    airflowConfig,
+    "featuredProjects": featuredProjects[defined(@->_id) && $locale in @->languages]->{
       "title": title,
       slug,
       mainImage,
@@ -49,6 +49,7 @@ export async function getHomePageData(locale: string) {
       backgroundEffect,
       topographyConfig,
       solarConfig,
+      airflowConfig,
       accentColor
     },
     showSpinWheel,
@@ -76,23 +77,29 @@ export async function getHomePageData(locale: string) {
         "widgetButtonLabel": widgetButtonLabel[$locale],
         widgetButtonLink,
         openByDefault,
-        relatedProject->{
+        "relatedProject": select(
+          defined(relatedProject->_id) && $locale in relatedProject->languages => relatedProject->{
+            slug,
+            title,
+            "description": description[$locale],
+            mainImage,
+            tags,
+            accentColor
+          },
+          null
+        )
+      },
+      "relatedProject": select(
+        defined(relatedProject->_id) && $locale in relatedProject->languages => relatedProject->{
           slug,
+          accentColor,
           title,
           "description": description[$locale],
           mainImage,
-          tags,
-          accentColor
-        }
-      },
-      relatedProject->{
-        slug,
-        accentColor,
-        title,
-        "description": description[$locale],
-        mainImage,
-        tags
-      }
+          tags
+        },
+        null
+      )
     }
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -107,9 +114,18 @@ export async function getProjects(locale: string) {
     tags,
     link,
     order,
+    publishDate,
+    "timelineDate": coalesce(
+      *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].startDate,
+      (*[_type == "homePage"][0].timeline[].milestoneEvents[])[relatedProject._ref == ^._id][0].date
+    ),
+    "isOngoing": *[_type == "homePage"][0].timeline[relatedProject._ref == ^._id][0].isOngoing,
+    "documentCount": count(documents[defined(asset) && (!defined(language) || language == "all" || language == $locale)]),
+    "galleryCount": count(gallery),
     backgroundEffect,
     topographyConfig,
     solarConfig,
+    airflowConfig,
     accentColor
   }`;
   return await sanityClient.fetch(query, { locale });
@@ -143,7 +159,8 @@ export async function getLibrarySettings() {
     backgroundEffect,
     accentColor,
     topographyConfig,
-    solarConfig
+    solarConfig,
+    airflowConfig
   }`;
   return await sanityClient.fetch(query);
 }
@@ -178,15 +195,15 @@ export async function getSocialsSettings() {
   return {
     linkedin: {
       enabled: data?.linkedin?.enabled !== undefined ? data.linkedin.enabled : true,
-      url: data?.linkedin?.url || "https://linkedin.com",
+      url: data?.linkedin?.url || 'https://linkedin.com/in/marlon-hendrik-mueller',
     },
     github: {
       enabled: data?.github?.enabled !== undefined ? data.github.enabled : true,
-      url: data?.github?.url || "https://github.com/FaultierFlash",
+      url: data?.github?.url || 'https://github.com/FaultierFlash',
     },
     instagram: {
       enabled: data?.instagram?.enabled !== undefined ? data.instagram.enabled : false,
-      url: data?.instagram?.url || "",
+      url: data?.instagram?.url || '',
     },
   };
 }
@@ -199,27 +216,53 @@ export async function getLegalPage(type: string, locale: string) {
   return await sanityClient.fetch(query, { type, locale });
 }
 
-export async function getLabEntries() {
-  const query = `*[_type == "labEntry" && status == "published"] | order(date desc) {
-    title,
-    slug,
-    date,
-    category,
-    tags,
-    language,
-    body,
-    images[]{
-      asset->,
-      alt,
-      caption
-    },
-    relatedProject->{
+export async function getLabEntries(locale?: string) {
+  const query = locale
+    ? `*[_type == "labEntry" && status == "published" && (!defined(language) || language == $locale)] | order(date desc) {
       title,
       slug,
-      accentColor
-    }
-  }`;
-  return await sanityClient.fetch(query);
+      date,
+      category,
+      tags,
+      language,
+      body,
+      images[]{
+        asset->,
+        alt,
+        caption
+      },
+      "relatedProject": select(
+        defined(relatedProject->_id) && (!defined($locale) || $locale in relatedProject->languages) => relatedProject->{
+          title,
+          slug,
+          accentColor
+        },
+        null
+      )
+    }`
+    : `*[_type == "labEntry" && status == "published"] | order(date desc) {
+      title,
+      slug,
+      date,
+      category,
+      tags,
+      language,
+      body,
+      images[]{
+        asset->,
+        alt,
+        caption
+      },
+      "relatedProject": select(
+        defined(relatedProject->_id) => relatedProject->{
+          title,
+          slug,
+          accentColor
+        },
+        null
+      )
+    }`;
+  return await sanityClient.fetch(query, locale ? { locale } : {});
 }
 
 export async function getCvData(locale: string = 'en') {
@@ -237,12 +280,12 @@ export async function getCvData(locale: string = 'en') {
       profileImage
     }
   }`;
-  
+
   let data: any = null;
   try {
     data = await sanityClient.fetch(query);
   } catch (err) {
-    console.error("Failed to fetch cvSettings from Sanity:", err);
+    console.error('Failed to fetch cvSettings from Sanity:', err);
   }
 
   const cv = data?.cv;
@@ -260,150 +303,53 @@ export async function getCvData(locale: string = 'en') {
         photoDataUri = `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
       }
     } catch (e) {
-      console.warn("Could not pre-fetch photo as base64 in SSR:", e);
+      console.warn('Could not pre-fetch photo as base64 in SSR:', e);
     }
   }
 
-  const defaultData = {
+  return {
     mode: cv?.mode || 'generated',
     manualPdfUrl: cv?.manualPdfUrl || null,
     personalInfo: {
-      name: cv?.personalInfo?.name || '[REDACTED]',
-      title: (isDe ? cv?.personalInfo?.titleDe : cv?.personalInfo?.titleEn) || 
-             (isDe ? 'B.Sc. Engineering Science, TUM · Gründer & Vorstand Odonatum e.V.' : 'B.Sc. Engineering Science, TUM · Founder & Board Member Odonatum e.V.'),
-      email: cv?.personalInfo?.email || '[REDACTED]',
-      phone: cv?.personalInfo?.phone || '[REDACTED]',
-      location: (isDe ? cv?.personalInfo?.locationDe : cv?.personalInfo?.locationEn) || 
-                (isDe ? 'Ahornweg 76, 85375 Neufahrn / München' : 'Ahornweg 76, 85375 [REDACTED]'),
-      website: cv?.personalInfo?.website || 'marlonmueller.eu',
-      linkedin: cv?.personalInfo?.linkedin || 'https://linkedin.com/in/marlon-hendrik-mueller',
-      github: cv?.personalInfo?.github || 'https://github.com/FaultierFlash',
+      name: cv?.personalInfo?.name || '',
+      title: (isDe ? cv?.personalInfo?.titleDe : cv?.personalInfo?.titleEn) || '',
+      email: cv?.personalInfo?.email || '',
+      phone: cv?.personalInfo?.phone || '',
+      location: (isDe ? cv?.personalInfo?.locationDe : cv?.personalInfo?.locationEn) || '',
+      website: cv?.personalInfo?.website || '',
+      linkedin: cv?.personalInfo?.linkedin || '',
+      github: cv?.personalInfo?.github || '',
       photo: rawPhoto,
-      photoDataUri: photoDataUri,
+      photoDataUri,
     },
-    experience: (cv?.experience && cv.experience.length > 0) ? cv.experience.map((item: any) => ({
-      role: isDe ? (item.roleDe || item.roleEn) : (item.roleEn || item.roleDe),
-      company: item.company,
-      period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),
-      highlights: isDe ? (item.highlightsDe || item.highlightsEn || []) : (item.highlightsEn || item.highlightsDe || []),
-    })) : [
-      {
-        role: isDe ? 'Gründer & Vorstand' : 'Founder & Board Member',
-        company: 'Odonatum e.V.',
-        period: isDe ? 'Mai 2025 – Heute' : 'May 2025 – Present',
-        highlights: isDe ? [
-          '**Projektleitung:** Mitbegründung und Leitung eines 31-köpfigen Teams zur Entwicklung einer libelleninspirierten Schlagflügel-Drohne (UAV).',
-          '**Systems Engineering:** Integration von mechanischen Koppelgetrieben, Aerodynamik und Regelungssystemen von CAD-Konzeption bis Prototypenbau.',
-          '**Webentwicklung:** Aufbau von Odonatum.com mit Astro, TypeScript und Sanity CMS.',
-          '**Partnerschaften:** Akquise hochkarätiger Industriesponsorings (u.a. MTU Aero Engines, Dassault Systèmes).'
-        ] : [
-          '**Project Lead:** Co-founded and currently leading a 31-member team engineering a dragonfly-inspired flapping wing UAV.',
-          '**Systems Engineering:** Driving the integration of mechanical linkages, aerodynamics, and control systems from initial CAD conceptualization to physical prototyping.',
-          '**Web Development:** Built Odonatum.com using Astro, TypeScript, and Sanity CMS.',
-          '**Operations & Partnerships:** Leading recruitment and secured high-value software/industrial sponsorships from MTU, Dassault Systèmes & others.'
-        ]
-      },
-      {
-        role: isDe ? 'Tutorium & Peer-Tutoring' : 'Private Peer Tutoring',
-        company: 'TUM Engineering Science',
-        period: isDe ? 'Sep. 2025 – Apr. 2026' : 'Sep. 2025 – Apr. 2026',
-        highlights: isDe ? [
-          '**Fachinhalte:** Vermittlung komplexer Themen in Technischer Mechanik, Informatik & Physik für Kommilitonen.'
-        ] : [
-          '**Explaining complex topics** in Technical Mechanics, Informatics & Physics.'
-        ]
-      },
-      {
-        role: isDe ? 'Gruppenleitung Nachhilfe' : 'Tutoring Group Lead',
-        company: 'KidsClub Hannover',
-        period: isDe ? 'Nov. 2021 – Sep. 2024' : 'Nov. 2021 – Sep. 2024',
-        highlights: isDe ? [
-          '**Verantwortung:** Koordination großer Nachhilfegruppen für geflüchtete Schülerinnen und Schüler der Klassen 1 bis 7.'
-        ] : [
-          '**Responsibility:** Coordinating large tutoring groups of 1st to 7th graders who arrived in Germany as refugees.'
-        ]
-      },
-      {
-        role: isDe ? 'Fluggerätmechaniker - Praktikum' : 'Aircraft Mechanic - Intern',
-        company: 'MTU Maintenance',
-        period: isDe ? 'Mär. 2022 – Apr. 2022' : 'Mar. 2022 – Apr. 2022',
-        highlights: isDe ? [
-          '**Technische Grundlagen:** Metallbearbeitung und Mitarbeit in der HPT-Instandhaltungslinie (Hochdruckturbine).'
-        ] : [
-          '**Technical Fundamentals:** Basics of metalworking & working in the HPT maintenance line.'
-        ]
-      }
-    ],
-    education: (cv?.education && cv.education.length > 0) ? cv.education.map((item: any) => ({
-      degree: isDe ? (item.degreeDe || item.degreeEn) : (item.degreeEn || item.degreeDe),
-      institution: item.institution,
-      period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),
-      details: isDe ? (item.detailsDe || item.detailsEn || []) : (item.detailsEn || item.detailsDe || []),
-    })) : [
-      {
-        degree: 'B. Sc. Engineering Science',
-        institution: 'Technical University of Munich (TUM)',
-        period: isDe ? 'Sep. 2024 – Heute' : 'Sep. 2024 – Present',
-        details: isDe ? [
-          '**Beschleunigter Studiengang (210 ECTS)** – 6 Semester interdisziplinäres Ingenieurstudium.',
-          '**Bilinguales Studium** auf Englisch und Deutsch (40% / 60%).',
-          '**Stipendiat** der *Studienstiftung des deutschen Volkes*.'
-        ] : [
-          '**Accelerated Degree (210 ECTS)** – 6 Semester interdisciplinary engineering bachelor.',
-          '**Bilingual studies** in English and German (40% / 60%).',
-          '**Scholarship** – German Academic Scholarship Foundation (*Studienstiftung des deutschen Volkes*).'
-        ]
-      },
-      {
-        degree: isDe ? 'Abitur' : 'Highschool – Abitur',
-        institution: 'Gymnasium',
-        period: isDe ? 'Aug. 2015 – Juni 2024' : 'Aug. 2015 – June 2024',
-        details: isDe ? [
-          '**Abiturnote:** 1,3.',
-          '*Jugend forscht* **1. Platz** im Regionalwettbewerb, Sonderpreis für Energie- und Klimaschutz & Sonderpreis für unternehmerische Ideen.'
-        ] : [
-          '**Abitur Grade:** 1.3 (German Grade).',
-          '*Jugend forscht* science competition: **1st place** in regional round, Special Award for Energy and Climate Protection & Special Award for Entrepreneurial Ideas.'
-        ]
-      }
-    ],
+    experience: (cv?.experience || []).map((item: any) => ({
+      role: isDe ? item.roleDe || item.roleEn : item.roleEn || item.roleDe,
+      company: item.company || '',
+      period: isDe ? item.periodDe || item.periodEn : item.periodEn || item.periodDe,
+      highlights: isDe
+        ? item.highlightsDe || item.highlightsEn || []
+        : item.highlightsEn || item.highlightsDe || [],
+    })),
+    education: (cv?.education || []).map((item: any) => ({
+      degree: isDe ? item.degreeDe || item.degreeEn : item.degreeEn || item.degreeDe,
+      institution: item.institution || '',
+      period: isDe ? item.periodDe || item.periodEn : item.periodEn || item.periodDe,
+      details: isDe ? item.detailsDe || item.detailsEn || [] : item.detailsEn || item.detailsDe || [],
+    })),
     skills: {
-      coding: (cv?.skills?.coding && cv.skills.coding.length > 0) ? cv.skills.coding : ['C', 'Python', 'SQL', 'LaTeX'],
-      webDev: (cv?.skills?.webDev && cv.skills.webDev.length > 0) ? cv.skills.webDev : ['Astro (JS/TS, CSS, HTML)', 'Git / GitHub', 'Netlify Client', 'Sanity CMS', 'Resend API'],
-      engineeringCad: (cv?.skills?.engineeringCad && cv.skills.engineeringCad.length > 0) ? cv.skills.engineeringCad : ['SolidWorks', 'Autodesk Inventor & Fusion'],
-      languages: (isDe ? (cv?.skills?.languagesDe || cv?.skills?.languagesEn) : (cv?.skills?.languagesEn || cv?.skills?.languagesDe)) || 
-                 (isDe ? ['Deutsch: Muttersprache', 'Englisch: C2', 'Mandarin Chinesisch: A2'] : ['German: Native', 'English: C2', 'Mandarin Chinese: A2']),
+      coding: cv?.skills?.coding || [],
+      webDev: cv?.skills?.webDev || [],
+      engineeringCad: cv?.skills?.engineeringCad || [],
+      languages:
+        (isDe
+          ? cv?.skills?.languagesDe || cv?.skills?.languagesEn
+          : cv?.skills?.languagesEn || cv?.skills?.languagesDe) || [],
     },
-    volunteering: (cv?.volunteering && cv.volunteering.length > 0) ? cv.volunteering.map((item: any) => ({
-      role: isDe ? (item.roleDe || item.roleEn) : (item.roleEn || item.roleDe),
-      organization: item.organization,
-      period: isDe ? (item.periodDe || item.periodEn) : (item.periodEn || item.periodDe),
-      details: isDe ? (item.detailsDe || item.detailsEn || []) : (item.detailsEn || item.detailsDe || []),
-    })) : [
-      {
-        role: isDe ? 'Leitung Fachschaftsreferat' : 'Munich School of Engineering Head of Student Council Department',
-        organization: 'Fachschaft Munich School of Engineering (TUM)',
-        period: isDe ? '2025 – Heute' : '2025 – Present',
-        details: isDe ? [
-          '**Verbesserung der Studienbedingungen** und Aufenthaltsqualität am Quanten-Campus Garching-Hochbrück.'
-        ] : [
-          '**Improving the quality of life** for students at Garching-Hochbrück Quantum facility.'
-        ]
-      },
-      {
-        role: isDe ? 'Rettungsschwimmer & Einsatztaucher' : 'Lifeguard & Search & Rescue Diver',
-        organization: 'DLRG Langenhagen',
-        period: isDe ? '2019 – Heute' : '2019 – Present',
-        details: isDe ? [
-          '**Einsatztaucher** – Sanitätsausbildung – Rettungssport.'
-        ] : [
-          '**Lifeguard** – Search & Rescue Diver – Advanced First Aid Training – Rescue Sport.'
-        ]
-      }
-    ]
+    volunteering: (cv?.volunteering || []).map((item: any) => ({
+      role: isDe ? item.roleDe || item.roleEn : item.roleEn || item.roleDe,
+      organization: item.organization || '',
+      period: isDe ? item.periodDe || item.periodEn : item.periodEn || item.periodDe,
+      details: isDe ? item.detailsDe || item.detailsEn || [] : item.detailsEn || item.detailsDe || [],
+    })),
   };
-
-  return defaultData;
 }
-
-

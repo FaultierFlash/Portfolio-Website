@@ -1,0 +1,901 @@
+---
+/**
+ * WingAirflowBackground.astro
+ * Monochrome 20 Hz horizontal flapping-wing background (270 mm span, 64 mm constant-arc elastic chord,
+ * 120° sweep) with passive aeroelastic pitching (~30° AoA at mid-stroke).
+ *
+ * - On scrollable full pages (`isAbsolute={false}`, `phase="scroll"`): stacks all 4 stroke phases vertically
+ *   so scrolling glides smoothly through the wing positions in sequence.
+ * - On showcase/home slides (`isAbsolute={true}`): renders only Frame 1 (Mid-Forward Stroke, ~30° bend).
+ */
+interface Props {
+  phase?: 'scroll' | '01' | '02' | '03' | '04';
+  intensity?: number;
+  flutter?: number;
+  cursorTurbulence?: number;
+  isAbsolute?: boolean;
+}
+
+const {
+  phase = 'scroll',
+  intensity = 1.0,
+  flutter = 1.0,
+  cursorTurbulence = 1.0,
+  isAbsolute = false,
+} = Astro.props;
+---
+
+<div
+  class={`airflow-container ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}
+  data-phase={phase}
+  data-intensity={intensity}
+  data-flutter={flutter}
+  data-cursor-turbulence={cursorTurbulence}
+  aria-hidden="true"
+>
+  <canvas class="airflow-canvas"></canvas>
+</div>
+
+<style>
+  .airflow-container {
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: transparent;
+    opacity: 0.24;
+    transition: opacity 0.3s ease;
+  }
+
+  .airflow-container.is-fixed {
+    position: fixed;
+  }
+
+  .airflow-container.is-absolute {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  :global(.dark) .airflow-container {
+    opacity: 0.45;
+  }
+
+  .airflow-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script>
+  interface WingPoint {
+    x: number;
+    y: number;
+  }
+
+  interface WingPhase {
+    id: string;
+    name: string;
+    tRatio: string;
+    phiLabel: string;
+    leX: number;
+    leY: number;
+    inflowDir: number;
+    uSpeed: number;
+    downwash: number;
+    stagS: number;
+    thetaFn: (s: number) => number;
+    levOffset: { dx: number; dy: number; gamma: number };
+    wakeOffset: { dx: number; dy: number; gamma: number };
+    baseTurb: number;
+    pts: WingPoint[];
+    te: WingPoint;
+    bbox: { minX: number; minY: number; maxX: number; maxY: number };
+  }
+
+  interface BakedField {
+    uArr: Float32Array;
+    vArr: Float32Array;
+    turbArr: Float32Array;
+  }
+
+  const CHORD_SEGS = 18;
+  const CHORD_UNIT = 1.0; // Constant physical arc length (represents 64 mm chord)
+  const DOM_X = 1.65;
+  const DOM_Y = 0.96;
+  const GRID_W = 96;
+  const GRID_H = 60;
+
+  function buildPhases(): WingPhase[] {
+    // Sequence starts on peak Mid-Forward stroke (Frame 1) so showcase / hero immediately show ~30° bend,
+    // then scrolling down steps through Supination -> Mid-Return -> Pronation cleanly.
+    const defs = [
+      {
+        id: '01',
+        name: 'MID-FORWARD',
+        tRatio: 't/T = 0.25',
+        phiLabel: 'φ = 0° · α ≈ 30°',
+        leX: 0.35,
+        leY: -0.32,
+        inflowDir: -1, // moving RIGHT -> relative wind from RIGHT
+        uSpeed: 1.26,
+        downwash: 0.56,
+        stagS: 0.42,
+        thetaFn: (s: number) => Math.PI * 0.65 + Math.PI * 0.31 * Math.pow(s, 0.75),
+        levOffset: { dx: -0.38, dy: 0.14, gamma: 1.05 },
+        wakeOffset: { dx: -0.88, dy: 0.56, gamma: -0.45 },
+        baseTurb: 0.75,
+      },
+      {
+        id: '02',
+        name: 'SUPINATION',
+        tRatio: 't/T = 0.50',
+        phiLabel: 'φ = +60° · α ≈ 80°',
+        leX: 0.30,
+        leY: -0.35,
+        inflowDir: 1, // reversing LEFT -> wind starts from LEFT
+        uSpeed: 0.58,
+        downwash: 0.30,
+        stagS: 0.48,
+        thetaFn: (s: number) => Math.PI * 0.5 - 0.14 * s + 0.16 * Math.sin(Math.PI * s),
+        levOffset: { dx: 0.24, dy: 0.30, gamma: -0.45 },
+        wakeOffset: { dx: 0.22, dy: 0.72, gamma: 0.42 },
+        baseTurb: 1.12,
+      },
+      {
+        id: '03',
+        name: 'MID-RETURN',
+        tRatio: 't/T = 0.75',
+        phiLabel: 'φ = 0° · α ≈ 30°',
+        leX: -0.35,
+        leY: -0.32,
+        inflowDir: 1, // moving LEFT -> relative wind from LEFT
+        uSpeed: 1.26,
+        downwash: 0.56,
+        stagS: 0.42,
+        thetaFn: (s: number) => Math.PI * 0.35 - Math.PI * 0.31 * Math.pow(s, 0.75),
+        levOffset: { dx: 0.38, dy: 0.14, gamma: -1.05 },
+        wakeOffset: { dx: 0.88, dy: 0.56, gamma: 0.45 },
+        baseTurb: 0.75,
+      },
+      {
+        id: '04',
+        name: 'PRONATION',
+        tRatio: 't/T = 0.00',
+        phiLabel: 'φ = -60° · α ≈ 78°',
+        leX: -0.30,
+        leY: -0.35,
+        inflowDir: -1, // reversing RIGHT -> wind starts from RIGHT
+        uSpeed: 0.58,
+        downwash: 0.30,
+        stagS: 0.48,
+        thetaFn: (s: number) => Math.PI * 0.5 + 0.14 * s - 0.16 * Math.sin(Math.PI * s),
+        levOffset: { dx: -0.24, dy: 0.30, gamma: 0.45 },
+        wakeOffset: { dx: -0.42, dy: 0.70, gamma: -0.42 },
+        baseTurb: 1.08,
+      },
+    ];
+
+    const ds = CHORD_UNIT / CHORD_SEGS;
+    return defs.map((d) => {
+      const pts: WingPoint[] = [{ x: d.leX, y: d.leY }];
+      let x = d.leX;
+      let y = d.leY;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+      for (let i = 0; i < CHORD_SEGS; i++) {
+        const th = d.thetaFn((i + 0.5) / CHORD_SEGS);
+        x += Math.cos(th) * ds;
+        y += Math.sin(th) * ds;
+        pts.push({ x, y });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      return {
+        ...d,
+        pts,
+        te: pts[pts.length - 1],
+        bbox: { minX, minY, maxX, maxY },
+      };
+    });
+  }
+
+  function closestToWing(px: number, py: number, pts: WingPoint[]) {
+    let minSq = Infinity;
+    let cx = 0;
+    let cy = 0;
+    let tx = 1;
+    let ty = 0;
+    let sBest = 0;
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const lenSq = abx * abx + aby * aby || 1e-6;
+      const t = Math.max(0, Math.min(1, ((px - a.x) * abx + (py - a.y) * aby) / lenSq));
+      const qx = a.x + t * abx;
+      const qy = a.y + t * aby;
+      const dSq = (px - qx) ** 2 + (py - qy) ** 2;
+      if (dSq < minSq) {
+        minSq = dSq;
+        cx = qx;
+        cy = qy;
+        const l = Math.sqrt(lenSq);
+        tx = abx / l;
+        ty = aby / l;
+        sBest = (i + t) / (pts.length - 1);
+      }
+    }
+
+    const dist = Math.sqrt(minSq);
+    const nx = dist > 1e-6 ? (px - cx) / dist : -ty;
+    const ny = dist > 1e-6 ? (py - cy) / dist : tx;
+    return { dist, cx, cy, nx, ny, tx, ty, s: sBest };
+  }
+
+  // Fast 2D segment-vs-segment intersection test to guarantee zero line-through-wing artifacts
+  function orient(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  }
+
+  function segmentsIntersect(
+    ax: number, ay: number, bx: number, by: number,
+    cx: number, cy: number, dx: number, dy: number
+  ): boolean {
+    const o1 = orient(ax, ay, bx, by, cx, cy);
+    const o2 = orient(ax, ay, bx, by, dx, dy);
+    const o3 = orient(cx, cy, dx, dy, ax, ay);
+    const o4 = orient(cx, cy, dx, dy, bx, by);
+    return (o1 * o2 <= 0) && (o3 * o4 <= 0);
+  }
+
+  function crossesWing(x0: number, y0: number, x1: number, y1: number, phase: WingPhase): boolean {
+    const pad = 0.06;
+    const sMinX = Math.min(x0, x1);
+    const sMaxX = Math.max(x0, x1);
+    const sMinY = Math.min(y0, y1);
+    const sMaxY = Math.max(y0, y1);
+    if (
+      sMaxX < phase.bbox.minX - pad ||
+      sMinX > phase.bbox.maxX + pad ||
+      sMaxY < phase.bbox.minY - pad ||
+      sMinY > phase.bbox.maxY + pad
+    ) {
+      return false;
+    }
+    const pts = phase.pts;
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (segmentsIntersect(x0, y0, x1, y1, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Constrain any velocity vector (u, v) cleanly around the curved wing boundary:
+   * - Smoothly removes inward normal velocity component (preventing penetration without sawtooth bounces).
+   * - Splits windward stagnation smoothly toward the Leading Edge (up) and Trailing Edge (down).
+   */
+  function applyWingBoundary(u: number, v: number, px: number, py: number, phase: WingPhase) {
+    const pad = 0.30;
+    if (
+      px < phase.bbox.minX - pad ||
+      px > phase.bbox.maxX + pad ||
+      py < phase.bbox.minY - pad ||
+      py > phase.bbox.maxY + pad
+    ) {
+      return { u, v, dist: 1.0, s: 0.5, nx: 0, ny: 0, tx: 1, ty: 0 };
+    }
+
+    const cl = closestToWing(px, py, phase.pts);
+    const barrierR = 0.28;
+    if (cl.dist < barrierR) {
+      // Quintic smoothstep weight: 1 near wing surface -> 0 at barrierR
+      const rNorm = 1 - cl.dist / barrierR;
+      const weight = rNorm * rNorm * (3 - 2 * rNorm);
+
+      // Only attenuate velocity pointing INTO the wall (never block leeward suction away from or parallel to it)
+      const uDotN = u * cl.nx + v * cl.ny;
+      if (uDotN < 0) {
+        u -= uDotN * weight * cl.nx;
+        v -= uDotN * weight * cl.ny;
+      }
+
+      // Smooth stagnation splitting along wing tangent toward LE (s -> 0) and TE (s -> 1) on windward approach
+      const approachingWindward = (cl.nx * phase.inflowDir < 0);
+      if (approachingWindward) {
+        const interiorFactor = cl.s > 0.04 && cl.s < 0.96 ? 1 : 0.25;
+        const splitOffset = cl.s - phase.stagS;
+        const splitSign = splitOffset >= 0 ? 1 : -1;
+        const splitMag = (0.38 + Math.min(0.62, Math.abs(splitOffset) * 1.6)) * weight * interiorFactor * phase.uSpeed;
+        u += cl.tx * splitSign * splitMag * 0.45;
+        v += cl.ty * splitSign * splitMag * 0.45;
+      }
+
+      // Skin-thickness guard only right against the physical blade
+      if (cl.dist < 0.055) {
+        const push = Math.pow(1 - cl.dist / 0.055, 2) * 0.32;
+        u += cl.nx * push;
+        v += cl.ny * push;
+      }
+    }
+
+    return { u, v, dist: cl.dist, s: cl.s, nx: cl.nx, ny: cl.ny, tx: cl.tx, ty: cl.ty };
+  }
+
+  function bakeField(phase: WingPhase): BakedField {
+    const uArr = new Float32Array(GRID_W * GRID_H);
+    const vArr = new Float32Array(GRID_W * GRID_H);
+    const turbArr = new Float32Array(GRID_W * GRID_H);
+
+    const levX = phase.leX + phase.levOffset.dx;
+    const levY = phase.leY + phase.levOffset.dy;
+    const wakeX = phase.leX + phase.wakeOffset.dx;
+    const wakeY = phase.leY + phase.wakeOffset.dy;
+
+    for (let gy = 0; gy < GRID_H; gy++) {
+      const py = ((gy / (GRID_H - 1)) * 2 - 1) * DOM_Y;
+      for (let gx = 0; gx < GRID_W; gx++) {
+        const px = ((gx / (GRID_W - 1)) * 2 - 1) * DOM_X;
+        const idx = gy * GRID_W + gx;
+
+        let u = phase.inflowDir * phase.uSpeed;
+        // Upstream enters cleanly horizontal; downward momentum deflection develops around & downstream of the wing
+        const wakeMix = Math.min(1, Math.max(0, 0.5 + ((px - phase.leX) * phase.inflowDir) * 0.9));
+        let v = phase.downwash * (0.10 + 0.42 * wakeMix);
+
+        // Bound Leading-Edge Vortex
+        const dlx = px - levX;
+        const dly = py - levY;
+        const rlSq = dlx * dlx + dly * dly + 0.065;
+        u += (-dly / rlSq) * phase.levOffset.gamma * 0.24;
+        v += (dlx / rlSq) * phase.levOffset.gamma * 0.24;
+
+        // Downstream wake vortex
+        const dwx = px - wakeX;
+        const dwy = py - wakeY;
+        const rwSq = dwx * dwx + dwy * dwy + 0.095;
+        u += (-dwy / rwSq) * phase.wakeOffset.gamma * 0.20;
+        v += (dwx / rwSq) * phase.wakeOffset.gamma * 0.20;
+
+        // Subtle Coanda / low-pressure wake entrainment downstream so continuous boundary streamlines close behind the wing
+        const distBehind = (px - phase.leX) * phase.inflowDir;
+        if (distBehind > 0.04) {
+          const wakeYCenter = (phase.leY + phase.te.y) * 0.5 + 0.14 * Math.min(1, distBehind * 0.8);
+          const pullEnvelope = Math.exp(-Math.pow(distBehind - 0.55, 2) / 0.45) * Math.exp(-Math.pow(py - wakeYCenter, 2) / 0.65);
+          v += (wakeYCenter - py) * 0.85 * pullEnvelope;
+        }
+
+        const bounded = applyWingBoundary(u, v, px, py, phase);
+        u = bounded.u;
+        v = bounded.v;
+
+        const isDownstream = (px - phase.leX) * phase.inflowDir > 0.04;
+        const wallFade = Math.min(1, Math.max(0, (bounded.dist - 0.08) / 0.16));
+        const levEnv = Math.exp(-((px - levX) ** 2 + (py - levY) ** 2) / 0.22);
+        const teEnv = Math.exp(-((px - phase.te.x) ** 2 + (py - phase.te.y) ** 2) / 0.24);
+        const wakeEnv = isDownstream ? Math.exp(-((py - 0.15) ** 2) / 0.38) * 0.65 : 0.05;
+
+        uArr[idx] = u;
+        vArr[idx] = v;
+        turbArr[idx] = phase.baseTurb * wallFade * (0.04 + 0.90 * levEnv + 0.80 * teEnv + wakeEnv);
+      }
+    }
+    return { uArr, vArr, turbArr };
+  }
+
+  let sharedPhases: WingPhase[] | null = null;
+  let sharedFields: BakedField[] | null = null;
+  let cleanupRegistry: (() => void)[] = [];
+
+  function cleanupAirflowBackgrounds() {
+    cleanupRegistry.forEach((fn) => fn());
+    cleanupRegistry = [];
+  }
+
+  function initAirflowBackgrounds() {
+    cleanupAirflowBackgrounds();
+
+    const containers = document.querySelectorAll('.airflow-container');
+    if (containers.length === 0) return;
+
+    if (!sharedPhases || !sharedFields) {
+      sharedPhases = buildPhases();
+      sharedFields = sharedPhases.map((p) => bakeField(p));
+    }
+    const phases = sharedPhases;
+    const fields = sharedFields;
+
+    function sampleField(phaseIdx: number, px: number, py: number) {
+      const f = fields[phaseIdx];
+      const fx = ((px / DOM_X + 1) * 0.5) * (GRID_W - 1);
+      const fy = ((py / DOM_Y + 1) * 0.5) * (GRID_H - 1);
+      const x0 = Math.max(0, Math.min(GRID_W - 2, fx | 0));
+      const y0 = Math.max(0, Math.min(GRID_H - 2, fy | 0));
+      const tx = Math.max(0, Math.min(1, fx - x0));
+      const ty = Math.max(0, Math.min(1, fy - y0));
+
+      const i00 = y0 * GRID_W + x0;
+      const i10 = i00 + 1;
+      const i01 = i00 + GRID_W;
+      const i11 = i01 + 1;
+
+      const w00 = (1 - tx) * (1 - ty);
+      const w10 = tx * (1 - ty);
+      const w01 = (1 - tx) * ty;
+      const w11 = tx * ty;
+
+      return {
+        u: w00 * f.uArr[i00] + w10 * f.uArr[i10] + w01 * f.uArr[i01] + w11 * f.uArr[i11],
+        v: w00 * f.vArr[i00] + w10 * f.vArr[i10] + w01 * f.vArr[i01] + w11 * f.vArr[i11],
+        turb: w00 * f.turbArr[i00] + w10 * f.turbArr[i10] + w01 * f.turbArr[i01] + w11 * f.turbArr[i11],
+      };
+    }
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    containers.forEach((node) => {
+      const container = node as HTMLElement;
+      const canvas = container.querySelector('.airflow-canvas') as HTMLCanvasElement | null;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const phasePref = (container.dataset.phase || 'scroll') as string;
+      const rawIntensity = parseFloat(container.dataset.intensity ?? '1.0');
+      const rawFlutter = parseFloat(container.dataset.flutter ?? '1.0');
+      const rawCursorTurb = parseFloat(container.dataset.cursorTurbulence ?? '1.0');
+      const intensity = Math.max(0.15, Math.min(3.0, Number.isFinite(rawIntensity) ? rawIntensity : 1.0));
+      const flutterGain = Math.max(0, Math.min(3.0, Number.isFinite(rawFlutter) ? rawFlutter : 1.0));
+      const cursorTurbulence = Math.max(0, Math.min(3.0, Number.isFinite(rawCursorTurb) ? rawCursorTurb : 1.0));
+      const isAbsolute = container.classList.contains('is-absolute');
+
+      let width = 0;
+      let height = 0;
+      let isVisible = true;
+      let rafId: number | null = null;
+
+      const pointer = { x: -9999, y: -9999, vx: 0, vy: 0, active: false, energy: 0 };
+
+      const resize = () => {
+        const rect = container.getBoundingClientRect();
+        width = Math.max(1, rect.width || window.innerWidth);
+        height = Math.max(1, rect.height || window.innerHeight);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (reducedMotion) renderFrame(0);
+      };
+
+      const onPointerMove = (e: PointerEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        const nx = e.clientX - rect.left;
+        const ny = e.clientY - rect.top;
+        if (nx >= 0 && nx <= rect.width && ny >= 0 && ny <= rect.height) {
+          if (pointer.active) {
+            pointer.vx = (nx - pointer.x) * 0.45 + pointer.vx * 0.55;
+            pointer.vy = (ny - pointer.y) * 0.45 + pointer.vy * 0.55;
+          }
+          pointer.x = nx;
+          pointer.y = ny;
+          pointer.active = true;
+          pointer.energy = Math.min(1.5, pointer.energy + 0.25);
+        } else {
+          pointer.active = false;
+        }
+      };
+
+      const onTouchMove = (e: TouchEvent) => {
+        if (!e.touches.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const nx = e.touches[0].clientX - rect.left;
+        const ny = e.touches[0].clientY - rect.top;
+        if (pointer.active) {
+          pointer.vx = (nx - pointer.x) * 0.45 + pointer.vx * 0.55;
+          pointer.vy = (ny - pointer.y) * 0.45 + pointer.vy * 0.55;
+        }
+        pointer.x = nx;
+        pointer.y = ny;
+        pointer.active = true;
+        pointer.energy = Math.min(1.5, pointer.energy + 0.25);
+      };
+
+      const onPointerLeave = () => {
+        pointer.active = false;
+      };
+
+      /**
+       * Render a single positional snippet band centered at screenY = centerY.
+       */
+      function renderPhaseBand(
+        phaseIdx: number,
+        centerY: number,
+        bandH: number,
+        timeSec: number,
+        ink: string,
+        subInk: string,
+        scaleAlpha: number
+      ) {
+        if (!ctx) return;
+        const phase = phases[phaseIdx];
+        const isSmall = width < 768;
+        const scale = Math.min(width / (DOM_X * 1.95), bandH / (DOM_Y * 1.95));
+        const cx = width * 0.5;
+        const halfPhysW = (width * 0.5) / scale;
+        const halfPhysH = (bandH * 0.5) / scale;
+
+        const toScreen = (px: number, py: number) => ({
+          x: cx + px * scale,
+          y: centerY + py * scale,
+        });
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, centerY - bandH * 0.5, width, bandH);
+        ctx.clip();
+
+        const seedX = (phase.inflowDir < 0 ? 1 : -1) * Math.min(DOM_X * 0.96, halfPhysW * 0.98);
+        const numSideLines = isSmall ? 24 : 36;
+        const numTopLines = isSmall ? 6 : 10;
+        const totalLines = numSideLines + numTopLines;
+        // Smaller ds (< minWallDist) prevents tunneling through thin curved membranes
+        const ds = 0.026;
+        const baseSteps = Math.min(280, Math.max(130, Math.ceil((halfPhysW * 2.7) / ds)));
+        const minWallDist = 0.044;
+
+        const lowPath = new Path2D();
+        const highPath = new Path2D();
+        const wakePath = new Path2D();
+        const haloPath = new Path2D();
+
+        const cursorLocal =
+          pointer.active &&
+          pointer.y >= centerY - bandH * 0.5 &&
+          pointer.y <= centerY + bandH * 0.5
+            ? { px: (pointer.x - cx) / scale, py: (pointer.y - centerY) / scale }
+            : null;
+
+        for (let r = 0; r < totalLines; r++) {
+          let px: number;
+          let py: number;
+          const lineSteps = baseSteps;
+          if (r < numSideLines) {
+            const frac = (r + 0.5) / numSideLines;
+            px = seedX;
+            py = (frac * 2 - 1) * Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
+          } else {
+            // Seed hover-suction streamlines along top boundary so downstream upper quadrant flows smoothly down
+            const topFrac = (r - numSideLines + 0.5) / numTopLines;
+            px = (seedX > 0 ? 1 : -1) * halfPhysW * (0.85 - topFrac * 1.7);
+            py = -Math.min(DOM_Y * 0.92, halfPhysH * 0.94);
+          }
+          const seedPhase = r * 1.37;
+
+          const tracedPts: { sx: number; sy: number; px: number; speed: number; turb: number; dist: number }[] = [];
+
+          for (let s = 0; s < lineSteps; s++) {
+            const sample = sampleField(phaseIdx, px, py);
+            let u = sample.u;
+            let v = sample.v;
+            let turb = sample.turb * flutterGain;
+
+            // Cursor perturbation (vortex + wake), ALSO passed through boundary constraint so cursor NEVER pushes flow through wing!
+            if (cursorLocal && cursorTurbulence > 0) {
+              const dx = px - cursorLocal.px;
+              const dy = py - cursorLocal.py;
+              const rSq = dx * dx + dy * dy;
+              const radSq = 0.36;
+              if (rSq < radSq) {
+                const falloff = Math.exp(-rSq / (radSq * 0.42));
+                const d = Math.sqrt(rSq) + 0.08;
+                const cu = ((-dy / d) * 0.68 * falloff + (pointer.vx / scale) * 0.022 * falloff) * cursorTurbulence;
+                const cv = ((dx / d) * 0.68 * falloff + (pointer.vy / scale) * 0.022 * falloff) * cursorTurbulence;
+                const boundedCursor = applyWingBoundary(u + cu, v + cv, px, py, phase);
+                u = boundedCursor.u;
+                v = boundedCursor.v;
+                turb += (0.95 + pointer.energy * 0.85) * falloff * cursorTurbulence;
+              }
+            }
+
+            const speed = Math.hypot(u, v) || 1e-4;
+            const dirX = u / speed;
+            const dirY = v / speed;
+            const normX = -dirY;
+            const normY = dirX;
+
+            const cl = closestToWing(px, py, phase.pts);
+            // Zero flutter near the wing boundary so wave flutter cannot push curves through skin
+            const wallSafety = Math.min(1, Math.max(0, (cl.dist - 0.09) / 0.18));
+
+            const wave =
+              Math.sin(s * 0.22 - timeSec * 9.5 + seedPhase) +
+              0.45 * Math.cos(s * 0.42 - timeSec * 15.0 + seedPhase * 1.6);
+            const disp = wave * turb * wallSafety * 0.020;
+
+            let plotX = px + normX * disp;
+            let plotY = py + normY * disp;
+
+            // Keep plotted point outside wall margin AND verify no segment crosses wing
+            const clPlot = closestToWing(plotX, plotY, phase.pts);
+            if (clPlot.dist < minWallDist) {
+              plotX = clPlot.cx + clPlot.nx * minWallDist;
+              plotY = clPlot.cy + clPlot.ny * minWallDist;
+            }
+            if (crossesWing(px, py, plotX, plotY, phase)) {
+              plotX = px;
+              plotY = py;
+            }
+
+            const scr = toScreen(plotX, plotY);
+            tracedPts.push({ sx: scr.x, sy: scr.y, px, speed, turb, dist: cl.dist });
+
+            // Advance using midpoint RK2 + crossing guard
+            const midX = px + dirX * (ds * 0.5);
+            const midY = py + dirY * (ds * 0.5);
+            const midSample = sampleField(phaseIdx, midX, midY);
+            const midSpeed = Math.hypot(midSample.u, midSample.v) || 1e-4;
+            let stepDirX = midSample.u / midSpeed;
+            let stepDirY = midSample.v / midSpeed;
+
+            // Blend current & midpoint if cursor active near here
+            if (cursorLocal) {
+              stepDirX = (dirX + stepDirX) * 0.5;
+              stepDirY = (dirY + stepDirY) * 0.5;
+              const sl = Math.hypot(stepDirX, stepDirY) || 1e-4;
+              stepDirX /= sl;
+              stepDirY /= sl;
+            }
+
+            let nextX = px + stepDirX * ds;
+            let nextY = py + stepDirY * ds;
+
+            const clNext = closestToWing(nextX, nextY, phase.pts);
+            if (clNext.dist < minWallDist) {
+              // Slide purely along wing tangent on current side
+              const nDotPrev = (px - clNext.cx) * clNext.nx + (py - clNext.cy) * clNext.ny;
+              const sideSign = nDotPrev >= 0 ? 1 : -1;
+              nextX = clNext.cx + clNext.nx * sideSign * minWallDist;
+              nextY = clNext.cy + clNext.ny * sideSign * minWallDist;
+            }
+
+            // Hard crossing check: if segment (px,py)->(nextX,nextY) still intersects wing polyline, steer purely tangential
+            if (crossesWing(px, py, nextX, nextY, phase)) {
+              const tDot = stepDirX * cl.tx + stepDirY * cl.ty;
+              const tSign = tDot >= 0 ? 1 : -1;
+              nextX = px + cl.tx * tSign * ds;
+              nextY = py + cl.ty * tSign * ds;
+              const clGuard = closestToWing(nextX, nextY, phase.pts);
+              if (clGuard.dist < minWallDist) {
+                nextX = clGuard.cx + cl.nx * minWallDist;
+                nextY = clGuard.cy + cl.ny * minWallDist;
+              }
+            }
+
+            px = nextX;
+            py = nextY;
+
+            if (Math.abs(px) > halfPhysW * 1.06 || Math.abs(py) > halfPhysH * 1.02) break;
+          }
+
+          // Light 3-tap spatial smoothing on screen coordinates before batching into Path2D (eliminates micro-kinks)
+          for (let i = 1; i < tracedPts.length; i++) {
+            const pPrev = tracedPts[i - 1];
+            const pCurr = tracedPts[i];
+            const pNext = i + 1 < tracedPts.length ? tracedPts[i + 1] : pCurr;
+
+            const sx0 = pPrev.sx;
+            const sy0 = pPrev.sy;
+            const sx1 = i + 1 < tracedPts.length ? pPrev.sx * 0.2 + pCurr.sx * 0.6 + pNext.sx * 0.2 : pCurr.sx;
+            const sy1 = i + 1 < tracedPts.length ? pPrev.sy * 0.2 + pCurr.sy * 0.6 + pNext.sy * 0.2 : pCurr.sy;
+
+            const isDownstreamWake = (pCurr.px - phase.leX) * phase.inflowDir > 0.12 && pCurr.turb > 0.24;
+            const isHighSpeed = pCurr.speed > 1.24 || (pCurr.dist < 0.22 && pCurr.speed > 1.0);
+            const target = isDownstreamWake ? wakePath : isHighSpeed ? highPath : lowPath;
+            target.moveTo(sx0, sy0);
+            target.lineTo(sx1, sy1);
+
+            if (r % 2 === 0) {
+              haloPath.moveTo(sx0, sy0);
+              haloPath.lineTo(sx1, sy1);
+            }
+          }
+        }
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.lineWidth = isSmall ? 3.5 : 5.2;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.16, 0.08 * scaleAlpha)})`;
+        ctx.stroke(haloPath);
+
+        ctx.lineWidth = 0.95;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.60, 0.36 * scaleAlpha)})`;
+        ctx.stroke(lowPath);
+
+        ctx.lineWidth = 1.25;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.75, 0.50 * scaleAlpha)})`;
+        ctx.stroke(highPath);
+
+        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.65, 0.40 * scaleAlpha)})`;
+        ctx.stroke(wakePath);
+
+        // Horizontal stroke-plane reference line & sweep vector
+        const yPlane = toScreen(0, phase.leY).y;
+        ctx.beginPath();
+        ctx.setLineDash([4, 5]);
+        ctx.moveTo(width * 0.08, yPlane);
+        ctx.lineTo(width * 0.92, yPlane);
+        ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.32, 0.20 * scaleAlpha)})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const le = toScreen(phase.leX, phase.leY);
+        const dir = -phase.inflowDir;
+        const aLen = Math.min(34, scale * 0.40);
+        ctx.beginPath();
+        ctx.moveTo(le.x, le.y - 10);
+        ctx.lineTo(le.x + dir * aLen, le.y - 10);
+        ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 13);
+        ctx.moveTo(le.x + dir * aLen, le.y - 10);
+        ctx.lineTo(le.x + dir * (aLen - 5.5), le.y - 7);
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.82, 0.62 * scaleAlpha)})`;
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+
+        // Elastic wing membrane (constant 64 mm arc length)
+        ctx.beginPath();
+        phase.pts.forEach((pt, idx) => {
+          const s = toScreen(pt.x, pt.y);
+          if (idx === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
+        });
+        ctx.lineWidth = 3.0;
+        ctx.strokeStyle = `rgba(${ink}, ${Math.min(0.95, 0.78 * scaleAlpha)})`;
+        ctx.stroke();
+
+        // Effective chord vector for mid-stroke (~30° AoA)
+        if (phaseIdx === 0 || phaseIdx === 2) {
+          const leS = toScreen(phase.leX, phase.leY);
+          const teS = toScreen(phase.te.x, phase.te.y);
+          ctx.beginPath();
+          ctx.setLineDash([2, 4]);
+          ctx.moveTo(leS.x, leS.y);
+          ctx.lineTo(teS.x, teS.y);
+          ctx.strokeStyle = `rgba(${subInk}, ${Math.min(0.45, 0.30 * scaleAlpha)})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Carbon leading-edge pivot node
+        ctx.beginPath();
+        ctx.arc(le.x, le.y, 3.8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${ink}, ${Math.min(0.95, 0.78 * scaleAlpha)})`;
+        ctx.fill();
+
+        // Subtle monochrome frame label in bottom corner of band
+        const hudAlpha = Math.min(0.65, 0.42 * scaleAlpha);
+        ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+        ctx.fillStyle = `rgba(${ink}, ${hudAlpha})`;
+        ctx.textAlign = 'left';
+        const padX = isSmall ? 14 : 24;
+        const labelY = Math.min(height - 16, centerY + bandH * 0.5 - 16);
+        ctx.fillText(`${phase.id} ${phase.name} · ${phase.phiLabel}`, padX, labelY);
+
+        if (!isSmall) {
+          ctx.textAlign = 'right';
+          ctx.fillText(`b = 270 mm · c = 64 mm · Δφ = 120° · f = 20 Hz · ${phase.tRatio}`, width - padX, labelY);
+        }
+
+        ctx.restore();
+      }
+
+      function renderFrame(timeSec: number) {
+        if (!ctx || !width || !height) return;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const ink = isDark ? '248, 250, 252' : '15, 23, 42';
+        const subInk = isDark ? '203, 213, 225' : '51, 65, 85';
+        const scaleAlpha = Math.min(1.4, Math.max(0.3, intensity));
+
+        ctx.clearRect(0, 0, width, height);
+
+        pointer.energy *= 0.94;
+        pointer.vx *= 0.88;
+        pointer.vy *= 0.88;
+
+        // 1. Showcase / locked single-frame modes -> render ONLY the requested single frame (default Frame 0 = Mid-Forward ~30°)
+        if (isAbsolute || phasePref !== 'scroll') {
+          const singleIdx =
+            phasePref === '02' ? 1 : phasePref === '03' ? 2 : phasePref === '04' ? 3 : 0;
+          renderPhaseBand(singleIdx, height * 0.5, height, timeSec, ink, subInk, scaleAlpha);
+          return;
+        }
+
+        // 2. Scrollable full project page -> physically stack the 4 stroke frames vertically along the document!
+        const docHeight = Math.max(height * 2.5, document.documentElement.scrollHeight);
+        const scrollY = window.scrollY;
+        const bandH = height;
+        const firstCenter = height * 0.5;
+        const lastCenter = Math.max(firstCenter, docHeight - height * 0.5);
+        const stepY = (lastCenter - firstCenter) / (phases.length - 1);
+
+        for (let k = 0; k < phases.length; k++) {
+          const screenCenterY = firstCenter + k * stepY - scrollY;
+          // Draw only if vertically intersecting viewport
+          if (screenCenterY + bandH * 0.5 >= -20 && screenCenterY - bandH * 0.5 <= height + 20) {
+            renderPhaseBand(k, screenCenterY, bandH, timeSec, ink, subInk, scaleAlpha);
+          }
+        }
+      }
+
+      const animate = (now: number) => {
+        if (!container.isConnected) {
+          cleanupInstance();
+          return;
+        }
+        if (isVisible) {
+          renderFrame(now * 0.001);
+        }
+        rafId = requestAnimationFrame(animate);
+      };
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          isVisible = entries[0]?.isIntersecting ?? true;
+        },
+        { threshold: 0.01 }
+      );
+      observer.observe(container);
+
+      const themeObserver = new MutationObserver(() => {
+        if (reducedMotion || !isVisible) renderFrame(performance.now() * 0.001);
+      });
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+      function cleanupInstance() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        observer.disconnect();
+        themeObserver.disconnect();
+        window.removeEventListener('resize', resize);
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('blur', onPointerLeave);
+      }
+
+      cleanupRegistry.push(cleanupInstance);
+
+      window.addEventListener('resize', resize);
+      window.addEventListener('pointermove', onPointerMove, { passive: true });
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('blur', onPointerLeave);
+
+      resize();
+      if (reducedMotion) {
+        renderFrame(0);
+      } else {
+        rafId = requestAnimationFrame(animate);
+      }
+    });
+  }
+
+  document.addEventListener('astro:page-load', initAirflowBackgrounds);
+  document.addEventListener('astro:before-swap', cleanupAirflowBackgrounds);
+
+  if (document.readyState !== 'loading') {
+    initAirflowBackgrounds();
+  }
+</script>

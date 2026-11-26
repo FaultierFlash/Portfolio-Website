@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { airflowConfigField, backgroundEffectList } from './airflowConfigField'
 
 export default defineType({
   name: 'librarySettings',
@@ -30,13 +31,7 @@ export default defineType({
       title: 'Background Effect',
       type: 'string',
       options: {
-        list: [
-          { title: 'None', value: 'none' },
-          { title: 'Topography', value: 'topography' },
-          { title: 'Grid', value: 'grid' },
-          { title: 'Dots', value: 'dots' },
-          { title: 'Stars', value: 'stars' },
-        ],
+        list: backgroundEffectList,
       },
     }),
     defineField({
@@ -55,14 +50,82 @@ export default defineType({
       },
     }),
     defineField({
+      name: 'solarConfig',
+      title: 'Solar System Configuration',
+      type: 'object',
+      hidden: ({ document }) => document?.backgroundEffect !== 'solar',
+      fields: [
+        defineField({
+          name: 'speed',
+          title: 'Simulation Speed',
+          type: 'number',
+          initialValue: 1.0,
+          validation: (Rule) => Rule.min(0.1).max(10.0),
+        }),
+        defineField({
+          name: 'cursorGravity',
+          title: 'Cursor Gravity Strength',
+          type: 'number',
+          initialValue: 1.0,
+          validation: (Rule) => Rule.min(0).max(10.0),
+        }),
+        defineField({
+          name: 'startZoom',
+          title: 'Initial Zoom Level',
+          type: 'number',
+          initialValue: 1.0,
+          validation: (Rule) => Rule.min(0.1).max(5.0),
+        }),
+      ],
+    }),
+    airflowConfigField,
+    defineField({
       name: 'topographyConfig',
       title: 'Topography Configuration',
       type: 'object',
       hidden: ({ document }) => document?.backgroundEffect !== 'topography',
       fields: [
-        defineField({ name: 'color', type: 'string', initialValue: 'rgba(0,0,0,0.05)' }),
-        defineField({ name: 'opacity', type: 'number', initialValue: 0.5 }),
-      ]
+        defineField({
+          name: 'source',
+          title: 'Data Source',
+          type: 'string',
+          options: {
+            list: [
+              { title: 'Earth (API)', value: 'earth' },
+              { title: 'Mars (Olympic Mons)', value: 'mars-olympus' },
+              { title: 'Mars (Gale Crater)', value: 'mars-gale' },
+              { title: 'Procedural Mars', value: 'mars-procedural' },
+            ],
+          },
+          initialValue: 'earth',
+        }),
+        defineField({
+          name: 'latitude',
+          title: 'Latitude',
+          type: 'number',
+          hidden: ({ parent }) => parent?.source !== 'earth',
+        }),
+        defineField({
+          name: 'longitude',
+          title: 'Longitude',
+          type: 'number',
+          hidden: ({ parent }) => parent?.source !== 'earth',
+        }),
+        defineField({
+          name: 'intensity',
+          title: 'Contour Intensity',
+          type: 'number',
+          initialValue: 1.0,
+          validation: (Rule) => Rule.min(0.1).max(5.0),
+        }),
+        defineField({
+          name: 'scale',
+          title: 'Map Scale (Zoom)',
+          type: 'number',
+          initialValue: 1.0,
+          validation: (Rule) => Rule.min(0.1).max(10.0),
+        }),
+      ],
     }),
   ],
 })

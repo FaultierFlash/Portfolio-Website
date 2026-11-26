@@ -64,7 +64,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
   {
     /* --- MODIFIED: Changed position to fixed for better dragging context --- */
   }
-  <div id="terminal" class="terminal-window">
+  <div
+    id="terminal"
+    class="terminal-window"
+    data-translations={translationsJson}
+    data-ascii={apertureAsciiJson}
+    data-projects={projectsJson}
+    data-locale={currentLocale}
+  >
     {/* --- MODIFIED: Added id to header --- */}
     <div id="terminal-header" class="terminal-header">
       <span class="header-title"
@@ -122,7 +129,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 <style is:global>
   /* Apply Fira Code font specifically to the terminal wrapper */
   .component-terminal-wrapper {
-    font-family: "Fira Code", monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
   /* Styles for the floating terminal window */
@@ -672,21 +679,33 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 {
   /* --- Frontmatter (Astro props, imports, translationsJson, apertureAsciiJson) remains the same as in your initial project overview --- */
 }
-<script is:inline define:vars={{ translationsJson, apertureAsciiJson, projectsJson, currentLocale }}>
-  // At the VERY TOP of the <script define:vars={{...}}> block:
-  console.log(
-    "TerminalContactForm Script: Parsed and waiting for DOM/Astro events.",
-  );
-  // @ts-ignore
-  const projects = JSON.parse(projectsJson);
-  // @ts-ignore
-  const currentLang = currentLocale;
+<script>
+  import { escapeHtml } from "../lib/html";
 
-  let currentTerminalCleanup = null;
-  let currentWindowResizeHandler = null;
-  let initAttemptIdCounter = 0; // Counter for runTerminalSetup attempts
+  interface TerminalProject {
+    title: string;
+    slug?: string;
+  }
 
-  // Constants
+  interface TerminalFormData {
+    name: string;
+    email: string;
+    message: string;
+    _edTarget?: string[];
+    _edBuffer?: string;
+  }
+
+  interface VfsItem {
+    type: "dir" | "file";
+    name: string;
+    content?: string;
+    children?: VfsItem[];
+  }
+
+  let currentTerminalCleanup: (() => void) | null = null;
+  let currentWindowResizeHandler: (() => void) | null = null;
+  let initAttemptIdCounter = 0;
+
   const HOSTNAME = "GLaDOS";
   const HOSTNAME_SEPARATOR = "~";
   const PROMPT_SYMBOL = "> ";
@@ -701,14 +720,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
   function runTerminalSetup() {
     const currentAttemptId = ++initAttemptIdCounter;
-    console.log(
-      `TerminalContactForm Script: runTerminalSetup() called. Attempt ID: ${currentAttemptId}`,
-    );
 
     if (typeof currentTerminalCleanup === "function") {
-      console.log(
-        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Running cleanup for a previous terminal instance's listeners.`,
-      );
       currentTerminalCleanup();
       currentTerminalCleanup = null;
     }
@@ -718,34 +731,15 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     const terminalElement = document.getElementById("terminal");
-    if (!terminalElement) {
-      console.log(
-        `[Attempt ${currentAttemptId}] TerminalContactForm Script: Terminal element (id='terminal') not found. No setup will occur.`,
-      );
-      return;
-    }
+    if (!terminalElement) return;
+    if (terminalElement.dataset.terminalInitialized === "true") return;
 
-    console.log(
-      `[Attempt ${currentAttemptId}] Checking terminal.dataset.terminalInitialized: '${terminalElement.dataset.terminalInitialized}', current DOM terminalInstanceId: '${terminalElement.dataset.terminalInstanceId}'`,
-    );
-    if (terminalElement.dataset.terminalInitialized === "true") {
-      console.log(
-        `[Attempt ${currentAttemptId}] This terminal DOM instance (initialized by attempt ${terminalElement.dataset.terminalInstanceId}) is already marked as initialized. Skipping full re-initialization.`,
-      );
-      return;
-    }
+    terminalElement.dataset.terminalInstanceId = String(currentAttemptId);
 
-    console.log(
-      `[Attempt ${currentAttemptId}] Proceeding with new terminal initialization logic.`,
-    );
-    terminalElement.dataset.terminalInstanceId = currentAttemptId;
-
-    // Restore saved terminal theme
     const savedTheme = localStorage.getItem("terminal_theme") || "classic";
     terminalElement.classList.remove("theme-classic", "theme-amber", "theme-cyberpunk", "theme-solar");
     terminalElement.classList.add(`theme-${savedTheme}`);
 
-    // Restore saved scanlines
     const savedScanlines = localStorage.getItem("terminal_scanlines") !== "false";
     if (savedScanlines) {
       terminalElement.classList.add("scanlines");
@@ -753,25 +747,18 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       terminalElement.classList.remove("scanlines");
     }
 
-    let localTranslations;
+    let localTranslations: Record<string, string>;
     try {
-      if (
-        typeof translationsJson === "undefined" ||
-        translationsJson === null
-      ) {
-        throw new Error(
-          "translationsJson variable from define:vars is undefined or null.",
-        );
+      const rawTranslations = terminalElement.dataset.translations;
+      if (!rawTranslations) {
+        throw new Error("Terminal translations data attribute is missing.");
       }
-      localTranslations = JSON.parse(translationsJson);
+      localTranslations = JSON.parse(rawTranslations);
       if (typeof localTranslations !== "object" || localTranslations === null) {
-        throw new Error("Parsed translations is not an object or is null.");
+        throw new Error("Parsed translations is not an object.");
       }
     } catch (error) {
-      console.error(
-        `[Attempt ${currentAttemptId}] CRITICAL: Error processing translations JSON for terminal. translationsJson type: ${typeof translationsJson}. Error:`,
-        error.message,
-      );
+      console.error(`[Attempt ${currentAttemptId}] CRITICAL: Error processing terminal translations:`, error);
       const outputDiv = document.getElementById("output");
       if (outputDiv) {
         outputDiv.innerHTML =
@@ -780,48 +767,51 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       return;
     }
 
-    let localApertureAscii = ["ASCII Art Error: Data not loaded"];
+    let localApertureAscii: string[] = ["ASCII Art Error: Data not loaded"];
     try {
-      if (
-        typeof apertureAsciiJson === "undefined" ||
-        apertureAsciiJson === null
-      ) {
-        console.warn(
-          `[Attempt ${currentAttemptId}] apertureAsciiJson variable from define:vars is undefined or null. Proceeding without custom ASCII art.`,
-        );
-      } else {
-        localApertureAscii = JSON.parse(apertureAsciiJson);
-        if (!Array.isArray(localApertureAscii)) {
-          throw new Error("Parsed ASCII art not an array.");
+      const rawAscii = terminalElement.dataset.ascii;
+      if (rawAscii) {
+        const parsedAscii = JSON.parse(rawAscii);
+        if (Array.isArray(parsedAscii)) {
+          localApertureAscii = parsedAscii;
         }
       }
     } catch (error) {
-      console.error(
-        `[Attempt ${currentAttemptId}] Error parsing ASCII art JSON for terminal. Error:`,
-        error.message,
-      );
+      console.error(`[Attempt ${currentAttemptId}] Error parsing ASCII art JSON for terminal:`, error);
     }
 
-    terminalElement.dataset.terminalInitialized = "true";
-    console.log(
-      `[Attempt ${currentAttemptId}] Set terminal.dataset.terminalInitialized to 'true'. DOM terminalInstanceId is ${terminalElement.dataset.terminalInstanceId}.`,
-    );
+    let projects: TerminalProject[] = [];
+    try {
+      const rawProjects = terminalElement.dataset.projects;
+      if (rawProjects) {
+        const parsedProjects = JSON.parse(rawProjects);
+        if (Array.isArray(parsedProjects)) {
+          projects = parsedProjects;
+        }
+      }
+    } catch (error) {
+      console.error(`[Attempt ${currentAttemptId}] Error parsing projects JSON for terminal:`, error);
+    }
 
-    console.log(
-      `[Attempt ${currentAttemptId}] Calling initializeTerminalContact().`,
-    );
+    const currentLang = terminalElement.dataset.locale || "en";
+    terminalElement.dataset.terminalInitialized = "true";
+
     initializeTerminalContact(
       localTranslations,
       localApertureAscii,
+      projects,
+      currentLang,
       currentAttemptId,
     );
   }
 
-  function initializeTerminalContact(translations, apertureAscii, initId) {
-    console.log(
-      `[Attempt ${initId}] TerminalContactForm Script: initializeTerminalContact() started.`,
-    );
-
+  function initializeTerminalContact(
+    translations: Record<string, string>,
+    apertureAscii: string[],
+    projects: TerminalProject[],
+    currentLang: string,
+    initId: number,
+  ) {
     const terminalWindow = document.getElementById("terminal");
     const terminalHeader = document.getElementById("terminal-header");
     const outputContainer = document.getElementById("output-container");
@@ -829,72 +819,72 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     const inputAreaContainer = document.getElementById("input-area");
     const inputLine = document.getElementById("input-line");
     const promptElement = document.getElementById("prompt");
-    const commandInput = document.getElementById("commandInput");
+    const commandInput = document.getElementById("commandInput") as HTMLInputElement | null;
     const inputDisplay = document.getElementById("input-display");
     const messageEditorContainer = document.getElementById("message-editor");
-    const messageInput = document.getElementById("messageInput");
-    const sendButton = document.getElementById("sendButton");
+    const messageInput = document.getElementById("messageInput") as HTMLTextAreaElement | null;
+    const sendButton = document.getElementById("sendButton") as HTMLButtonElement | null;
     const resizeHandle = document.getElementById("resize-handle");
 
-    const essentialElements = {
-      terminalWindow,
-      terminalHeader,
-      outputContainer,
-      output,
-      inputAreaContainer,
-      inputLine,
-      promptElement,
-      commandInput,
-      inputDisplay,
-      messageEditorContainer,
-      messageInput,
-      sendButton,
-      resizeHandle,
-    };
-    for (const key in essentialElements) {
-      if (!essentialElements[key]) {
-        console.error(
-          `[Attempt ${initId}] TerminalContactForm Script: Essential DOM element '${key}' not found. Aborting initialization.`,
-        );
-        if (output) {
-          output.innerHTML = `<div class="output-line error-text">Error: A critical UI part of the terminal is missing (${key}). Try refreshing.</div>`;
-        } else if (terminalWindow) {
-          terminalWindow.innerHTML = `<div style="padding:1rem; color:red;">Error: Terminal structure incomplete (${key}). Please refresh.</div>`;
-        }
-        if (terminalWindow) delete terminalWindow.dataset.terminalInitialized; // Allow re-init if possible
-        return;
+    if (
+      !terminalWindow ||
+      !terminalHeader ||
+      !outputContainer ||
+      !output ||
+      !inputAreaContainer ||
+      !inputLine ||
+      !promptElement ||
+      !commandInput ||
+      !inputDisplay ||
+      !messageEditorContainer ||
+      !messageInput ||
+      !sendButton ||
+      !resizeHandle
+    ) {
+      console.error(`[Attempt ${initId}] TerminalContactForm Script: Essential DOM element missing. Aborting initialization.`);
+      if (output) {
+        output.innerHTML = `<div class="output-line error-text">Error: A critical UI part of the terminal is missing. Try refreshing.</div>`;
       }
+      if (terminalWindow) delete terminalWindow.dataset.terminalInitialized;
+      return;
     }
 
+    let disposed = false;
+    const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+    function scheduleTimeout(fn: () => void, ms: number) {
+      const id = setTimeout(() => {
+        activeTimeouts.delete(id);
+        if (!disposed) fn();
+      }, ms);
+      activeTimeouts.add(id);
+      return id;
+    }
+
+    let startObserver: IntersectionObserver | null = null;
+    let startScrollContainer: Element | null = null;
+    let startVisibilityHandler: (() => void) | null = null;
+
     let currentStep = 0;
-    const formData = { name: "", email: "", message: "" };
+    const formData: TerminalFormData = { name: "", email: "", message: "" };
     let isTyping = false;
     let isSending = false;
     let isExited = false;
-    
+
     function updateInputDisplay() {
-      if (!commandInput || !inputDisplay) return;
+      if (!commandInput || !inputDisplay || disposed) return;
       const text = commandInput.value;
       const selStart = commandInput.selectionStart ?? text.length;
       const selEnd = commandInput.selectionEnd ?? text.length;
       const isFocused = document.activeElement === commandInput;
-
-      const escape = (str) =>
-        str
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
 
       if (selStart === selEnd) {
         const before = text.substring(0, selStart);
         const under = text.substring(selStart, selStart + 1) || " ";
         const after = text.substring(selStart + 1);
 
-        const beforeEscaped = escape(before);
-        const underEscaped = under === " " ? "&nbsp;" : escape(under);
-        const afterEscaped = escape(after);
+        const beforeEscaped = escapeHtml(before);
+        const underEscaped = under === " " ? "&nbsp;" : escapeHtml(under);
+        const afterEscaped = escapeHtml(after);
 
         const cursorClass = isFocused ? "cursor" : "cursor-inactive";
         inputDisplay.innerHTML = `${beforeEscaped}<span class="${cursorClass}">${underEscaped}</span>${afterEscaped}`;
@@ -903,82 +893,85 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         const selected = text.substring(selStart, selEnd);
         const after = text.substring(selEnd);
 
-        const beforeEscaped = escape(before);
-        const selectedEscaped = escape(selected);
-        const afterEscaped = escape(after);
+        const beforeEscaped = escapeHtml(before);
+        const selectedEscaped = escapeHtml(selected);
+        const afterEscaped = escapeHtml(after);
 
         inputDisplay.innerHTML = `${beforeEscaped}<span class="text-selected">${selectedEscaped}</span>${afterEscaped}`;
       }
     }
-    
-    // Check if we are on a mobile device (based purely on viewport width <= 768)
+
     let isMobile = false;
     try {
       isMobile = window.innerWidth <= 768;
-    } catch (e) {}
+    } catch {}
 
     let isDragging = false;
-    let dragStartX, dragStartY, initialLeft, initialTop;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
     let isResizing = false;
-    let resizeStartX, resizeStartY, initialWidth, initialHeight;
+    let resizeStartX = 0;
+    let resizeStartY = 0;
+    let initialWidth = 0;
+    let initialHeight = 0;
 
     function getTerminalPosition() {
-      const rect = terminalWindow.getBoundingClientRect();
-      const parent = terminalWindow.offsetParent;
+      const rect = terminalWindow!.getBoundingClientRect();
+      const parent = terminalWindow!.offsetParent;
       if (!parent || parent === document.body || parent === document.documentElement) {
         return { left: rect.left, top: rect.top };
       }
       const parentRect = parent.getBoundingClientRect();
       return {
         left: rect.left - parentRect.left,
-        top: rect.top - parentRect.top
+        top: rect.top - parentRect.top,
       };
     }
 
     function setInitialPositionAndSize() {
-      // If the terminal has been manually moved or resized, skip automatic centering/sizing
-      if (terminalWindow.dataset.terminalInteracted === "true" && !isMobile) return;
+      if (terminalWindow!.dataset.terminalInteracted === "true" && !isMobile) return;
 
-      const isHomepageContact = !!terminalWindow.closest(".contact-terminal-wrapper");
+      const isHomepageContact = !!terminalWindow!.closest(".contact-terminal-wrapper");
       if (isHomepageContact || isMobile) {
-        terminalWindow.style.position = 'relative';
-        terminalWindow.style.top = '';
-        terminalWindow.style.left = '';
+        terminalWindow!.style.position = "relative";
+        terminalWindow!.style.top = "";
+        terminalWindow!.style.left = "";
         if (isMobile) {
-          terminalWindow.style.width = '100%';
-          terminalWindow.style.height = '100%';
-          terminalWindow.style.minWidth = '0';
-          terminalWindow.style.minHeight = '0';
-          terminalWindow.style.maxWidth = '100%';
-          terminalWindow.style.maxHeight = '100%';
-          terminalWindow.style.aspectRatio = '';
+          terminalWindow!.style.width = "100%";
+          terminalWindow!.style.height = "100%";
+          terminalWindow!.style.minWidth = "0";
+          terminalWindow!.style.minHeight = "0";
+          terminalWindow!.style.maxWidth = "100%";
+          terminalWindow!.style.maxHeight = "100%";
+          terminalWindow!.style.aspectRatio = "";
         } else {
-          terminalWindow.style.width = 'min(760px, calc((100vh - 180px) * 4 / 3), 85vw)';
-          terminalWindow.style.height = 'auto';
-          terminalWindow.style.aspectRatio = '4 / 3';
-          terminalWindow.style.maxHeight = 'calc(100% - 1rem)';
+          terminalWindow!.style.width = "min(760px, calc((100vh - 220px) * 4 / 3), 85vw)";
+          terminalWindow!.style.height = "auto";
+          terminalWindow!.style.aspectRatio = "4 / 3";
+          terminalWindow!.style.maxHeight = "calc(100% - 1rem)";
         }
         return;
       }
 
       const initialW = Math.min(768, window.innerWidth * 0.9);
       const vh = window.innerHeight;
-      const initialH = Math.max(MIN_TERMINAL_HEIGHT, Math.min(650, vh * 0.75));
-      terminalWindow.style.width = `${initialW}px`;
-      terminalWindow.style.height = `${initialH}px`;
+      const footerClearance = 76;
+      const minTop = TOP_BAR_HEIGHT + 8;
+      const availableH = Math.max(MIN_TERMINAL_HEIGHT, vh - minTop - footerClearance);
+      const initialH = Math.max(MIN_TERMINAL_HEIGHT, Math.min(650, availableH, vh * 0.75));
+      terminalWindow!.style.position = "fixed";
+      terminalWindow!.style.width = `${initialW}px`;
+      terminalWindow!.style.height = `${initialH}px`;
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
-      let newTop = (viewportHeight - initialH) / 2;
-      newTop = Math.max(TOP_BAR_HEIGHT, newTop);
-      newTop = Math.min(newTop, viewportHeight - initialH - 5);
+      let newTop = minTop + Math.max(0, (viewportHeight - minTop - footerClearance - initialH) / 2);
+      newTop = Math.max(TOP_BAR_HEIGHT, Math.min(newTop, viewportHeight - initialH - 5));
       let newLeft = (viewportWidth - initialW) / 2;
-      newLeft = Math.max(5, newLeft);
-      newLeft = Math.min(newLeft, viewportWidth - initialW - 5);
-      terminalWindow.style.top = `${newTop}px`;
-      terminalWindow.style.left = `${newLeft}px`;
-      console.log(
-        `[Attempt ${initId}] Initial position set - Top: ${newTop}px, Left: ${newLeft}px, Width: ${initialW}px, Height: ${initialH}px`,
-      );
+      newLeft = Math.max(5, Math.min(newLeft, viewportWidth - initialW - 5));
+      terminalWindow!.style.top = `${newTop}px`;
+      terminalWindow!.style.left = `${newLeft}px`;
     }
     setInitialPositionAndSize();
 
@@ -1013,16 +1006,16 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     );
     if (missingKeys.length > 0) {
       console.error(
-        `[Attempt ${initId}] Terminal initialization aborted due to missing translations for keys: ${missingKeys.join(", ")}`,
+        `[Attempt ${initId}] Terminal initialization aborted due to missing translations: ${missingKeys.join(", ")}`,
       );
       addOutputLine(
         `Configuration error: Missing required text for terminal operation (${missingKeys.join(", ")}).`,
         "error",
         false,
       );
-      if (commandInput) commandInput.disabled = true;
-      if (messageInput) messageInput.disabled = true;
-      if (sendButton) sendButton.disabled = true;
+      commandInput.disabled = true;
+      messageInput.disabled = true;
+      sendButton.disabled = true;
       return;
     }
 
@@ -1035,7 +1028,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       translations.endPrompt, // Step 5
     ];
 
-    function getPrefixText(type) {
+    function getPrefixText(type: string) {
       const isSmallScreen = window.innerWidth < SMALL_SCREEN_WIDTH;
       let prefix = "";
       if (type === "prompt" || type === "user") {
@@ -1048,8 +1041,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       return prefix;
     }
 
-    function addOutputLine(text, type = "info", addPrefix = true) {
-      if (!output || isExited) return;
+    function addOutputLine(text: string, type = "info", addPrefix = true) {
+      if (!output || isExited || disposed) return;
       const line = document.createElement("div");
       line.classList.add("output-line");
       const prefixText =
@@ -1073,7 +1066,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         if (
           window.innerWidth >= SMALL_SCREEN_WIDTH &&
           Array.isArray(apertureAscii) &&
-          !apertureAscii[0].startsWith("Error")
+          !apertureAscii[0]?.startsWith("Error")
         ) {
           line.classList.add("ascii-art");
           textSpan.innerHTML = text;
@@ -1083,21 +1076,31 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       } else if (type === "html") {
         textSpan.innerHTML = text;
       } else {
-        const sanitizedText = String(text)
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+        const rawText = String(text ?? "");
         switch (type) {
-          case "error":
-            textSpan.innerHTML = `<span class="error-text">Error: ${sanitizedText}</span>`;
+          case "error": {
+            const span = document.createElement("span");
+            span.className = "error-text";
+            span.textContent = `Error: ${rawText}`;
+            textSpan.appendChild(span);
             break;
-          case "success":
-            textSpan.innerHTML = `<span class="success-text">${sanitizedText}</span>`;
+          }
+          case "success": {
+            const span = document.createElement("span");
+            span.className = "success-text";
+            span.textContent = rawText;
+            textSpan.appendChild(span);
             break;
-          case "user":
-            textSpan.innerHTML = `<span class="user-input-text">${sanitizedText}</span>`;
+          }
+          case "user": {
+            const span = document.createElement("span");
+            span.className = "user-input-text";
+            span.textContent = rawText;
+            textSpan.appendChild(span);
             break;
+          }
           default:
-            textSpan.textContent = sanitizedText;
+            textSpan.textContent = rawText;
             break;
         }
       }
@@ -1106,14 +1109,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       scrollToBottom();
     }
 
-    function typeWriter(text, callback, promptType = "prompt") {
-      if (typeof text !== "string") text = String(text);
-      if (!commandInput || !messageInput || !output || isExited) {
-        if (callback) callback();
+    function typeWriter(text: unknown, callback?: () => void, promptType = "prompt") {
+      const str = typeof text === "string" ? text : String(text);
+      if (!commandInput || !messageInput || !output || isExited || disposed) {
+        if (callback && !disposed) callback();
         return;
       }
       isTyping = true;
-      if (commandInput) commandInput.readOnly = true;
+      commandInput.readOnly = true;
 
       let i = 0;
       const speed = 30;
@@ -1138,12 +1141,13 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       output.appendChild(line);
 
       function type() {
+        if (disposed) return;
         try {
-          if (i < text.length && !isExited) {
-            textSpan.textContent += text.charAt(i);
+          if (i < str.length && !isExited) {
+            textSpan.textContent += str.charAt(i);
             i++;
             scrollToBottom();
-            setTimeout(type, speed);
+            scheduleTimeout(type, speed);
           } else {
             isTyping = false;
             if (
@@ -1158,10 +1162,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             if (callback && !isExited) callback();
           }
         } catch (error) {
-          console.error(
-            `[Attempt ${initId}] Error during typeWriter's type function:`,
-            error,
-          );
+          console.error(`[Attempt ${initId}] Error during typeWriter:`, error);
           isTyping = false;
           if (commandInput) commandInput.readOnly = false;
           if (callback && !isExited) callback();
@@ -1171,7 +1172,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     function scrollToBottom() {
-      setTimeout(() => {
+      scheduleTimeout(() => {
         if (output && !output.classList.contains("hidden")) {
           output.scrollTo({ top: output.scrollHeight, behavior: "smooth" });
         }
@@ -1179,7 +1180,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     function updateCommandPrompt() {
-      if (!promptElement || !inputLine || !commandInput || isExited) return;
+      if (!promptElement || !inputLine || !commandInput || isExited || disposed) return;
       const isSmallScreen = window.innerWidth < SMALL_SCREEN_WIDTH;
       const currentPromptSymbol =
         currentStep === 4 ? CONFIRM_PROMPT_SYMBOL : PROMPT_SYMBOL;
@@ -1196,29 +1197,28 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
     }
 
-    function setInputMode(mode, shouldFocus = true) {
+    function setInputMode(mode: "command" | "editor", shouldFocus = true) {
       if (
         !inputLine ||
         !messageEditorContainer ||
         !commandInput ||
         !messageInput ||
-        isExited
+        isExited ||
+        disposed
       )
         return;
       if (mode === "editor") {
         inputLine.style.display = "none";
         messageEditorContainer.style.display = "flex";
-        messageInput.value = formData.message;
+        messageInput.value = formData._edTarget ? (formData._edBuffer ?? "") : formData.message;
         messageInput.disabled = false;
         commandInput.disabled = true;
         if (shouldFocus && !isMobile) {
           try {
             messageInput.focus({ preventScroll: true });
-          } catch (e) {
-            console.warn(`[Attempt ${initId}] Failed to focus messageInput`, e);
-          }
+          } catch {}
         }
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (messageInput) messageInput.scrollTop = messageInput.scrollHeight;
         }, 10);
       } else {
@@ -1230,33 +1230,31 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         if (shouldFocus && !isMobile) {
           try {
             commandInput.focus({ preventScroll: true });
-          } catch (e) {
-            console.warn(`[Attempt ${initId}] Failed to focus commandInput`, e);
-          }
+          } catch {}
         }
       }
       updateCommandPrompt();
     }
 
     function triggerSendConfirmation() {
-      // Allow execution if we are editing a VFS file, even if currentStep isn't 3
       if (
         (currentStep !== 3 && !formData._edTarget) ||
         isSending ||
         isTyping ||
-        isExited
+        isExited ||
+        disposed
       )
         return;
       if (!messageInput || !translations || !messageEditorContainer) return;
 
       if (formData._edTarget) {
-        // Save VFS file instead of message
         const file = getVfsItem(formData._edTarget);
         if (file && file.type === "file") {
           file.content = messageInput.value;
           addOutputLine(`Saved ${formData._edTarget.at(-1)}.`, "success");
         }
         delete formData._edTarget;
+        delete formData._edBuffer;
         setInputMode("command");
         return;
       }
@@ -1267,12 +1265,12 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           "error",
         );
         messageEditorContainer.style.outline = "1px solid red";
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (messageEditorContainer) messageEditorContainer.style.outline = "";
         }, 1500);
         try {
           messageInput.focus({ preventScroll: true });
-        } catch (e) {}
+        } catch {}
         return;
       }
       setInputMode("command");
@@ -1280,9 +1278,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       displayConfirmation();
     }
 
-    function handleCommand(event) {
+    function handleCommand(event: KeyboardEvent) {
       if (
         isExited ||
+        disposed ||
         event.key !== "Enter" ||
         isTyping ||
         currentStep === 3 ||
@@ -1303,14 +1302,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         if (!isTyping && currentStep !== 3 && currentStep < 5 && !isMobile) {
           try {
             commandInput.focus({ preventScroll: true });
-          } catch (e) {}
+          } catch {}
         }
       }
       updateCommandPrompt();
     }
 
-    function handleTextareaKeys(event) {
-      if (isExited) return;
+    function handleTextareaKeys(event: KeyboardEvent) {
+      if (isExited || disposed) return;
       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
         event.preventDefault();
         triggerSendConfirmation();
@@ -1318,6 +1317,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     function focusCommandInput(isUserAction = false) {
+      if (disposed) return;
       if (isMobile && !isUserAction) {
         updateCommandPrompt();
         return;
@@ -1333,15 +1333,12 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           if (document.activeElement !== commandInput) {
             commandInput.focus({ preventScroll: true });
           }
-        } catch (e) {
-          console.warn(`[Attempt ${initId}] Could not focus command input:`, e);
-        }
+        } catch {}
       }
       updateCommandPrompt();
     }
 
-    // --- Easter Egg: Virtual File System (VFS) ---
-    const vfs = {
+    const vfs: VfsItem = {
       type: "dir",
       name: "/",
       children: [
@@ -1381,24 +1378,30 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         },
       ],
     };
-    let currentVfsPath = []; // Array of directory names
+    let currentVfsPath: string[] = [];
 
-    function getVfsItem(pathArray) {
-      let current = vfs;
+    function getVfsItem(pathArray: string[]): VfsItem | null {
+      let current: VfsItem | undefined = vfs;
       for (const segment of pathArray) {
-        if (current.type !== "dir") return null;
-        current = current.children.find((child) => child.name === segment);
+        if (!current || current.type !== "dir") return null;
+        current = current.children?.find((child) => child.name === segment);
         if (!current) return null;
       }
-      return current;
+      return current || null;
     }
 
-    // --- Typewriter Sound FX Engine ---
+    let sharedAudioCtx: AudioContext | null = null;
     function playTypewriterSound(isEnter = false) {
-      if (localStorage.getItem("terminal_sound_fx") === "false") return;
+      if (disposed || localStorage.getItem("terminal_sound_fx") === "false") return;
       try {
-        const AudioContextClass = window.AudioContext || window["webkitAudioContext"];
-        const ctx = new AudioContextClass();
+        if (!sharedAudioCtx) {
+          const AudioContextClass =
+            window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (!AudioContextClass) return;
+          sharedAudioCtx = new AudioContextClass();
+        }
+        const ctx = sharedAudioCtx;
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const filter = ctx.createBiquadFilter();
@@ -1427,23 +1430,21 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           osc.start();
           osc.stop(ctx.currentTime + 0.03);
         }
-      } catch (e) {}
+      } catch {}
     }
 
-    // --- Matrix Digital Rain Code Overlay ---
-    let matrixInterval = null;
+    let matrixInterval: ReturnType<typeof setInterval> | null = null;
     let isMatrixMode = false;
 
     function startMatrixRain() {
-      const canvas = document.getElementById("terminal-matrix-canvas");
-      if (!canvas) return;
+      const canvas = document.getElementById("terminal-matrix-canvas") as HTMLCanvasElement | null;
+      if (!canvas || !canvas.parentElement || disposed) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       canvas.classList.remove("hidden");
       isMatrixMode = true;
 
-      // Set canvas size
       const rect = canvas.parentElement.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
@@ -1454,17 +1455,17 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       const fontSize = 14;
       const columns = Math.floor(canvas.width / fontSize) + 1;
 
-      const rainDrops = [];
+      const rainDrops: number[] = [];
       for (let x = 0; x < columns; x++) {
         rainDrops[x] = Math.random() * -100;
       }
 
       function draw() {
+        if (!ctx || !canvas || disposed) return;
         ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Access the current active theme color
-        let activeColor = "#39ff14"; // classic green
+        let activeColor = "#39ff14";
         const term = document.getElementById("terminal");
         if (term) {
           if (term.classList.contains("theme-amber")) activeColor = "#ffb000";
@@ -1489,6 +1490,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         }
       }
 
+      if (matrixInterval) clearInterval(matrixInterval);
       matrixInterval = setInterval(draw, 33);
     }
 
@@ -1504,8 +1506,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
     }
 
-    function resolvePath(basePath, relativePathParts, isAbsolute) {
-      let resolved = isAbsolute ? [] : [...basePath];
+    function resolvePath(basePath: string[], relativePathParts: string[], isAbsolute: boolean) {
+      const resolved = isAbsolute ? [] : [...basePath];
       for (const part of relativePathParts) {
         if (part === "" || part === ".") {
           continue;
@@ -1518,11 +1520,12 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       return resolved;
     }
 
-    function handleTabComplete(event) {
-      if (event.key !== "Tab" || isTyping || isExited || !commandInput) return;
-      event.preventDefault(); // Stop focus change
-
+    function handleTabComplete(event: KeyboardEvent) {
+      if (event.key !== "Tab" || event.shiftKey || isTyping || isExited || !commandInput) return;
       const val = commandInput.value;
+      if (!val.trim()) return;
+      event.preventDefault();
+
       const cursorPosition = commandInput.selectionStart ?? val.length;
       const textBefore = val.substring(0, cursorPosition);
       const textAfter = val.substring(cursorPosition);
@@ -1531,28 +1534,26 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       const isCommandWord = words.length <= 1 && !textBefore.endsWith(" ");
 
       if (currentStep === 3) {
-        return; // No autocomplete in step 3 (message text area active)
+        return;
       }
 
-      let matches = [];
+      let matches: string[] = [];
       let completionPrefix = "";
 
       if (currentStep === 4) {
-        // Confirmation step
         const typed = words[0] || "";
         const options = ["yes", "no", "edit"];
-        matches = options.filter(o => o.startsWith(typed.toLowerCase()));
+        matches = options.filter((o) => o.startsWith(typed.toLowerCase()));
         completionPrefix = typed;
       } else {
-        // Command mode (Step 0, 1, 2, 5)
         if (isCommandWord) {
           const typed = words[0] || "";
           const commands = [
             "ls", "cd", "cat", "ed", "edit", "help", "clear",
             "whoami", "neofetch", "projects", "theme", "scanlines", "matrix",
-            "reset", "exit"
+            "reset", "exit",
           ];
-          matches = commands.filter(c => c.startsWith(typed.toLowerCase()));
+          matches = commands.filter((c) => c.startsWith(typed.toLowerCase()));
           completionPrefix = typed;
         } else {
           const trimmed = textBefore.trimStart();
@@ -1563,7 +1564,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
           if (cmd === "theme") {
             const options = ["classic", "amber", "cyberpunk", "solar"];
-            matches = options.filter(o => o.startsWith(arg.toLowerCase()));
+            matches = options.filter((o) => o.startsWith(arg.toLowerCase()));
             completionPrefix = arg;
           } else if (["cd", "cat", "ed", "edit"].includes(cmd)) {
             const isAbsolute = arg.startsWith("/");
@@ -1576,9 +1577,11 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
             if (targetDir && targetDir.type === "dir") {
               const children = targetDir.children || [];
-              const matchedChildren = children.filter(c => c.name.toLowerCase().startsWith(segmentPrefix.toLowerCase()));
-              
-              matches = matchedChildren.map(c => {
+              const matchedChildren = children.filter((c) =>
+                c.name.toLowerCase().startsWith(segmentPrefix.toLowerCase()),
+              );
+
+              matches = matchedChildren.map((c) => {
                 const suffix = c.type === "dir" ? "/" : "";
                 return c.name + suffix;
               });
@@ -1589,17 +1592,15 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
 
       if (matches.length === 1) {
-        // Single match
         const match = matches[0];
         const toAdd = match.substring(completionPrefix.length);
-        
+
         const newVal = textBefore + toAdd + (match.endsWith("/") ? "" : " ");
         commandInput.value = newVal + textAfter;
         const newCursorPos = newVal.length;
         commandInput.setSelectionRange(newCursorPos, newCursorPos);
         updateInputDisplay();
       } else if (matches.length > 1) {
-        // Multiple matches: show them in the terminal output
         addOutputLine(" ", "info-no-prefix", false);
         const matchStr = matches.join("    ");
         addOutputLine(matchStr, "info-no-prefix", false);
@@ -1607,7 +1608,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
     }
 
-    async function handleShellCommand(fullInput) {
+    async function handleShellCommand(fullInput: string) {
       const parts = fullInput.trim().split(/\s+/);
       const cmd = parts[0].toLowerCase();
       const args = parts.slice(1);
@@ -1620,10 +1621,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           );
           break;
 
-        case "ls":
+        case "ls": {
           const item = getVfsItem(currentVfsPath);
           if (item && item.type === "dir") {
-            const list = item.children
+            const list = (item.children || [])
               .map(
                 (c) =>
                   `${c.type === "dir" ? "DIR " : "FILE"} ${c.name.padEnd(15)}`,
@@ -1632,14 +1633,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             addOutputLine(list || "(empty directory)", "info-no-prefix", false);
           }
           break;
+        }
 
         case "cd":
           if (!args[0] || args[0] === "/" || args[0] === "~") {
             currentVfsPath = [];
-          } else if (args[0] === "..") {
-            currentVfsPath.pop();
           } else {
-            const newPath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const newPath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const target = getVfsItem(newPath);
             if (target && target.type === "dir") {
               currentVfsPath = newPath;
@@ -1653,10 +1654,11 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           if (!args[0]) {
             addOutputLine("usage: cat <filename>", "error");
           } else {
-            const filePath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const filePath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const file = getVfsItem(filePath);
             if (file && file.type === "file") {
-              addOutputLine(file.content, "info-no-prefix", false);
+              addOutputLine(file.content || "", "info-no-prefix", false);
             } else {
               addOutputLine(`cat: no such file: ${args[0]}`, "error");
             }
@@ -1665,16 +1667,19 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
         case "ed":
         case "edit":
+          if (cmd === "edit" && !args[0] && (currentStep === 4 || (currentStep === 5 && formData.message))) {
+            return false;
+          }
           if (!args[0]) {
             addOutputLine("usage: ed <filename>", "error");
           } else {
-            const targetPath = [...currentVfsPath, args[0]];
+            const isAbsolute = args[0].startsWith("/");
+            const targetPath = resolvePath(currentVfsPath, args[0].split("/"), isAbsolute);
             const targetItem = getVfsItem(targetPath);
             if (targetItem && targetItem.type === "file") {
               addOutputLine(`Opening editor for ${args[0]}...`, "info");
-              // Temporarily hijack message editor for VFS editing
               formData._edTarget = targetPath;
-              formData.message = targetItem.content;
+              formData._edBuffer = targetItem.content || "";
               setInputMode("editor");
             } else {
               addOutputLine(`ed: file not found or is a directory`, "error");
@@ -1683,16 +1688,17 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           break;
 
         case "clear":
-          output.innerHTML = "";
+          output!.innerHTML = "";
           break;
 
         case "whoami":
           addOutputLine(formData.name || "subject_test_portal", "success");
           break;
 
-        case "neofetch":
+        case "neofetch": {
+          const safeUser = escapeHtml(formData.name || "Subject");
           const info = `
-  <span style="color:var(--color-primary)">USER:</span> ${formData.name || "Subject"}
+  <span style="color:var(--color-primary)">USER:</span> ${safeUser}
   <span style="color:var(--color-primary)">OS:</span> CakeOS 4.11.88
   <span style="color:var(--color-primary)">HOST:</span> Aperture-Science-Lab
   <span style="color:var(--color-primary)">KERNEL:</span> GLaDOS-v3.0.1
@@ -1703,14 +1709,17 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 `;
           addOutputLine(info, "html", false);
           break;
+        }
 
         case "projects":
           if (!projects || projects.length === 0) {
             addOutputLine("No projects found in database.", "info");
           } else {
             addOutputLine("Accessing database... Projects list:", "success");
-            projects.forEach(p => {
-              const projectLink = `<a href="/${currentLang}/projects/${p.slug}" style="color:var(--term-accent, var(--color-accent)); text-decoration: underline;" target="_blank">${p.title}</a>`;
+            projects.forEach((p) => {
+              const slug = p.slug ? encodeURIComponent(p.slug) : "";
+              const href = `/${encodeURIComponent(currentLang)}/projects/${slug}`;
+              const projectLink = `<a href="${escapeHtml(href)}" style="color:var(--term-accent, var(--color-accent)); text-decoration: underline;" target="_blank" rel="noopener noreferrer">${escapeHtml(p.title)}</a>`;
               addOutputLine(`- ${projectLink}`, "html", false);
             });
           }
@@ -1718,13 +1727,13 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
         case "theme":
           if (!args[0]) {
-            addOutputLine("Usage: theme &lt;theme-name&gt;", "info");
+            addOutputLine("Usage: theme <theme-name>", "info");
             addOutputLine("Available themes: classic, amber, cyberpunk, solar", "info");
           } else {
             const targetTheme = args[0].toLowerCase();
             if (["classic", "amber", "cyberpunk", "solar"].includes(targetTheme)) {
-              terminalWindow.classList.remove("theme-classic", "theme-amber", "theme-cyberpunk", "theme-solar");
-              terminalWindow.classList.add(`theme-${targetTheme}`);
+              terminalWindow!.classList.remove("theme-classic", "theme-amber", "theme-cyberpunk", "theme-solar");
+              terminalWindow!.classList.add(`theme-${targetTheme}`);
               localStorage.setItem("terminal_theme", targetTheme);
               addOutputLine(`Theme updated to: ${targetTheme}`, "success");
             } else {
@@ -1733,30 +1742,30 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           }
           break;
 
-        case "scanlines":
-          const hasScanlines = terminalWindow.classList.toggle("scanlines");
+        case "scanlines": {
+          const hasScanlines = terminalWindow!.classList.toggle("scanlines");
           localStorage.setItem("terminal_scanlines", hasScanlines ? "true" : "false");
           addOutputLine(hasScanlines ? "CRT scanlines enabled." : "CRT scanlines disabled.", "success");
           break;
+        }
 
         case "matrix":
           addOutputLine("Entering matrix code interface... Press any key to exit.", "success");
-          setTimeout(() => {
+          scheduleTimeout(() => {
             startMatrixRain();
           }, 500);
           break;
 
         default:
-          return false; // Not a shell command we handle here
+          return false;
       }
       return true;
     }
 
     function showPowerButton() {
-      // Use terminalWindow as container so it stays centered even if content is hidden
-      if (!terminalWindow) return;
+      if (!terminalWindow || disposed) return;
 
-      let button = document.getElementById(POWER_BUTTON_ID);
+      let button = document.getElementById(POWER_BUTTON_ID) as HTMLButtonElement | null;
       if (!button) {
         button = document.createElement("button");
         button.id = POWER_BUTTON_ID;
@@ -1767,22 +1776,22 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         terminalWindow.appendChild(button);
       }
 
-      setTimeout(() => button.classList.add("visible"), 800); // Show after CRT anim finishes
+      const btnRef = button;
+      scheduleTimeout(() => btnRef.classList.add("visible"), 800);
     }
 
     function hidePowerButton() {
       const button = document.getElementById(POWER_BUTTON_ID);
       if (button) {
         button.classList.remove("visible");
-        setTimeout(() => button.remove(), 300);
+        scheduleTimeout(() => button.remove(), 300);
       }
     }
 
-    async function processInput(input) {
-      if (!translations || isExited) return;
+    async function processInput(input: string) {
+      if (!translations || isExited || disposed) return;
       const lowerInput = input.toLowerCase();
 
-      // Check for shell commands first (Easter Egg logic)
       if (await handleShellCommand(input)) {
         if (currentStep < 5) focusCommandInput();
         return;
@@ -1799,7 +1808,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             typeWriter(prompts[currentStep], focusCommandInput);
           }
           break;
-        case 2:
+        case 2: {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (input && emailRegex.test(input)) {
             formData.email = input;
@@ -1811,10 +1820,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             typeWriter(prompts[currentStep], focusCommandInput);
           }
           break;
+        }
         case 3:
-          console.warn(
-            `[Attempt ${initId}] processInput called unexpectedly during step 3 (message input).`,
-          );
           break;
         case 4:
           if (lowerInput === "yes") {
@@ -1826,14 +1833,19 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
               const response = await fetch("/api/contact/initiate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...formData, locale: currentLocale }),
+                body: JSON.stringify({
+                  name: formData.name,
+                  email: formData.email,
+                  message: formData.message,
+                  locale: currentLang,
+                }),
               });
 
+              const data = await response.json().catch(() => ({}));
               if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
+                throw new Error(data.message || `HTTP error ${response.status}`);
               }
 
-              const data = await response.json();
               addOutputLine(
                 data.message ||
                   "Verification email sent. Please check your inbox.",
@@ -1843,13 +1855,11 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
               currentStep = 5;
               typeWriter(prompts[currentStep], focusCommandInput);
             } catch (error) {
-              console.error(
-                `[Attempt ${initId}] Contact form submission error:`,
-                error,
-              );
+              console.error(`[Attempt ${initId}] Contact form submission error:`, error);
+              const errMsg = error instanceof Error ? error.message : "Unknown error";
               const errorMsg = (
                 translations.errorSending || "Failed to send: {message}"
-              ).replace("{message}", error.message || "Unknown error");
+              ).replace("{message}", errMsg);
               addOutputLine(errorMsg, "error");
               if (commandInput) commandInput.readOnly = false;
               displayConfirmation();
@@ -1894,17 +1904,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
             }
             if (inputLine) inputLine.classList.remove("focused");
 
-            // Trigger CRT Animation
             if (terminalHeader) terminalHeader.style.opacity = "0";
             if (resizeHandle) resizeHandle.style.opacity = "0";
 
-            // Animate content collapsing
-            outputContainer.classList.add("crt-off");
-            // Also animate input container if visible, but essentially we just need the "screen" to collapse
+            outputContainer!.classList.add("crt-off");
             if (inputAreaContainer) inputAreaContainer.style.opacity = "0";
 
-            setTimeout(() => {
-              terminalWindow.classList.add("terminal-off-state");
+            scheduleTimeout(() => {
+              terminalWindow!.classList.add("terminal-off-state");
               showPowerButton();
             }, 800);
           } else {
@@ -1912,9 +1919,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
           }
           break;
         default:
-          console.error(
-            `[Attempt ${initId}] Invalid currentStep: ${currentStep}`,
-          );
+          console.error(`[Attempt ${initId}] Invalid currentStep: ${currentStep}`);
           addOutputLine(
             "An unexpected error occurred. Type 'reset' to start over.",
             "error",
@@ -1929,7 +1934,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     function displayConfirmation() {
-      if (!translations || !formData || isExited) return;
+      if (!translations || !formData || isExited || disposed) return;
       const confirmLines = [
         translations.confirmDetails,
         `  ${(translations.confirmName || "Name:").padEnd(10)} ${formData.name || "(Not provided)"}`,
@@ -1953,17 +1958,15 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       if (prompts[currentStep]) {
         typeWriter(prompts[currentStep], focusCommandInput, "prompt-secondary");
       } else {
-        console.error(
-          `[Attempt ${initId}] Confirmation prompt missing for step 4.`,
-        );
+        console.error(`[Attempt ${initId}] Confirmation prompt missing for step 4.`);
         addOutputLine("Confirm? (yes/no/edit)", "prompt-secondary");
         focusCommandInput();
       }
     }
 
     function resetTerminal() {
-      console.log(`[Attempt ${initId}] resetTerminal() called.`);
       if (
+        disposed ||
         !output ||
         !commandInput ||
         !messageInput ||
@@ -1975,18 +1978,14 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         !terminalHeader ||
         !resizeHandle
       ) {
-        console.error(
-          `[Attempt ${initId}] Cannot reset terminal, essential elements missing.`,
-        );
         return;
       }
       isExited = false;
       hidePowerButton();
 
-      // Reset State
       terminalWindow.classList.remove("terminal-off-state");
-      if (terminalHeader) terminalHeader.style.opacity = "1";
-      if (resizeHandle) resizeHandle.style.opacity = "1";
+      terminalHeader.style.opacity = "1";
+      resizeHandle.style.opacity = "1";
       outputContainer.classList.remove("crt-off");
       inputAreaContainer.style.opacity = "1";
 
@@ -1997,21 +1996,24 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       formData.name = "";
       formData.email = "";
       formData.message = "";
+      delete formData._edTarget;
+      delete formData._edBuffer;
+      delete terminalWindow.dataset.terminalStarted;
       currentStep = 0;
       isSending = false;
       isTyping = false;
-        commandInput.value = "";
-        updateInputDisplay();
+      commandInput.value = "";
+      updateInputDisplay();
 
       setInitialPositionAndSize();
       setInputMode("command");
 
-      if (sendButton) sendButton.disabled = false;
+      sendButton.disabled = false;
       startTerminal();
     }
 
     function startTerminal() {
-      console.log(`[Attempt ${initId}] startTerminal() called.`);
+      if (disposed) return;
       if (!translations || !translations.welcome1 || !translations.welcome2) {
         addOutputLine(
           "Error: Cannot start terminal - missing welcome text.",
@@ -2027,76 +2029,83 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         !outputContainer ||
         !inputAreaContainer
       ) {
-        console.error(
-          `[Attempt ${initId}] Cannot start terminal, essential elements missing for start sequence.`,
-        );
         return;
       }
 
-      // Check if terminal already started this session
-      if (terminalWindow.dataset.terminalStarted === "true") return;
+      if (terminalWindow!.dataset.terminalStarted === "true") return;
 
-      // Use Observer to only start typing and focusing when in view
-      const observer = new IntersectionObserver(
+      if (startObserver) {
+        startObserver.disconnect();
+        startObserver = null;
+      }
+      if (startScrollContainer && startVisibilityHandler) {
+        startScrollContainer.removeEventListener("scroll", startVisibilityHandler);
+      }
+
+      startObserver = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
             if (
+              !disposed &&
               (entry.isIntersecting || entry.intersectionRatio > 0) &&
-              terminalWindow.dataset.terminalStarted !== "true"
+              terminalWindow!.dataset.terminalStarted !== "true"
             ) {
-              terminalWindow.dataset.terminalStarted = "true";
+              terminalWindow!.dataset.terminalStarted = "true";
               runStartSequence();
-              try { observer.unobserve(terminalWindow); } catch (e) {}
+              try { startObserver?.unobserve(terminalWindow!); } catch {}
             }
           });
         },
         { threshold: [0, 0.05, 0.1, 0.25, 0.5] },
       );
-      observer.observe(terminalWindow);
+      startObserver.observe(terminalWindow!);
 
-      const scrollContainer = document.querySelector('.scroll-container');
-      const checkVisibility = () => {
-        if (terminalWindow.dataset.terminalStarted === "true") return;
-        const rect = terminalWindow.getBoundingClientRect();
+      startScrollContainer = document.querySelector(".scroll-container");
+      startVisibilityHandler = () => {
+        if (disposed || terminalWindow!.dataset.terminalStarted === "true") return;
+        const rect = terminalWindow!.getBoundingClientRect();
         if (rect.top < window.innerHeight && rect.bottom > 0) {
-          terminalWindow.dataset.terminalStarted = "true";
+          terminalWindow!.dataset.terminalStarted = "true";
           runStartSequence();
-          try { observer.unobserve(terminalWindow); } catch (e) {}
-          if (scrollContainer) scrollContainer.removeEventListener('scroll', checkVisibility);
+          try { startObserver?.unobserve(terminalWindow!); } catch {}
+          if (startScrollContainer && startVisibilityHandler) {
+            startScrollContainer.removeEventListener("scroll", startVisibilityHandler);
+          }
         }
       };
-      if (scrollContainer) {
-        scrollContainer.addEventListener('scroll', checkVisibility, { passive: true });
+      if (startScrollContainer) {
+        startScrollContainer.addEventListener("scroll", startVisibilityHandler, { passive: true });
       }
-      setTimeout(checkVisibility, 200);
-      setTimeout(checkVisibility, 800);
+      scheduleTimeout(() => startVisibilityHandler?.(), 200);
+      scheduleTimeout(() => startVisibilityHandler?.(), 800);
     }
 
     function runStartSequence() {
+      if (disposed) return;
       isExited = false;
       hidePowerButton();
-      output.classList.remove("hidden");
-      inputAreaContainer.classList.remove("hidden");
-      output.innerHTML = "";
+      output!.classList.remove("hidden");
+      inputAreaContainer!.classList.remove("hidden");
+      output!.innerHTML = "";
 
-        commandInput.value = "";
-        updateInputDisplay();
+      commandInput!.value = "";
+      updateInputDisplay();
 
-      commandInput.disabled = true;
-      messageInput.disabled = true;
+      commandInput!.disabled = true;
+      messageInput!.disabled = true;
       isTyping = true;
 
       let currentDisplayDelay = 0;
       const startupTextInterval = 50;
 
-      function addDelayedLine(text, type, delay, addPrefix = false) {
-        setTimeout(() => addOutputLine(text, type, addPrefix), delay);
+      function addDelayedLine(text: string, type: string, delay: number, addPrefix = false) {
+        scheduleTimeout(() => addOutputLine(text, type, addPrefix), delay);
       }
 
       if (
         Array.isArray(apertureAscii) &&
         window.innerWidth >= SMALL_SCREEN_WIDTH &&
-        !apertureAscii[0].startsWith("Error")
+        !apertureAscii[0]?.startsWith("Error")
       ) {
         apertureAscii.forEach((line, index) => {
           addDelayedLine(
@@ -2112,7 +2121,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       } else if (
         apertureAscii &&
         apertureAscii.length > 0 &&
-        apertureAscii[0].startsWith("Error")
+        apertureAscii[0]?.startsWith("Error")
       ) {
         addDelayedLine(apertureAscii[0], "error", currentDisplayDelay, false);
         currentDisplayDelay += startupTextInterval;
@@ -2137,21 +2146,26 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       );
       currentDisplayDelay += startupTextInterval * 4;
 
-      setTimeout(() => {
+      scheduleTimeout(() => {
+        if (disposed || isExited) return;
         typeWriter(translations.welcome1, () => {
           typeWriter(translations.welcome2, () => {
             currentStep = 1;
             if (prompts[currentStep]) {
               typeWriter(prompts[currentStep], () => {
-                commandInput.disabled = false;
-                commandInput.readOnly = false;
+                if (commandInput) {
+                  commandInput.disabled = false;
+                  commandInput.readOnly = false;
+                }
                 isTyping = false;
                 focusCommandInput();
               });
             } else {
               addOutputLine("Error: Missing prompt.", "error");
-              commandInput.disabled = false;
-              commandInput.readOnly = false;
+              if (commandInput) {
+                commandInput.disabled = false;
+                commandInput.readOnly = false;
+              }
               isTyping = false;
               focusCommandInput();
             }
@@ -2160,47 +2174,50 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }, currentDisplayDelay);
     }
 
-    function dragStart(e) {
+    function dragStart(e: MouseEvent | TouchEvent) {
+      const target = e.target as HTMLElement | null;
       if (
         isMobile ||
         isExited ||
-        e.target === commandInput ||
-        e.target === messageInput ||
-        e.target === sendButton ||
-        (POWER_BUTTON_ID && e.target.closest(`#${POWER_BUTTON_ID}`)) ||
-        e.target === resizeHandle
+        disposed ||
+        !target ||
+        target === commandInput ||
+        target === messageInput ||
+        target === sendButton ||
+        target.closest(`#${POWER_BUTTON_ID}`) ||
+        target === resizeHandle
       ) {
         return;
       }
-      if (!terminalHeader.contains(e.target) && e.target !== terminalHeader) {
+      if (!terminalHeader!.contains(target) && target !== terminalHeader) {
         return;
       }
       isDragging = true;
-      terminalWindow.dataset.terminalInteracted = "true";
-      terminalWindow.classList.add("dragging");
+      terminalWindow!.dataset.terminalInteracted = "true";
+      terminalWindow!.classList.add("dragging");
       document.body.style.userSelect = "none";
 
-      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
-      const rect = terminalWindow.getBoundingClientRect();
-      terminalWindow.style.width = `${rect.width}px`;
-      terminalWindow.style.height = `${rect.height}px`;
-      terminalWindow.style.aspectRatio = 'auto';
+      const wrapper = terminalWindow!.closest(".contact-terminal-wrapper");
+      const rect = terminalWindow!.getBoundingClientRect();
+      terminalWindow!.style.width = `${rect.width}px`;
+      terminalWindow!.style.height = `${rect.height}px`;
+      terminalWindow!.style.aspectRatio = "auto";
 
       if (wrapper) {
         const wrapperRect = wrapper.getBoundingClientRect();
         initialLeft = rect.left - wrapperRect.left;
         initialTop = rect.top - wrapperRect.top;
-        terminalWindow.style.position = 'absolute';
-        terminalWindow.style.margin = '0';
-        terminalWindow.style.left = `${initialLeft}px`;
-        terminalWindow.style.top = `${initialTop}px`;
+        terminalWindow!.style.position = "absolute";
+        terminalWindow!.style.margin = "0";
+        terminalWindow!.style.left = `${initialLeft}px`;
+        terminalWindow!.style.top = `${initialTop}px`;
       } else {
         const pos = getTerminalPosition();
         initialLeft = pos.left;
         initialTop = pos.top;
       }
 
-      if (e.type === "touchstart") {
+      if ("touches" in e) {
         dragStartX = e.touches[0].clientX;
         dragStartY = e.touches[0].clientY;
         document.addEventListener("touchmove", drag, { passive: false });
@@ -2214,11 +2231,12 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       e.preventDefault();
     }
 
-    function drag(e) {
-      if (!isDragging) return;
+    function drag(e: MouseEvent | TouchEvent) {
+      if (!isDragging || disposed) return;
       e.preventDefault();
-      let currentClientX, currentClientY;
-      if (e.type === "touchmove") {
+      let currentClientX: number;
+      let currentClientY: number;
+      if ("touches" in e) {
         currentClientX = e.touches[0].clientX;
         currentClientY = e.touches[0].clientY;
       } else {
@@ -2228,27 +2246,27 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       let newLeft = initialLeft + (currentClientX - dragStartX);
       let newTop = initialTop + (currentClientY - dragStartY);
 
-      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      const wrapper = terminalWindow!.closest(".contact-terminal-wrapper");
       if (wrapper) {
         const wrapperRect = wrapper.getBoundingClientRect();
-        const maxX = wrapperRect.width - terminalWindow.offsetWidth;
-        const maxY = wrapperRect.height - terminalWindow.offsetHeight;
+        const maxX = wrapperRect.width - terminalWindow!.offsetWidth;
+        const maxY = wrapperRect.height - terminalWindow!.offsetHeight;
         newLeft = Math.max(0, Math.min(newLeft, Math.max(0, maxX)));
         newTop = Math.max(0, Math.min(newTop, Math.max(0, maxY)));
       } else {
-        const maxX = window.innerWidth - terminalWindow.offsetWidth;
-        const maxY = window.innerHeight - terminalWindow.offsetHeight;
+        const maxX = window.innerWidth - terminalWindow!.offsetWidth;
+        const maxY = window.innerHeight - terminalWindow!.offsetHeight;
         newLeft = Math.max(0, Math.min(newLeft, maxX));
         newTop = Math.max(TOP_BAR_HEIGHT, Math.min(newTop, maxY));
       }
-      terminalWindow.style.left = `${newLeft}px`;
-      terminalWindow.style.top = `${newTop}px`;
+      terminalWindow!.style.left = `${newLeft}px`;
+      terminalWindow!.style.top = `${newTop}px`;
     }
 
     function dragEnd() {
       if (!isDragging) return;
       isDragging = false;
-      terminalWindow.classList.remove("dragging");
+      terminalWindow?.classList.remove("dragging");
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", drag);
       document.removeEventListener("mouseup", dragEnd);
@@ -2256,35 +2274,35 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       document.removeEventListener("touchend", dragEnd);
     }
 
-    function resizeStart(e) {
-      if (isMobile || isExited) return;
+    function resizeStart(e: MouseEvent | TouchEvent) {
+      if (isMobile || isExited || disposed) return;
       isResizing = true;
-      terminalWindow.dataset.terminalInteracted = "true";
+      terminalWindow!.dataset.terminalInteracted = "true";
       document.body.style.userSelect = "none";
 
-      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
-      const rect = terminalWindow.getBoundingClientRect();
+      const wrapper = terminalWindow!.closest(".contact-terminal-wrapper");
+      const rect = terminalWindow!.getBoundingClientRect();
       initialWidth = rect.width;
       initialHeight = rect.height;
-      terminalWindow.style.width = `${initialWidth}px`;
-      terminalWindow.style.height = `${initialHeight}px`;
-      terminalWindow.style.aspectRatio = 'auto';
+      terminalWindow!.style.width = `${initialWidth}px`;
+      terminalWindow!.style.height = `${initialHeight}px`;
+      terminalWindow!.style.aspectRatio = "auto";
 
       if (wrapper) {
         const wrapperRect = wrapper.getBoundingClientRect();
         initialLeft = rect.left - wrapperRect.left;
         initialTop = rect.top - wrapperRect.top;
-        terminalWindow.style.position = 'absolute';
-        terminalWindow.style.margin = '0';
-        terminalWindow.style.left = `${initialLeft}px`;
-        terminalWindow.style.top = `${initialTop}px`;
+        terminalWindow!.style.position = "absolute";
+        terminalWindow!.style.margin = "0";
+        terminalWindow!.style.left = `${initialLeft}px`;
+        terminalWindow!.style.top = `${initialTop}px`;
       } else {
         const pos = getTerminalPosition();
         initialLeft = pos.left;
         initialTop = pos.top;
       }
 
-      if (e.type === "touchstart") {
+      if ("touches" in e) {
         resizeStartX = e.touches[0].clientX;
         resizeStartY = e.touches[0].clientY;
         document.addEventListener("touchmove", resizeDrag, { passive: false });
@@ -2298,11 +2316,12 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       e.preventDefault();
     }
 
-    function resizeDrag(e) {
-      if (!isResizing) return;
+    function resizeDrag(e: MouseEvent | TouchEvent) {
+      if (!isResizing || disposed) return;
       e.preventDefault();
-      let currentClientX, currentClientY;
-      if (e.type === "touchmove") {
+      let currentClientX: number;
+      let currentClientY: number;
+      if ("touches" in e) {
         currentClientX = e.touches[0].clientX;
         currentClientY = e.touches[0].clientY;
       } else {
@@ -2311,12 +2330,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
       const deltaX = currentClientX - resizeStartX;
       const deltaY = currentClientY - resizeStartY;
-      let newWidth = initialWidth + deltaX;
-      let newHeight = initialHeight + deltaY;
-      newWidth = Math.max(MIN_TERMINAL_WIDTH, newWidth);
-      newHeight = Math.max(MIN_TERMINAL_HEIGHT, newHeight);
+      let newWidth = Math.max(MIN_TERMINAL_WIDTH, initialWidth + deltaX);
+      let newHeight = Math.max(MIN_TERMINAL_HEIGHT, initialHeight + deltaY);
 
-      const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
+      const wrapper = terminalWindow!.closest(".contact-terminal-wrapper");
       if (wrapper) {
         const wrapperRect = wrapper.getBoundingClientRect();
         const maxW = wrapperRect.width - initialLeft;
@@ -2329,8 +2346,8 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         newWidth = Math.min(newWidth, maxW - 5);
         newHeight = Math.min(newHeight, maxH - 5);
       }
-      terminalWindow.style.width = `${newWidth}px`;
-      terminalWindow.style.height = `${newHeight}px`;
+      terminalWindow!.style.width = `${newWidth}px`;
+      terminalWindow!.style.height = `${newHeight}px`;
       scrollToBottom();
     }
 
@@ -2345,11 +2362,11 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
 
     const commandInputFocusHandler = () => {
-      if (inputLine && !isExited) inputLine.classList.add("focused");
+      if (inputLine && !isExited && !disposed) inputLine.classList.add("focused");
       updateCommandPrompt();
     };
     const commandInputBlurHandler = () => {
-      setTimeout(() => {
+      scheduleTimeout(() => {
         if (
           terminalWindow &&
           !terminalWindow.contains(document.activeElement)
@@ -2360,59 +2377,65 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }, 0);
     };
     const messageInputFocusHandler = () => {
-      if (!isExited && messageEditorContainer)
+      if (!isExited && !disposed && messageEditorContainer)
         messageEditorContainer.style.outline = "1px solid var(--color-primary)";
     };
     const messageInputBlurHandler = () => {
       if (messageEditorContainer) messageEditorContainer.style.outline = "";
     };
-    const terminalWindowClickHandler = (e) => {
+    const terminalWindowClickHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
       if (
+        !target ||
         isExited ||
+        disposed ||
         isDragging ||
         isResizing ||
         isTyping ||
         isSending ||
-        e.target === commandInput ||
-        e.target === messageInput ||
-        e.target === sendButton ||
-        e.target === resizeHandle ||
-        (POWER_BUTTON_ID && e.target.closest(`#${POWER_BUTTON_ID}`))
+        target === commandInput ||
+        target === messageInput ||
+        target === sendButton ||
+        target === resizeHandle ||
+        target.closest(`#${POWER_BUTTON_ID}`)
       ) {
         return;
       }
-      if (terminalHeader && !terminalHeader.contains(e.target)) {
+      if (terminalHeader && !terminalHeader.contains(target)) {
         const targetIsBackground =
-          e.target === terminalWindow ||
-          e.target === outputContainer ||
-          e.target === output ||
-          e.target === inputAreaContainer ||
-          e.target === messageEditorContainer ||
-          e.target === inputLine ||
-          e.target.closest(".terminal-input-line");
+          target === terminalWindow ||
+          target === outputContainer ||
+          target === output ||
+          target === inputAreaContainer ||
+          target === messageEditorContainer ||
+          target === inputLine ||
+          target.closest(".terminal-input-line");
         if (targetIsBackground) {
           if (
             currentStep === 3 &&
-            messageEditorContainer.style.display === "flex"
+            messageEditorContainer!.style.display === "flex"
           ) {
-            if (messageInput && !messageInput.disabled)
+            if (messageInput && !messageInput.disabled) {
               try {
                 messageInput.focus({ preventScroll: true });
-              } catch (err) {}
+              } catch {}
+            }
           } else if (currentStep < 5) {
-            if (commandInput && !commandInput.disabled && !commandInput.readOnly) focusCommandInput(true);
+            if (commandInput && !commandInput.disabled && !commandInput.readOnly) {
+              focusCommandInput(true);
+            }
           }
         }
       }
     };
 
-    const playKeystroke = (e) => {
+    const playKeystroke = (e: KeyboardEvent) => {
       if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key)) return;
       playTypewriterSound(e.key === "Enter");
     };
 
-    const globalMatrixKeydownHandler = (e) => {
-      if (isMatrixMode) {
+    const globalMatrixKeydownHandler = (e: KeyboardEvent) => {
+      if (isMatrixMode && !disposed) {
         e.preventDefault();
         e.stopPropagation();
         stopMatrixRain();
@@ -2420,7 +2443,7 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
       }
     };
 
-    const updateInputDisplayDelayed = () => setTimeout(updateInputDisplay, 0);
+    const updateInputDisplayDelayed = () => scheduleTimeout(updateInputDisplay, 0);
 
     commandInput.addEventListener("input", updateInputDisplay);
     commandInput.addEventListener("keydown", updateInputDisplayDelayed);
@@ -2443,33 +2466,30 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     window.addEventListener("keydown", globalMatrixKeydownHandler, true);
     sendButton.addEventListener("click", triggerSendConfirmation);
     terminalHeader.addEventListener("mousedown", dragStart);
-    terminalHeader.addEventListener("touchstart", dragStart, {
-      passive: false,
-    });
+    terminalHeader.addEventListener("touchstart", dragStart, { passive: false });
     resizeHandle.addEventListener("mousedown", resizeStart);
-    resizeHandle.addEventListener("touchstart", resizeStart, {
-      passive: false,
-    });
+    resizeHandle.addEventListener("touchstart", resizeStart, { passive: false });
     terminalWindow.addEventListener("click", terminalWindowClickHandler);
 
-    let windowResizeTimeout;
+    let windowResizeTimeout: ReturnType<typeof setTimeout> | undefined;
     currentWindowResizeHandler = () => {
       clearTimeout(windowResizeTimeout);
       windowResizeTimeout = setTimeout(() => {
+        if (disposed) return;
         try {
           isMobile = window.innerWidth <= 768;
-        } catch (e) {}
+        } catch {}
 
-        const isHomepageContact = !!terminalWindow.closest(".contact-terminal-wrapper");
+        const isHomepageContact = !!terminalWindow?.closest(".contact-terminal-wrapper");
         if (isHomepageContact) {
           if (isMobile) {
-            terminalWindow.style.position = 'relative';
-            terminalWindow.style.top = '';
-            terminalWindow.style.left = '';
-            terminalWindow.style.width = '100%';
-            terminalWindow.style.height = '100%';
-            terminalWindow.style.aspectRatio = '';
-          } else if (terminalWindow.dataset.terminalInteracted === "true") {
+            terminalWindow!.style.position = "relative";
+            terminalWindow!.style.top = "";
+            terminalWindow!.style.left = "";
+            terminalWindow!.style.width = "100%";
+            terminalWindow!.style.height = "100%";
+            terminalWindow!.style.aspectRatio = "";
+          } else if (terminalWindow?.dataset.terminalInteracted === "true") {
             const wrapper = terminalWindow.closest(".contact-terminal-wrapper");
             if (wrapper) {
               const wrapperRect = wrapper.getBoundingClientRect();
@@ -2481,13 +2501,13 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
               terminalWindow.style.top = `${Math.max(0, Math.min(curTop, maxTop))}px`;
             }
           } else {
-            terminalWindow.style.position = 'relative';
-            terminalWindow.style.top = '';
-            terminalWindow.style.left = '';
-            terminalWindow.style.width = 'min(760px, calc((100vh - 180px) * 4 / 3), 85vw)';
-            terminalWindow.style.height = 'auto';
-            terminalWindow.style.aspectRatio = '4 / 3';
-            terminalWindow.style.maxHeight = 'calc(100% - 1rem)';
+            terminalWindow!.style.position = "relative";
+            terminalWindow!.style.top = "";
+            terminalWindow!.style.left = "";
+            terminalWindow!.style.width = "min(760px, calc((100vh - 220px) * 4 / 3), 85vw)";
+            terminalWindow!.style.height = "auto";
+            terminalWindow!.style.aspectRatio = "4 / 3";
+            terminalWindow!.style.maxHeight = "calc(100% - 1rem)";
           }
           if (currentStep !== 3) updateCommandPrompt();
           return;
@@ -2495,42 +2515,43 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
 
         if (isMobile) {
           if (terminalWindow) {
-            terminalWindow.style.position = 'relative';
-            terminalWindow.style.width = '100%';
-            terminalWindow.style.height = '100%';
-            terminalWindow.style.top = '';
-            terminalWindow.style.left = '';
-            terminalWindow.style.minWidth = '0';
-            terminalWindow.style.minHeight = '0';
-            terminalWindow.style.maxWidth = '100%';
-            terminalWindow.style.maxHeight = '100%';
+            terminalWindow.style.position = "relative";
+            terminalWindow.style.width = "100%";
+            terminalWindow.style.height = "100%";
+            terminalWindow.style.top = "";
+            terminalWindow.style.left = "";
+            terminalWindow.style.minWidth = "0";
+            terminalWindow.style.minHeight = "0";
+            terminalWindow.style.maxWidth = "100%";
+            terminalWindow.style.maxHeight = "100%";
           }
           if (currentStep !== 3) updateCommandPrompt();
           return;
         }
 
         if (!isExited && terminalWindow) {
-          const pos = getTerminalPosition();
-          const currentLeft = pos.left;
-          const currentTop = pos.top;
-          const currentWidth = terminalWindow.offsetWidth;
-          const currentHeight = terminalWindow.offsetHeight;
-          const viewportWidth = window.innerWidth;
-          const viewportHeight = window.innerHeight;
-          let newLeft = currentLeft;
-          let newTop = currentTop;
-          if (currentLeft + currentWidth > viewportWidth - 5)
-            newLeft = Math.max(5, viewportWidth - currentWidth - 5);
-          newLeft = Math.max(5, newLeft);
-          if (currentTop + currentHeight > viewportHeight - 5)
-            newTop = Math.max(
-              TOP_BAR_HEIGHT,
-              viewportHeight - currentHeight - 5,
-            );
-          newTop = Math.max(TOP_BAR_HEIGHT, newTop);
-          if (newLeft !== currentLeft || newTop !== currentTop) {
-            terminalWindow.style.left = `${newLeft}px`;
-            terminalWindow.style.top = `${newTop}px`;
+          if (terminalWindow.dataset.terminalInteracted !== "true") {
+            setInitialPositionAndSize();
+          } else {
+            const pos = getTerminalPosition();
+            const currentLeft = pos.left;
+            const currentTop = pos.top;
+            const currentWidth = terminalWindow.offsetWidth;
+            const currentHeight = terminalWindow.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            let newLeft = currentLeft;
+            let newTop = currentTop;
+            if (currentLeft + currentWidth > viewportWidth - 5)
+              newLeft = Math.max(5, viewportWidth - currentWidth - 5);
+            newLeft = Math.max(5, newLeft);
+            if (currentTop + currentHeight > viewportHeight - 5)
+              newTop = Math.max(TOP_BAR_HEIGHT, viewportHeight - currentHeight - 5);
+            newTop = Math.max(TOP_BAR_HEIGHT, newTop);
+            if (newLeft !== currentLeft || newTop !== currentTop) {
+              terminalWindow.style.left = `${newLeft}px`;
+              terminalWindow.style.top = `${newTop}px`;
+            }
           }
           if (currentStep !== 3) updateCommandPrompt();
         }
@@ -2538,10 +2559,10 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     };
     window.addEventListener("resize", currentWindowResizeHandler);
 
-    let visualViewportHandler = null;
+    let visualViewportHandler: (() => void) | null = null;
     if (window.visualViewport) {
       visualViewportHandler = () => {
-        if (!isMobile) return;
+        if (!isMobile || disposed) return;
         scrollToBottom();
       };
       window.visualViewport.addEventListener("resize", visualViewportHandler);
@@ -2552,9 +2573,25 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     startTerminal();
 
     currentTerminalCleanup = () => {
-      console.log(
-        `[Attempt ${initId}] TerminalContactForm Script: Running cleanup for terminal instance.`,
-      );
+      disposed = true;
+      isExited = true;
+      dragEnd();
+      resizeEnd();
+      stopMatrixRain();
+      activeTimeouts.forEach((id) => clearTimeout(id));
+      activeTimeouts.clear();
+      if (windowResizeTimeout !== undefined) clearTimeout(windowResizeTimeout);
+
+      if (startObserver) {
+        startObserver.disconnect();
+        startObserver = null;
+      }
+      if (startScrollContainer && startVisibilityHandler) {
+        startScrollContainer.removeEventListener("scroll", startVisibilityHandler);
+      }
+      startScrollContainer = null;
+      startVisibilityHandler = null;
+
       commandInput.removeEventListener("input", updateInputDisplay);
       commandInput.removeEventListener("keydown", updateInputDisplayDelayed);
       commandInput.removeEventListener("keyup", updateInputDisplay);
@@ -2587,27 +2624,19 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
         window.visualViewport.removeEventListener("resize", visualViewportHandler);
         window.visualViewport.removeEventListener("scroll", visualViewportHandler);
       }
+      if (sharedAudioCtx) {
+        sharedAudioCtx.close().catch(() => {});
+        sharedAudioCtx = null;
+      }
       document.body.style.userSelect = "";
-      console.log(
-        `[Attempt ${initId}] Cleanup for terminal instance complete.`,
-      );
     };
   }
 
-  document.addEventListener("astro:page-load", (event) => {
-    console.log(
-      "TerminalContactForm Script: 'astro:page-load' event triggered. Nav type:",
-      event.detail?.navigationType,
-      " Current readyState:",
-      document.readyState,
-    );
+  document.addEventListener("astro:page-load", () => {
     runTerminalSetup();
   });
 
   document.addEventListener("astro:before-swap", () => {
-    console.log(
-      "TerminalContactForm Script: 'astro:before-swap' event triggered.",
-    );
     if (typeof currentTerminalCleanup === "function") {
       currentTerminalCleanup();
       currentTerminalCleanup = null;
@@ -2618,36 +2647,17 @@ const projectsJson = JSON.stringify(projects.map(p => ({ title: p.title, slug: p
     }
     const outgoingTerminal = document.getElementById("terminal");
     if (outgoingTerminal) {
-      console.log(
-        `TerminalContactForm Script: In astro:before-swap, outgoing terminal's initialized flag: ${outgoingTerminal.dataset.terminalInitialized}, instanceId: ${outgoingTerminal.dataset.terminalInstanceId}`,
-      );
       delete outgoingTerminal.dataset.terminalInitialized;
       delete outgoingTerminal.dataset.terminalInstanceId;
-      console.log(
-        "TerminalContactForm Script: Cleared 'terminalInitialized' and 'terminalInstanceId' flags from outgoing terminal.",
-      );
+      delete outgoingTerminal.dataset.terminalStarted;
     }
   });
 
   if (document.readyState === "complete") {
-    console.log(
-      "TerminalContactForm Script: Document already complete at script parse time. Attempting setup if needed.",
-    );
     setTimeout(() => {
       const terminalElem = document.getElementById("terminal");
       if (terminalElem && terminalElem.dataset.terminalInitialized !== "true") {
-        console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal not yet initialized by astro:page-load. Running setup.",
-        );
         runTerminalSetup();
-      } else if (terminalElem) {
-        console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - terminal already initialized. Skipping.",
-        );
-      } else {
-        console.log(
-          "TerminalContactForm Script: Fallback for 'complete' readyState - no terminal element found. Skipping.",
-        );
       }
     }, 50);
   }

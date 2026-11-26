@@ -2,17 +2,19 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import TextFadeIn from "../../components/TextFadeIn.astro";
 import { getLegalPage } from "../../lib/sanity";
+import { sanitizeHtml } from "../../lib/html";
 import { marked } from "marked";
 
 const locale = "de";
 const type = "privacy";
 
 const pageData = await getLegalPage(type, locale);
-const parsedBody = pageData?.content ? marked.parse(pageData.content, { async: false, breaks: true }) as string : "";
+const parsedBody = pageData?.content ? sanitizeHtml(marked.parse(pageData.content, { async: false, breaks: true })) : "";
 const pageTitle = pageData?.title || "Datenschutzerklärung";
+const pageDescription = "Datenschutzerklärung und DSGVO-Hinweise für marlonmueller.eu.";
 ---
 
-<BaseLayout title={pageTitle}>
+<BaseLayout title={pageTitle} description={pageDescription}>
   <section class="legal-section py-20 px-4">
     <div class="container max-w-4xl mx-auto">
       <TextFadeIn targetSelectors="h1, h2, h3, p, li" baseDelay={20} wordDelay={20} blockStaggerDelay={100}>

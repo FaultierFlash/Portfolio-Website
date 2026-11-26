@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { airflowConfigField, backgroundEffectList } from './airflowConfigField'
 
 const localeString = (title: string, name: string) => defineField({
     name,
@@ -42,13 +43,7 @@ export const homePage = defineType({
             type: 'string',
             description: 'Choose a background visual effect for this page.',
             options: {
-                list: [
-                    { title: 'None', value: 'none' },
-                    { title: 'Subtle Grid', value: 'grid' },
-                    { title: 'Subtle Dots', value: 'dots' },
-                    { title: 'Topography', value: 'topography' },
-                    { title: 'Solar System', value: 'solar' },
-                ],
+                list: backgroundEffectList,
             },
             initialValue: 'none',
         }),
@@ -134,6 +129,7 @@ export const homePage = defineType({
                 }),
             ],
         }),
+        airflowConfigField,
         defineField({
             name: 'featuredProjects',
             title: 'Featured Projects',

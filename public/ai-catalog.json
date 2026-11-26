@@ -37,10 +37,22 @@
       "language": "en"
     },
     {
+      "url": "https://marlonmueller.eu/de/cv",
+      "title": "Lebenslauf",
+      "description": "Akademischer Lebenslauf, Studium an der TUM, Auszeichnungen und ehrenamtliches Engagement.",
+      "language": "de"
+    },
+    {
       "url": "https://marlonmueller.eu/en/projects",
       "title": "Projects",
       "description": "Directory of engineering and research projects including Odonatum, Circon, and Photeia.",
       "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/de/projects",
+      "title": "Projekte",
+      "description": "Übersicht über Ingenieurs- und Forschungsprojekte inklusive Odonatum, Circon und Photeia.",
+      "language": "de"
     },
     {
       "url": "https://marlonmueller.eu/en/projects/odonatum",
@@ -61,16 +73,34 @@
       "language": "en"
     },
     {
+      "url": "https://marlonmueller.eu/en/projects/Eurotech-x-HKTE-Hackathon",
+      "title": "EuroTech x HKTE Hackathon",
+      "description": "GDPR data pipeline converting exported digital health and social telemetry into personal wellbeing insights.",
+      "language": "en"
+    },
+    {
       "url": "https://marlonmueller.eu/en/library",
       "title": "Library",
       "description": "Curated reading archive and reference materials.",
       "language": "en"
     },
     {
+      "url": "https://marlonmueller.eu/de/library",
+      "title": "Bibliothek",
+      "description": "Kuriertes Lesearchiv und Referenzliteratur.",
+      "language": "de"
+    },
+    {
       "url": "https://marlonmueller.eu/en/contact",
       "title": "Contact Terminal",
       "description": "Interactive web terminal interface for direct inquiries.",
       "language": "en"
+    },
+    {
+      "url": "https://marlonmueller.eu/de/contact",
+      "title": "Kontakt-Terminal",
+      "description": "Interaktive Web-Terminal-Oberfläche für direkte Anfragen.",
+      "language": "de"
     }
   ]
 }

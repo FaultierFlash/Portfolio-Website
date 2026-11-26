@@ -5,9 +5,18 @@ const tsParser = cjsRequire('@typescript-eslint/parser');
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [
+  {
+    ignores: [
+      'dist/**',
+      'public/studio/**',
+      '.astro/**',
+      '.netlify/**',
+      'personal-website/**',
+    ],
+  },
   ...eslintPluginAstro.configs['flat/recommended'],
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       parser: tsParser,
     },
@@ -18,6 +27,6 @@ export default [
   {
     rules: {
       // additional rules
-    }
-  }
+    },
+  },
 ];

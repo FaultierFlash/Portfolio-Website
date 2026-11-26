@@ -5,123 +5,103 @@
 @theme {
   --color-primary: #FF7D1A;
   --color-primary-rgb: 255, 125, 26;
-  --font-sans: 'Inter', 'Raleway', sans-serif;
+  --font-sans: 'Raleway', sans-serif;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-
 :root {
-    --header-height: 60px;
-    /* High-contrast Light-Mode (Modern Slate) */
-    --color-bg: #ffffff;
-    --color-text: #0f172a;      /* slate-900 */
-    --color-text-dim: #334155;  /* slate-700 */
-    --color-primary: #FF7D1A;
-    --color-secondary: #475569; /* slate-600 */
-    --color-accent: #7c3aed;
-    --color-border: #e2e8f0;    /* slate-200 */
+  --header-height: 60px;
+  /* High-contrast Light-Mode (Modern Slate) */
+  --color-bg: #ffffff;
+  --color-text: #0f172a;      /* slate-900 */
+  --color-text-dim: #334155;  /* slate-700 */
+  --color-primary: #FF7D1A;
+  --color-secondary: #475569; /* slate-600 */
+  --color-accent: #7c3aed;
+  --color-border: #e2e8f0;    /* slate-200 */
 
-    --color-project-accent: #FF7D1A;
-    --color-project-accent-bg: rgba(255,125,26,0.1);
-    --color-project-accent-border: rgba(255,125,26,0.3);
+  --color-project-accent: #FF7D1A;
+  --color-project-accent-bg: rgba(255,125,26,0.1);
+  --color-project-accent-border: rgba(255,125,26,0.3);
 
-    /* Surface & Card Colors (Light) */
-    --color-surface: rgba(255, 255, 255, 0.5);
-    --color-card-bg: #f8fafc; /* slate-50 */
-    --color-card-border: rgba(15, 23, 42, 0.05);
+  /* Surface & Card Colors (Light) */
+  --color-surface: rgba(255, 255, 255, 0.5);
+  --color-card-bg: #f8fafc; /* slate-50 */
+  --color-card-border: rgba(15, 23, 42, 0.05);
 
-    /* Side Panel Shadow */
-    --panel-shadow: -20px 0 50px -10px rgba(0, 0, 0, 0.15);
-  }
-  
-  .dark {
-    /* High-contrast Dark-Mode */
-    --color-bg: #020617;        /* slate-950 */
-    --color-text: #f8fafc;      /* slate-50 */
-    --color-text-dim: #cbd5e1;  /* slate-300 */
-    --color-primary: #FF7D1A;
-    --color-secondary: #94a3b8; /* slate-400 */
-    --color-accent: #a78bfa;
-    --color-border: #1e293b;    /* slate-800 */
-
-    /* Surface & Card Colors (Dark) */
-    --color-surface: rgba(2, 6, 23, 0.3);
-    --color-card-bg: #0f172a;   /* slate-900 */
-    --color-card-border: rgba(248, 250, 252, 0.05);
-
-    /* Side Panel Shadow (Dark Glow) */
-    --panel-shadow: 0 0 80px -20px rgba(255, 255, 255, 0.15);
-  }
-
-  html {
-    overflow-y: scroll; /* Or 'scroll' */
-    scroll-behavior: smooth;
-    height: 100%;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+  /* Side Panel Shadow */
+  --panel-shadow: -20px 0 50px -10px rgba(0, 0, 0, 0.15);
 }
 
-  html::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Edge */
-  }
-  
-  body {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  
-  body::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Basis-Styles mit Variablen */
-  /* In src/styles/global.css */
+.dark {
+  /* High-contrast Dark-Mode */
+  --color-bg: #020617;        /* slate-950 */
+  --color-text: #f8fafc;      /* slate-50 */
+  --color-text-dim: #cbd5e1;  /* slate-300 */
+  --color-primary: #FF7D1A;
+  --color-secondary: #94a3b8; /* slate-400 */
+  --color-accent: #a78bfa;
+  --color-border: #1e293b;    /* slate-800 */
+
+  /* Surface & Card Colors (Dark) */
+  --color-surface: rgba(2, 6, 23, 0.3);
+  --color-card-bg: #0f172a;   /* slate-900 */
+  --color-card-border: rgba(248, 250, 252, 0.05);
+
+  /* Side Panel Shadow (Dark Glow) */
+  --panel-shadow: 0 0 80px -20px rgba(255, 255, 255, 0.15);
+}
+
+html {
+  overflow-y: scroll;
+  scroll-behavior: smooth;
+  height: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
 body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   background-color: var(--color-bg);
   color: var(--color-text);
   transition: background-color 0.3s ease, color 0.3s ease;
-  font-family: 'Raleway', sans-serif; /* Or 'Inter', or your preferred default */
-  margin: 0; /* Already good practice to have this */
+  font-family: 'Raleway', sans-serif;
+  margin: 0;
 }
-  
-  /* raleway-regular - latin */
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* raleway-regular - latin */
 @font-face {
-    font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-    font-family: 'Raleway';
-    font-style: normal;
-    font-weight: 400;
-    src: url('/fonts/raleway-v34-latin-regular.eot'); /* IE9 Compat Modes */
-    src: url('/fonts/raleway-v34-latin-regular.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
-         url('/fonts/raleway-v34-latin-regular.woff2') format('woff2'), /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-         url('/fonts/raleway-v34-latin-regular.woff') format('woff'), /* Chrome 5+, Firefox 3.6+, IE 9+, Safari 5.1+, iOS 5+ */
-         url('/fonts/raleway-v34-latin-regular.ttf') format('truetype'), /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
-         url('/fonts/raleway-v34-latin-regular.svg#Raleway') format('svg'); /* Legacy iOS */
-  }
-  /* raleway-500 - latin */
-  @font-face {
-    font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-    font-family: 'Raleway';
-    font-style: normal;
-    font-weight: 500;
-    src: url('/fonts/raleway-v34-latin-500.eot'); /* IE9 Compat Modes */
-    src: url('/fonts/raleway-v34-latin-500.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
-         url('/fonts/raleway-v34-latin-500.woff2') format('woff2'), /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-         url('/fonts/raleway-v34-latin-500.woff') format('woff'), /* Chrome 5+, Firefox 3.6+, IE 9+, Safari 5.1+, iOS 5+ */
-         url('/fonts/raleway-v34-latin-500.ttf') format('truetype'), /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
-         url('/fonts/raleway-v34-latin-500.svg#Raleway') format('svg'); /* Legacy iOS */
-  }
-  /* raleway-800 - latin */
-  @font-face {
-    font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-    font-family: 'Raleway';
-    font-style: normal;
-    font-weight: 800;
-    src: url('/fonts/raleway-v34-latin-800.eot'); /* IE9 Compat Modes */
-    src: url('/fonts/raleway-v34-latin-800.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
-         url('/fonts/raleway-v34-latin-800.woff2') format('woff2'), /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-         url('/fonts/raleway-v34-latin-800.woff') format('woff'), /* Chrome 5+, Firefox 3.6+, IE 9+, Safari 5.1+, iOS 5+ */
-         url('/fonts/raleway-v34-latin-800.ttf') format('truetype'), /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
-         url('/fonts/raleway-v34-latin-800.svg#Raleway') format('svg'); /* Legacy iOS */
-  }
-  /* Weitere Styles mit Variablen */
+  font-display: swap;
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/raleway-v34-latin-regular.woff2') format('woff2');
+}
+
+/* raleway-500 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/raleway-v34-latin-500.woff2') format('woff2');
+}
+
+/* raleway-800 - latin */
+@font-face {
+  font-display: swap;
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 800;
+  src: url('/fonts/raleway-v34-latin-800.woff2') format('woff2');
+}

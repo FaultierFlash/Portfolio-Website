@@ -42,7 +42,7 @@
   },
   "nav": {
     "home": "Home",
-    "about": "About", 
+    "about": "About",
     "projects": "Projects",
     "contact": "Contact",
     "library": "Library",
@@ -67,8 +67,7 @@
     "projects": {
       "_title_": "Projects",
       "circon": "Circon",
-      "photeia": "Photeia",
-      "another-project-slug": "Translated Another Project Name"
+      "photeia": "Photeia"
     },
     "library": {
       "_title_": "Library"
@@ -81,12 +80,26 @@
     },
     "about": {
       "_title_": "About-Page"
+    },
+    "cv": {
+      "_title_": "Curriculum Vitae"
+    },
+    "impressum": {
+      "_title_": "Impressum"
+    },
+    "privacy-policy": {
+      "_title_": "Privacy Policy"
+    },
+    "terms-of-service": {
+      "_title_": "Terms of Service"
     }
   },
   "footer": {
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "impressum": "Impressum (Legal Notice)"
+  },
+  "theme": {
+    "toggle": "Toggle Light/Dark Theme"
   }
 }
-
