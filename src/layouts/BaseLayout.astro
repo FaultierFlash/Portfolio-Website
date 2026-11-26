@@ -327,6 +327,8 @@ const breadcrumbSchema = breadcrumbItems.length > 1 ? {
   <body>
     <DynamicBackground 
       effect={backgroundEffect} 
+      showNotes={showNotes}
+      locale={currentLocale}
       config={(backgroundEffect === 'solar' || backgroundEffect === 'stars') ? solarConfig : backgroundEffect === 'airflow' ? airflowConfig : topographyConfig} 
     />
     <Header

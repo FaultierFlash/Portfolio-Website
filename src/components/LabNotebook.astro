@@ -4,8 +4,11 @@
 // absolute page numbering, Table of Contents pages, left-side ribbon bookmark navigation,
 // rapid page-riffle animations on desktop, and single-page touch-swipe mode on mobile.
 import { urlFor } from "../lib/sanity";
-import { sanitizeHtml } from "../lib/html";
-import { marked } from "marked";
+import { renderTechnicalMarkdown } from "../lib/markdown";
+import "katex/dist/katex.min.css";
+import WingAirflowBackground from "./WingAirflowBackground.astro";
+import SolarSystemBackground from "./SolarSystemBackground.astro";
+import TopographicRipple from "./TopographicRipple.astro";
 
 interface Props {
   entries: any[];
@@ -14,17 +17,24 @@ interface Props {
 
 const { entries, locale } = Astro.props;
 
-// Pre-render and sanitize markdown and image URLs on the server
+// Pre-render and sanitize markdown (with KaTeX support) and image URLs on the server
 const processedEntries = entries.map((entry: any, idx: number) => ({
   ...entry,
-  renderedBody: entry.body ? sanitizeHtml(marked.parse(entry.body, { async: false })) : "",
+  slugCurrent: entry.slug?.current || "",
+  renderedBody: entry.body ? renderTechnicalMarkdown(entry.body) : "",
   processedImages: (entry.images || []).map((img: any) => ({
     url: img.asset ? urlFor(img).width(800).auto('format').quality(85).url() : null,
     alt: img.alt || "",
     caption: img.caption || "",
   })),
+  interactivePlayground: entry.interactivePlayground || "none",
+  initialParams: entry.initialParams || "",
   entryNumber: idx + 1,
 }));
+
+const hasAirflowPlayground = processedEntries.some((e: any) => e.interactivePlayground === "airflow");
+const hasSolarPlayground = processedEntries.some((e: any) => e.interactivePlayground === "solar");
+const hasTopoPlayground = processedEntries.some((e: any) => e.interactivePlayground === "topography");
 
 const t = {
   en: {
@@ -41,6 +51,13 @@ const t = {
     tocDate: "Date",
     tocDesc: "Description",
     tocPage: "Page",
+    allCategories: "ALL",
+    pauseLabel: "Pause",
+    playLabel: "Play",
+    resetLabel: "Reset",
+    playgroundTitle: "Interactive Simulation Lab",
+    solverLabel: "Numerical Integrator",
+    solverHint: "Compare Euler (energy drift) vs. Symplectic Verlet vs. RK4 stability.",
   },
   de: {
     pageHeading: "Labor-Notizbuch",
@@ -56,6 +73,13 @@ const t = {
     tocDate: "Datum",
     tocDesc: "Beschreibung",
     tocPage: "Seite",
+    allCategories: "ALLE",
+    pauseLabel: "Pause",
+    playLabel: "Start",
+    resetLabel: "Reset",
+    playgroundTitle: "Interaktives Simulations-Labor",
+    solverLabel: "Numerischer Integrator",
+    solverHint: "Euler-Drift vs. symplektisches Verlet vs. RK4-Stabilität vergleichen.",
   },
 };
 const labels = t[locale] || t.en;
@@ -87,6 +111,26 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     </div>
   ) : (
     <Fragment>
+      {(hasAirflowPlayground || hasSolarPlayground || hasTopoPlayground) && (
+        <div id="lab-playground-staging" class="lab-playground-staging" aria-hidden="true">
+          {hasAirflowPlayground && (
+            <div id="lab-sim-host-airflow" class="lab-sim-host">
+              <WingAirflowBackground isAbsolute={true} phase="01" />
+            </div>
+          )}
+          {hasSolarPlayground && (
+            <div id="lab-sim-host-solar" class="lab-sim-host">
+              <SolarSystemBackground />
+            </div>
+          )}
+          {hasTopoPlayground && (
+            <div id="lab-sim-host-topography" class="lab-sim-host">
+              <TopographicRipple isAbsolute={true} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Physical Bookmark Ribbon Tab */}
       <button
         type="button"
@@ -175,8 +219,27 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
 
   let activeKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
   let activeResizeHandler: (() => void) | null = null;
+  let activeHashChangeHandler: (() => void) | null = null;
+
+  function reclaimAllPlaygrounds() {
+    const staging = document.getElementById("lab-playground-staging");
+    if (!staging) return;
+    const hostMap: Record<string, string> = {
+      airflow: ".airflow-container",
+      solar: ".solar-system-container",
+      topography: ".topography-container",
+    };
+    (["airflow", "solar", "topography"] as const).forEach((kind) => {
+      const host = document.getElementById(`lab-sim-host-${kind}`);
+      const el = document.querySelector(`.playground-canvas-stage ${hostMap[kind]}`);
+      if (host && el && !host.contains(el)) {
+        host.appendChild(el);
+      }
+    });
+  }
 
   function cleanupLabNotebook() {
+    reclaimAllPlaygrounds();
     if (activeKeydownHandler) {
       document.removeEventListener("keydown", activeKeydownHandler);
       activeKeydownHandler = null;
@@ -184,6 +247,10 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     if (activeResizeHandler) {
       window.removeEventListener("resize", activeResizeHandler);
       activeResizeHandler = null;
+    }
+    if (activeHashChangeHandler) {
+      window.removeEventListener("hashchange", activeHashChangeHandler);
+      activeHashChangeHandler = null;
     }
   }
 
@@ -229,6 +296,8 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     let currentIndex = 0;
     let lastReadPageIndex = 0;
     let isAnimating = false;
+    let activeTocCategory = "ALL";
+    const slugPageMap = new Map<string, number>();
 
     function isMobile(): boolean {
       return window.innerWidth <= 768;
@@ -271,7 +340,6 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       document.body.appendChild(measureDiv);
 
       const paginatedEntries = orderedEntries.map((entry) => {
-        // Collect images
         const imagesHTML = entry.processedImages && entry.processedImages.length > 0
           ? entry.processedImages
             .filter((img: any) => img.url)
@@ -287,13 +355,11 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           : "";
 
         const temp = document.createElement("div");
-        temp.innerHTML = entry.renderedBody + imagesHTML;
+        temp.innerHTML = (entry.renderedBody || "") + imagesHTML;
         const children = Array.from(temp.children);
 
         const pages: string[] = [];
         let currentHeight = 0;
-        
-        // Page 1 budget is smaller due to the Title
         const page1Max = mobileMode ? 440 : 380;
         const normalMax = mobileMode ? 520 : 480;
 
@@ -313,7 +379,6 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
               currentLimit = normalMax;
             }
 
-            // Split paragraph by sentences if it exceeds the space
             if (elHeight > currentLimit) {
               if (el.tagName === "P") {
                 const tokens: Node[] = [];
@@ -372,74 +437,92 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           pages.push(currentElements.map((e) => e.outerHTML).join(""));
         }
 
-        if (pages.length === 0) {
+        const hasPlayground = entry.interactivePlayground && entry.interactivePlayground !== "none";
+        if (pages.length === 0 && !hasPlayground) {
           pages.push("");
         }
 
-        return { entry, pages };
+        return { entry, pages, hasPlayground };
       });
 
       document.body.removeChild(measureDiv);
 
+      const visibleTocEntries = orderedEntries.filter(
+        (entry) => activeTocCategory === "ALL" || entry.category === activeTocCategory
+      );
+
       // TOC calculation
-      const entriesPerPage = mobileMode ? 10 : 12;
-      const numTOCPages = Math.ceil(orderedEntries.length / entriesPerPage);
+      const entriesPerPage = mobileMode ? 9 : 11;
+      const numTOCPages = Math.max(1, Math.ceil(visibleTocEntries.length / entriesPerPage));
       const tocPageCount = mobileMode ? numTOCPages : numTOCPages + (numTOCPages % 2 === 0 ? 0 : 1);
 
       let currentAbsolutePageNum = tocPageCount + 1;
-      const entryStartPages: number[] = [];
+      const entryJumpMap = new Map<any, number>();
+      slugPageMap.clear();
 
       const entryPagesList = paginatedEntries.map((pe) => {
-        entryStartPages.push(currentAbsolutePageNum);
+        const startAbsPage = currentAbsolutePageNum;
         const pages: any[] = [];
 
         // Metadata Page
         pages.push({
           type: "metadata",
           entry: pe.entry,
-          absolutePageNumber: currentAbsolutePageNum++
+          absolutePageNumber: currentAbsolutePageNum++,
         });
 
-        // Content Page 1
-        pages.push({
-          type: "content",
-          entryTitle: pe.entry.title,
-          contentHTML: pe.pages[0],
-          entry: pe.entry,
-          absolutePageNumber: currentAbsolutePageNum++
-        });
+        let jumpAbsPage = startAbsPage;
 
-        // Next Content Pages
-        for (let j = 1; j < pe.pages.length; j++) {
+        // Interactive Playground right beside Metadata on Spread 1 (or immediate target on mobile)
+        if (pe.hasPlayground) {
+          const playgroundAbsPage = currentAbsolutePageNum++;
+          pages.push({
+            type: "playground",
+            entry: pe.entry,
+            playgroundType: pe.entry.interactivePlayground,
+            absolutePageNumber: playgroundAbsPage,
+          });
+          if (mobileMode) {
+            jumpAbsPage = playgroundAbsPage;
+          }
+        }
+
+        // Content Pages
+        pe.pages.forEach((html, idx) => {
           pages.push({
             type: "content",
-            contentHTML: pe.pages[j],
+            entryTitle: idx === 0 ? pe.entry.title : undefined,
+            contentHTML: html,
             entry: pe.entry,
-            absolutePageNumber: currentAbsolutePageNum++
+            absolutePageNumber: currentAbsolutePageNum++,
           });
-        }
+        });
 
         // Pad to ensure even spread alignment on desktop
         if (!mobileMode && pages.length % 2 !== 0) {
           pages.push({
             type: "blank",
-            absolutePageNumber: currentAbsolutePageNum++
+            absolutePageNumber: currentAbsolutePageNum++,
           });
+        }
+
+        entryJumpMap.set(pe.entry, jumpAbsPage);
+        if (pe.entry.slugCurrent) {
+          slugPageMap.set(pe.entry.slugCurrent, jumpAbsPage);
         }
 
         return pages;
       });
 
-      // Build TOC entries map
-      const tocItems = orderedEntries.map((entry, idx) => ({
+      const tocItems = visibleTocEntries.map((entry) => ({
         title: entry.title,
         date: formatTOCDate(entry.date),
-        absolutePageNumber: entryStartPages[idx]
+        slug: entry.slugCurrent || "",
+        absolutePageNumber: entryJumpMap.get(entry) || tocPageCount + 1,
       }));
 
       bookPages = [];
 
-      // TOC pages placement
       for (let p = 0; p < tocPageCount; p++) {
         if (p < numTOCPages) {
           const sliceStart = p * entriesPerPage;
@@ -447,31 +530,171 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           bookPages.push({
             type: "toc",
             tocEntries: tocItems.slice(sliceStart, sliceEnd),
-            absolutePageNumber: p + 1
+            showFilters: p === 0,
+            absolutePageNumber: p + 1,
           });
         } else if (!mobileMode) {
           bookPages.push({
             type: "blank",
-            absolutePageNumber: p + 1
+            absolutePageNumber: p + 1,
           });
         }
       }
 
-      // Add entries pages
       entryPagesList.forEach((pages) => {
         bookPages = bookPages.concat(pages);
       });
+    }
+
+    function getPlaygroundHTML(entry: any): string {
+      const kind = entry.interactivePlayground;
+      const isDe = locale === "de";
+      let initial: Record<string, any> = {};
+      if (entry.initialParams) {
+        try {
+          initial = JSON.parse(entry.initialParams);
+        } catch {}
+      }
+
+      if (kind === "airflow") {
+        const intensity = typeof initial.intensity === "number" ? initial.intensity : 1.0;
+        const flutter = typeof initial.flutter === "number" ? initial.flutter : 1.0;
+        const cursor = typeof initial.cursorTurbulence === "number" ? initial.cursorTurbulence : 1.0;
+        return `
+          <div class="playground-page" data-playground-kind="airflow" data-initial-params="${escapeHtml(entry.initialParams || "")}">
+            <div class="playground-header">
+              <span class="playground-kicker">CFD · 20 Hz MAV</span>
+              <div class="playground-actions">
+                <button type="button" class="playground-btn pg-toggle-btn">${escapeHtml(labels.pauseLabel || "Pause")}</button>
+              </div>
+            </div>
+            <div class="playground-canvas-stage" id="lab-playground-mount"></div>
+            <div class="playground-controls">
+              <label class="playground-control-row">
+                <span>${isDe ? "Intensität" : "Intensity"}</span>
+                <input type="range" min="0.2" max="2.5" step="0.1" value="${intensity}" data-param="intensity" />
+                <span class="pg-val tabular-nums">${intensity.toFixed(1)}</span>
+              </label>
+              <label class="playground-control-row">
+                <span>Flutter</span>
+                <input type="range" min="0" max="2.5" step="0.1" value="${flutter}" data-param="flutter" />
+                <span class="pg-val tabular-nums">${flutter.toFixed(1)}</span>
+              </label>
+              <label class="playground-control-row">
+                <span>${isDe ? "Turbulenz" : "Cursor Wake"}</span>
+                <input type="range" min="0" max="2.5" step="0.1" value="${cursor}" data-param="cursorTurbulence" />
+                <span class="pg-val tabular-nums">${cursor.toFixed(1)}</span>
+              </label>
+            </div>
+          </div>
+        `;
+      }
+
+      if (kind === "solar") {
+        const speed = typeof initial.speed === "number" ? initial.speed : 1.0;
+        const grav = typeof initial.gravityMultiplier === "number" ? initial.gravityMultiplier : 1.0;
+        const zoom = typeof initial.zoom === "number" ? initial.zoom : 1.0;
+        const integrator = ["symplectic", "euler", "rk4"].includes(initial.integrator) ? initial.integrator : "symplectic";
+        return `
+          <div class="playground-page" data-playground-kind="solar" data-initial-params="${escapeHtml(entry.initialParams || "")}">
+            <div class="playground-header">
+              <span class="playground-kicker">${escapeHtml(labels.solverLabel || "Solver")}</span>
+              <div class="playground-actions">
+                <button type="button" class="playground-btn pg-reset-btn">${escapeHtml(labels.resetLabel || "Reset")}</button>
+                <button type="button" class="playground-btn pg-toggle-btn">${escapeHtml(labels.pauseLabel || "Pause")}</button>
+              </div>
+            </div>
+            <div class="playground-canvas-stage" id="lab-playground-mount"></div>
+            <div class="playground-solver-group" role="group" aria-label="${escapeHtml(labels.solverLabel || "Numerical Integrator")}">
+              <button type="button" class="playground-btn ${integrator === "symplectic" ? "is-active" : ""}" data-integrator="symplectic">Symplectic Verlet</button>
+              <button type="button" class="playground-btn ${integrator === "euler" ? "is-active" : ""}" data-integrator="euler">Explicit Euler</button>
+              <button type="button" class="playground-btn ${integrator === "rk4" ? "is-active" : ""}" data-integrator="rk4">RK4</button>
+            </div>
+            <p class="playground-hint">${escapeHtml(labels.solverHint || "")}</p>
+            <div class="playground-controls">
+              <label class="playground-control-row">
+                <span>${isDe ? "Tempo" : "Speed"}</span>
+                <input type="range" min="0.1" max="4.0" step="0.1" value="${speed}" data-param="speed" />
+                <span class="pg-val tabular-nums">${speed.toFixed(1)}</span>
+              </label>
+              <label class="playground-control-row">
+                <span>${isDe ? "Gravitation" : "Gravity"}</span>
+                <input type="range" min="0" max="4.0" step="0.1" value="${grav}" data-param="gravityMultiplier" />
+                <span class="pg-val tabular-nums">${grav.toFixed(1)}</span>
+              </label>
+              <label class="playground-control-row">
+                <span>Zoom</span>
+                <input type="range" min="0.4" max="2.5" step="0.1" value="${zoom}" data-param="zoom" />
+                <span class="pg-val tabular-nums">${zoom.toFixed(1)}</span>
+              </label>
+            </div>
+          </div>
+        `;
+      }
+
+      if (kind === "topography") {
+        const intensity = typeof initial.intensity === "number" ? initial.intensity : 1.0;
+        const scale = typeof initial.scale === "number" ? initial.scale : 1.0;
+        const source = ["mars-procedural", "mars-olympus", "mars-gale", "earth"].includes(initial.source) ? initial.source : "mars-procedural";
+        return `
+          <div class="playground-page" data-playground-kind="topography" data-initial-params="${escapeHtml(entry.initialParams || "")}">
+            <div class="playground-header">
+              <span class="playground-kicker">DEM · Marching Squares</span>
+              <div class="playground-actions">
+                <button type="button" class="playground-btn pg-toggle-btn">${escapeHtml(labels.pauseLabel || "Pause")}</button>
+              </div>
+            </div>
+            <div class="playground-canvas-stage" id="lab-playground-mount"></div>
+            <div class="playground-controls">
+              <label class="playground-control-row">
+                <span>${isDe ? "Quelle" : "Terrain"}</span>
+                <select class="playground-select" data-param="source">
+                  <option value="mars-procedural" ${source === "mars-procedural" ? "selected" : ""}>Mars Procedural</option>
+                  <option value="mars-olympus" ${source === "mars-olympus" ? "selected" : ""}>Olympus Mons</option>
+                  <option value="mars-gale" ${source === "mars-gale" ? "selected" : ""}>Gale Crater</option>
+                  <option value="earth" ${source === "earth" ? "selected" : ""}>Earth DEM</option>
+                </select>
+              </label>
+              <label class="playground-control-row">
+                <span>${isDe ? "Intensität" : "Intensity"}</span>
+                <input type="range" min="0.2" max="3.0" step="0.1" value="${intensity}" data-param="intensity" />
+                <span class="pg-val tabular-nums">${intensity.toFixed(1)}</span>
+              </label>
+              <label class="playground-control-row">
+                <span>${isDe ? "Maßstab" : "Scale"}</span>
+                <input type="range" min="0.3" max="3.0" step="0.1" value="${scale}" data-param="scale" />
+                <span class="pg-val tabular-nums">${scale.toFixed(1)}</span>
+              </label>
+            </div>
+          </div>
+        `;
+      }
+
+      return "";
     }
 
     function getPageHTML(page: any): string {
       if (!page || page.type === "blank") return "";
 
       if (page.type === "toc") {
+        const presentCategories = Array.from(new Set(orderedEntries.map((e) => e.category).filter(Boolean)));
+        const filterChipsHTML = page.showFilters && presentCategories.length > 1
+          ? `
+            <div class="toc-filter-bar" role="group" aria-label="Filter Index">
+              <button type="button" class="toc-filter-pill ${activeTocCategory === "ALL" ? "is-active" : ""}" data-cat="ALL">${escapeHtml(labels.allCategories || "ALL")}</button>
+              ${presentCategories.map((catKey: string) => {
+                const cfg = categoryConfig[catKey] || { label: catKey.toUpperCase() };
+                return `<button type="button" class="toc-filter-pill ${activeTocCategory === catKey ? "is-active" : ""}" data-cat="${escapeHtml(catKey)}">${escapeHtml(cfg.label)}</button>`;
+              }).join("")}
+            </div>
+          `
+          : "";
+
         const tocItemsHTML = page.tocEntries
           .map(
             (item: any) => `
             <li>
-              <button class="toc-item-btn" data-page="${item.absolutePageNumber}">
+              <button class="toc-item-btn" data-page="${item.absolutePageNumber}" data-slug="${escapeHtml(item.slug || "")}">
                 <span class="toc-col-date">${escapeHtml(item.date)}</span>
                 <span class="toc-col-desc">${escapeHtml(item.title)}</span>
                 <span class="toc-col-page">${escapeHtml(item.absolutePageNumber)}</span>
@@ -485,6 +708,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
           <div class="toc-page">
             <button type="button" class="page-ribbon" aria-label="${escapeHtml(labels.tocTitle)}"></button>
             <h2 class="toc-header">${labels.tocTitle}</h2>
+            ${filterChipsHTML}
             <div class="toc-table">
               <div class="toc-table-header">
                 <span class="toc-col-date">${labels.tocDate}</span>
@@ -533,6 +757,10 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
         `;
       }
 
+      if (page.type === "playground") {
+        return getPlaygroundHTML(page.entry);
+      }
+
       if (page.type === "content") {
         const titleHTML = page.entryTitle ? `<h2 class="entry-title">${escapeHtml(page.entryTitle)}</h2>` : "";
         return `
@@ -542,6 +770,92 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       }
 
       return "";
+    }
+
+    function mountPlaygroundIfPresent() {
+      const pgRoot = notebook.querySelector(".playground-page") as HTMLElement | null;
+      if (!pgRoot) return;
+      const kind = pgRoot.dataset.playgroundKind || "";
+      const mountEl = pgRoot.querySelector("#lab-playground-mount") as HTMLElement | null;
+      const host = document.getElementById(`lab-sim-host-${kind}`);
+      const selectorMap: Record<string, string> = {
+        airflow: ".airflow-container",
+        solar: ".solar-system-container",
+        topography: ".topography-container",
+      };
+      const simContainer = (host?.querySelector(selectorMap[kind]) || document.querySelector(`.playground-canvas-stage ${selectorMap[kind]}`)) as HTMLElement | null;
+      if (!mountEl || !simContainer) return;
+
+      if (!mountEl.contains(simContainer)) {
+        mountEl.innerHTML = "";
+        mountEl.appendChild(simContainer);
+        requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+      }
+
+      let initial: Record<string, any> = {};
+      if (pgRoot.dataset.initialParams) {
+        try {
+          initial = JSON.parse(pgRoot.dataset.initialParams);
+        } catch {}
+      }
+
+      const controller =
+        kind === "airflow"
+          ? (simContainer as any).__airflowController
+          : kind === "solar"
+          ? (simContainer as any).__solarController
+          : (simContainer as any).__topoController;
+
+      if (controller && Object.keys(initial).length > 0) {
+        controller.setParams?.(initial);
+      }
+
+      const toggleBtn = pgRoot.querySelector(".pg-toggle-btn") as HTMLButtonElement | null;
+      const syncToggleText = () => {
+        if (!toggleBtn || !controller) return;
+        const paused = Boolean(controller.getState?.()?.motion?.isPausedByUser);
+        toggleBtn.textContent = paused ? (labels.playLabel || "Play") : (labels.pauseLabel || "Pause");
+      };
+      syncToggleText();
+
+      toggleBtn?.addEventListener("click", () => {
+        controller?.togglePaused?.();
+        syncToggleText();
+      });
+
+      const resetBtn = pgRoot.querySelector(".pg-reset-btn") as HTMLButtonElement | null;
+      resetBtn?.addEventListener("click", () => {
+        controller?.reset?.();
+      });
+
+      pgRoot.querySelectorAll<HTMLButtonElement>("[data-integrator]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const integrator = btn.dataset.integrator;
+          if (!integrator) return;
+          pgRoot.querySelectorAll("[data-integrator]").forEach((b) => b.classList.remove("is-active"));
+          btn.classList.add("is-active");
+          controller?.setParams?.({ integrator });
+        });
+      });
+
+      pgRoot.querySelectorAll<HTMLInputElement>("input[data-param]").forEach((inputEl) => {
+        inputEl.addEventListener("input", () => {
+          const key = inputEl.dataset.param;
+          if (!key) return;
+          const val = parseFloat(inputEl.value);
+          const readout = inputEl.parentElement?.querySelector(".pg-val");
+          if (readout) readout.textContent = val.toFixed(1);
+          controller?.setParams?.({ [key]: val });
+        });
+      });
+
+      pgRoot.querySelectorAll<HTMLSelectElement>("select[data-param]").forEach((selectEl) => {
+        selectEl.addEventListener("change", () => {
+          const key = selectEl.dataset.param;
+          if (!key) return;
+          controller?.setParams?.({ [key]: selectEl.value });
+        });
+      });
     }
 
     function updateNavState(isAtStart: boolean, isAtEnd: boolean, isAtToc: boolean) {
@@ -558,6 +872,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     }
 
     function renderView(index: number) {
+      reclaimAllPlaygrounds();
       if (isMobile()) {
         currentIndex = Math.max(0, Math.min(index, bookPages.length - 1));
         const activePage = bookPages[currentIndex];
@@ -574,6 +889,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
         );
 
         bindTOCLinks();
+        mountPlaygroundIfPresent();
       } else {
         currentIndex = Math.max(0, Math.min(Math.floor(index / 2) * 2, Math.max(0, bookPages.length - 2)));
         renderSpread(currentIndex);
@@ -581,6 +897,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     }
 
     function renderSpread(index: number) {
+      reclaimAllPlaygrounds();
       const leftPage = bookPages[index];
       const rightPage = bookPages[index + 1];
 
@@ -591,6 +908,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       rightNumLabel.textContent = rightPage ? String(rightPage.absolutePageNumber) : "";
 
       bindTOCLinks();
+      mountPlaygroundIfPresent();
 
       const currentSpreadLabel = Math.floor(index / 2) + 1;
       const totalSpreads = Math.ceil(bookPages.length / 2);
@@ -603,9 +921,25 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       const btns = notebook.querySelectorAll(".toc-item-btn");
       btns.forEach((btn) => {
         btn.addEventListener("click", () => {
-          const targetPage = parseInt((btn as HTMLElement).dataset.page || "1");
-          const targetIndex = targetPage - 1;
-          flipToPageIndex(targetIndex);
+          const el = btn as HTMLElement;
+          const targetPage = parseInt(el.dataset.page || "1", 10);
+          const slug = el.dataset.slug;
+          if (slug) {
+            try {
+              history.replaceState(null, "", `#${slug}`);
+            } catch {}
+          }
+          flipToPageIndex(targetPage - 1);
+        });
+      });
+
+      notebook.querySelectorAll<HTMLButtonElement>(".toc-filter-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const cat = pill.dataset.cat || "ALL";
+          if (cat === activeTocCategory) return;
+          activeTocCategory = cat;
+          buildBook();
+          renderView(0);
         });
       });
 
@@ -623,6 +957,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       if (isMobile()) {
         if (targetIndex === currentIndex) return;
         isAnimating = true;
+        reclaimAllPlaygrounds();
         try {
           leftContent.style.transition = "opacity 0.15s ease, transform 0.15s ease";
           leftContent.style.opacity = "0";
@@ -654,6 +989,7 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
       if (currentSpread === targetSpread) return;
 
       isAnimating = true;
+      reclaimAllPlaygrounds();
       const direction = targetSpread > currentSpread ? "next" : "prev";
       const steps = Math.abs(targetSpread - currentSpread);
 
@@ -730,11 +1066,23 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
         }
 
         bindTOCLinks();
+        mountPlaygroundIfPresent();
       } finally {
         turningPage.classList.remove("turning", "turn-next", "turn-prev", "fast-riffle");
         turningPage.style.display = "none";
         isAnimating = false;
       }
+    }
+
+    function syncHashLocation() {
+      const slug = window.location.hash.replace(/^#/, "").trim();
+      if (!slug) return false;
+      const absPage = slugPageMap.get(slug);
+      if (typeof absPage === "number") {
+        renderView(absPage - 1);
+        return true;
+      }
+      return false;
     }
 
     // Ribbon tab click interaction (when not on TOC page)
@@ -837,9 +1185,16 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     };
     window.addEventListener("resize", activeResizeHandler);
 
-    // Initialize physical book
+    activeHashChangeHandler = () => {
+      syncHashLocation();
+    };
+    window.addEventListener("hashchange", activeHashChangeHandler);
+
+    // Initialize physical book & honor URL hash deep link
     buildBook();
-    renderView(0);
+    if (!syncHashLocation()) {
+      renderView(0);
+    }
   }
 
   document.addEventListener("astro:page-load", initLabNotebook);
@@ -1625,5 +1980,166 @@ const categoryConfig: Record<string, { icon: string; label: string; color: strin
     }
     .stamp-icon { font-size: 1.1rem; }
     .stamp-label { font-size: 0.6rem; }
+  }
+
+  /* ========================================
+     TOC CATEGORY FILTERS & INTERACTIVE PLAYGROUNDS
+     ======================================== */
+  .lab-playground-staging {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 360px;
+    height: 210px;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .lab-sim-host {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  :global(.toc-filter-bar) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+    margin-top: 0.65rem;
+    margin-bottom: 0.35rem;
+  }
+  :global(.toc-filter-pill) {
+    font-family: var(--font-mono, "Courier New", monospace);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 9999px;
+    border: 1px solid var(--paper-line);
+    background: transparent;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  :global(.toc-filter-pill:hover),
+  :global(.toc-filter-pill.is-active) {
+    border-color: var(--color-project-accent, #FF7D1A);
+    color: var(--color-project-accent, #FF7D1A);
+    background: rgba(255, 125, 26, 0.08);
+  }
+
+  :global(.playground-page) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    height: 100%;
+    font-family: var(--font-mono, "Courier New", monospace);
+    text-align: left;
+  }
+  :global(.playground-header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  :global(.playground-kicker) {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-secondary);
+  }
+  :global(.playground-actions) {
+    display: flex;
+    gap: 0.35rem;
+  }
+  :global(.playground-canvas-stage) {
+    position: relative;
+    width: 100%;
+    height: 210px;
+    border-radius: 0.4rem;
+    border: 1px solid var(--paper-line);
+    background: rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  :global(.dark) :global(.playground-canvas-stage) {
+    background: rgba(0, 0, 0, 0.35);
+  }
+  :global(.playground-canvas-stage .airflow-container),
+  :global(.playground-canvas-stage .solar-system-container),
+  :global(.playground-canvas-stage .topography-container) {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0.9 !important;
+    z-index: 1 !important;
+    pointer-events: auto !important;
+  }
+  :global(.playground-solver-group) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  :global(.playground-hint) {
+    margin: 0;
+    font-size: 0.62rem;
+    line-height: 1.35;
+    color: var(--ink-secondary);
+    font-family: "Georgia", serif;
+    font-style: italic;
+  }
+  :global(.playground-btn) {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.64rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--paper-line);
+    background: transparent;
+    color: var(--ink-color);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  :global(.playground-btn:hover),
+  :global(.playground-btn.is-active) {
+    border-color: var(--color-project-accent, #FF7D1A);
+    color: var(--color-project-accent, #FF7D1A);
+    background: rgba(255, 125, 26, 0.1);
+  }
+  :global(.playground-controls) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  :global(.playground-control-row) {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr 2.4rem;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.65rem;
+    color: var(--ink-color);
+  }
+  :global(.playground-control-row input[type="range"]) {
+    width: 100%;
+    accent-color: var(--color-project-accent, #FF7D1A);
+    cursor: pointer;
+  }
+  :global(.playground-select) {
+    grid-column: span 2;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--paper-line);
+    background: transparent;
+    color: var(--ink-color);
+  }
+  .entry-body :global(.katex-display) {
+    overflow-x: auto;
+    padding: 0.25rem 0;
+    margin: 0 0 var(--line-height);
   }
 </style>

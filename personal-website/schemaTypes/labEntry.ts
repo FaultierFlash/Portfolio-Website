@@ -104,6 +104,29 @@ export const labEntry = defineType({
       description: 'Optional: Link to a related project.',
     }),
     defineField({
+      name: 'interactivePlayground',
+      title: 'Interactive Simulation Playground',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'None (Standard Notebook Entry)', value: 'none' },
+          { title: '20 Hz Wing Airflow / CFD Field', value: 'airflow' },
+          { title: 'Orbital Mechanics & Integrators (Euler / Verlet / RK4)', value: 'solar' },
+          { title: 'Topographic Elevation Ripples', value: 'topography' },
+        ],
+      },
+      initialValue: 'none',
+      description: 'Optional: Attach a live interactive simulation playground page inside this entry. Recommended slugs for background links: sim-airflow, sim-solar, sim-topography.',
+    }),
+    defineField({
+      name: 'initialParams',
+      title: 'Simulation Initial Parameters (Optional JSON)',
+      type: 'text',
+      rows: 3,
+      hidden: ({ document }) => !document?.interactivePlayground || document?.interactivePlayground === 'none',
+      description: 'Optional JSON preset for playground sliders/integrator (e.g. {"integrator":"symplectic","speed":1.0,"gravityMultiplier":1.0}).',
+    }),
+    defineField({
       name: 'status',
       title: 'Status',
       type: 'string',

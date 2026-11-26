@@ -313,6 +313,8 @@ export async function getLabEntries(locale?: string) {
       tags,
       language,
       body,
+      interactivePlayground,
+      initialParams,
       images[]{
         asset->,
         alt,
@@ -335,6 +337,8 @@ export async function getLabEntries(locale?: string) {
       tags,
       language,
       body,
+      interactivePlayground,
+      initialParams,
       images[]{
         asset->,
         alt,

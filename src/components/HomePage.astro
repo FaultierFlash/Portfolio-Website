@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../i18n/utils";
-import { getTranslationOverrides, getHomePageData, getProjects, urlFor } from "../lib/sanity";
+import { getTranslationOverrides, getHomePageData, getProjects, getNotesSettings, urlFor } from "../lib/sanity";
 import DynamicBackground from "./DynamicBackground.astro";
 import HomeSpinWheel from "./HomeSpinWheel.astro";
 import TerminalContactForm from "./TerminalContactForm.astro";
@@ -12,11 +12,13 @@ interface Props {
 }
 
 const lang: Locale = Astro.props.lang || (Astro.currentLocale as Locale) || "en";
-const [overrides, homeData, allProjects] = await Promise.all([
+const [overrides, homeData, allProjects, notesSettings] = await Promise.all([
   getTranslationOverrides(lang),
   getHomePageData(lang),
   getProjects(lang),
+  getNotesSettings(),
 ]);
+const showNotes = notesSettings?.enabled === true;
 const t = useTranslations(lang, overrides);
 const featuredProjects = homeData?.featuredProjects || [];
 const timelineItems = (homeData?.timeline || []).map((item: any) => {
@@ -442,6 +444,8 @@ cadRailItems.push({ id: 'contact-section', num: String(cadRailItems.length).padS
     <section id="hero-section" class="scroll-section hero-section relative flex flex-col items-center justify-between overflow-hidden">
       <DynamicBackground 
         effect={homeData?.backgroundEffect || "none"} 
+        showNotes={showNotes}
+        locale={lang}
         config={(homeData?.backgroundEffect === 'solar' || homeData?.backgroundEffect === 'stars') ? homeData?.solarConfig : homeData?.backgroundEffect === 'airflow' ? homeData?.airflowConfig : homeData?.topographyConfig}
         isAbsolute={true} 
       />
@@ -1326,6 +1330,8 @@ cadRailItems.push({ id: 'contact-section', num: String(cadRailItems.length).padS
           <section id={`featured-${index}`} class="scroll-section project-section relative flex items-center justify-center min-h-[100vh] min-h-[100dvh] w-full" data-project-slug={project.slug?.current || ''} data-accent-color={projectColor}>
             <DynamicBackground 
               effect={project.backgroundEffect || "none"} 
+              showNotes={showNotes}
+              locale={lang}
               config={(project.backgroundEffect === 'solar' || project.backgroundEffect === 'stars') ? project.solarConfig : project.backgroundEffect === 'airflow' ? project.airflowConfig : project.topographyConfig}
               isAbsolute={true} 
             />

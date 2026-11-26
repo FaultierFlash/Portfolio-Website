@@ -6,6 +6,8 @@ import WingAirflowBackground from './WingAirflowBackground.astro';
 interface Props {
   effect?: 'none' | 'grid' | 'dots' | 'topography' | 'solar' | 'stars' | 'airflow' | string | null;
   isAbsolute?: boolean;
+  showNotes?: boolean;
+  locale?: string;
   config?: {
     source?: any;
     latitude?: number;
@@ -22,7 +24,18 @@ interface Props {
   };
 }
 
-const { effect = 'none', isAbsolute = false, config } = Astro.props;
+const { effect = 'none', isAbsolute = false, showNotes = false, locale = 'en', config } = Astro.props;
+const safeLocale = locale === 'de' ? 'de' : 'en';
+const simSlug =
+  effect === 'airflow'
+    ? 'sim-airflow'
+    : effect === 'solar' || effect === 'stars'
+    ? 'sim-solar'
+    : effect === 'topography'
+    ? 'sim-topography'
+    : null;
+const labHref = showNotes && simSlug ? `/${safeLocale}/notes#${simSlug}` : null;
+const labLabel = safeLocale === 'de' ? 'Simulation im Labor-Notizbuch anpassen' : 'Tune simulation in Lab Notebook';
 ---
 
 {effect === 'topography' ? (
@@ -62,7 +75,71 @@ const { effect = 'none', isAbsolute = false, config } = Astro.props;
   )
 )}
 
+{labHref && (
+  <a
+    href={labHref}
+    class={`bg-playground-link ${isAbsolute ? 'is-absolute' : 'is-fixed'}`}
+    aria-label={labLabel}
+    title={labLabel}
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="4" y1="21" x2="4" y2="14"></line>
+      <line x1="4" y1="10" x2="4" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12" y2="3"></line>
+      <line x1="20" y1="21" x2="20" y2="16"></line>
+      <line x1="20" y1="12" x2="20" y2="3"></line>
+      <line x1="1" y1="14" x2="7" y2="14"></line>
+      <line x1="9" y1="8" x2="15" y2="8"></line>
+      <line x1="17" y1="16" x2="23" y2="16"></line>
+    </svg>
+  </a>
+)}
+
 <style>
+  .bg-playground-link {
+    bottom: 0.9rem;
+    left: 0.9rem;
+    z-index: 25;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(255, 255, 255, 0.45);
+    color: var(--color-text-dim, #475569);
+    opacity: 0.32;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: auto;
+    transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    text-decoration: none;
+  }
+  .bg-playground-link.is-fixed {
+    position: fixed;
+  }
+  .bg-playground-link.is-absolute {
+    position: absolute;
+  }
+  :global(.dark) .bg-playground-link {
+    background: rgba(15, 23, 42, 0.5);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: rgba(226, 232, 240, 0.8);
+  }
+  .bg-playground-link:hover,
+  .bg-playground-link:focus-visible {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    border-color: var(--color-project-accent, #FF7D1A);
+    color: var(--color-project-accent, #FF7D1A);
+  }
+  @media print {
+    .bg-playground-link {
+      display: none !important;
+    }
+  }
   .dynamic-background {
     inset: 0;
     z-index: -1;
