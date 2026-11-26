@@ -46,6 +46,15 @@ const groupBooks = (items: any[]) => {
     return grouped;
 };
 
+// Extract dynamically sorted genres for filter dropdown (collapsed by default)
+const allGenres = Array.from(
+    new Set(
+        books.flatMap((b: any) => Array.isArray(b.genres) ? b.genres : [])
+            .map((g: any) => String(g || '').trim())
+            .filter(Boolean)
+    )
+).sort((a, b) => a.localeCompare(b));
+
 // Group books for the section
 const reading = groupBooks(books.filter(b => b.status === 'reading'));
 const finished = groupBooks(books.filter(b => b.status === 'finished'));
@@ -77,7 +86,8 @@ const t = {
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books",
+    filterLabel: "Filter", filterGenres: "Filter by Genre", resetFilters: "Reset", allGenresLabel: "All Genres", noFilterMatches: "No books match the selected genres."
   },
   de: {
     title: "Persönliche Bibliothek",
@@ -94,7 +104,8 @@ const t = {
     series: "Serie",
     physical: "Physisch",
     totalRead: "Gelesene Bücher",
-    thisYearRead: `In ${currentYear} gelesen`, books: "Bücher", expandSeries: "Reihe öffnen", back: "Zurück", noThoughts: "Noch keine Notizen vorhanden.", vol: "Bd.", noCover: "Kein Cover", seriesBooks: "Bücher der Reihe"
+    thisYearRead: `In ${currentYear} gelesen`, books: "Bücher", expandSeries: "Reihe öffnen", back: "Zurück", noThoughts: "Noch keine Notizen vorhanden.", vol: "Bd.", noCover: "Kein Cover", seriesBooks: "Bücher der Reihe",
+    filterLabel: "Filter", filterGenres: "Nach Genre filtern", resetFilters: "Zurücksetzen", allGenresLabel: "Alle Genres", noFilterMatches: "Keine Bücher entsprechen den gewählten Genres."
   }
 }[locale] || {
     title: "Personal Library",
@@ -111,7 +122,8 @@ const t = {
     series: "Series",
     physical: "Physical",
     totalRead: "Books Read",
-    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books"
+    thisYearRead: `Read in ${currentYear}`, books: "Books", expandSeries: "Expand Series", back: "Back", noThoughts: "No thoughts recorded yet.", vol: "Vol.", noCover: "No Cover", seriesBooks: "Series Books",
+    filterLabel: "Filter", filterGenres: "Filter by Genre", resetFilters: "Reset", allGenresLabel: "All Genres", noFilterMatches: "No books match the selected genres."
 };
 
 ---
@@ -126,24 +138,78 @@ const t = {
                 {subtitle || t.subtitle}
             </p>
 
-            {/* --- Reading Stats Counters --- */}
-            {totalFinishedCount > 0 && (
-                <div class="flex items-center justify-center gap-3 mt-8 flex-wrap">
-                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--color-project-accent-border)] bg-[var(--color-project-accent-bg)] shadow-sm backdrop-blur-sm">
-                        <span class="w-2 h-2 rounded-full bg-[var(--color-project-accent)] animate-pulse"></span>
-                        <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text)]">
-                            <strong class="text-sm font-black" style="color: var(--color-project-accent)">{totalFinishedCount}</strong> {t.totalRead}
-                        </span>
-                    </div>
-                    {thisYearFinishedCount > 0 && (
-                        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 shadow-sm backdrop-blur-sm">
-                            <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text-dim)]">
-                                <strong class="text-sm font-black text-[var(--color-text)]">{thisYearFinishedCount}</strong> {t.thisYearRead}
-                            </span>
+            {/* --- Reading Stats Counters + Collapsed Genre Filter --- */}
+            {(totalFinishedCount > 0 || allGenres.length > 0) && (
+                <div class="flex items-center justify-center gap-3 mt-8 flex-wrap relative z-30">
+                    {totalFinishedCount > 0 && (
+                        <>
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--color-project-accent-border)] bg-[var(--color-project-accent-bg)] shadow-sm backdrop-blur-sm">
+                                <span class="w-2 h-2 rounded-full bg-[var(--color-project-accent)] animate-pulse"></span>
+                                <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text)]">
+                                    <strong class="text-sm font-black" style="color: var(--color-project-accent)">{totalFinishedCount}</strong> {t.totalRead}
+                                </span>
+                            </div>
+                            {thisYearFinishedCount > 0 && (
+                                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 shadow-sm backdrop-blur-sm">
+                                    <span class="text-xs font-black uppercase tracking-widest text-[var(--color-text-dim)]">
+                                        <strong class="text-sm font-black text-[var(--color-text)]">{thisYearFinishedCount}</strong> {t.thisYearRead}
+                                    </span>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {allGenres.length > 0 && (
+                        <div class="relative" id="library-filter-wrapper">
+                            <button
+                                type="button"
+                                id="library-filter-toggle"
+                                aria-expanded="false"
+                                aria-controls="library-filter-menu"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/15 bg-[var(--color-card-bg)] hover:border-[var(--color-project-accent-border)] text-xs font-black uppercase tracking-widest text-[var(--color-text)] shadow-sm transition-colors cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                                <span>{t.filterLabel}</span>
+                                <span id="library-filter-badge" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[var(--color-project-accent)] text-white tabular-nums">0</span>
+                            </button>
+
+                            <div
+                                id="library-filter-menu"
+                                class="hidden absolute right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 w-72 max-w-[90vw] p-4 rounded-2xl bg-[var(--color-bg-elevated,var(--color-bg))] border border-black/10 dark:border-white/15 shadow-2xl text-left z-40"
+                            >
+                                <div class="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-black/5 dark:border-white/10">
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t.filterGenres}</span>
+                                    <button
+                                        type="button"
+                                        id="library-filter-reset"
+                                        class="text-[10px] font-black uppercase tracking-widest hover:underline disabled:opacity-35 cursor-pointer"
+                                        style="color: var(--color-project-accent)"
+                                        disabled
+                                    >
+                                        {t.resetFilters}
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+                                    {allGenres.map((genre) => (
+                                        <button
+                                            type="button"
+                                            class="library-genre-chip px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-black/10 dark:border-white/15 text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-project-accent-border)] transition-all cursor-pointer"
+                                            data-genre={genre}
+                                            aria-pressed="false"
+                                        >
+                                            {genre}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
             )}
+        </div>
+
+        <div id="library-filter-empty" class="hidden text-center py-12 text-sm font-medium text-[var(--color-text-dim)]">
+            {t.noFilterMatches}
         </div>
 
         <div class="flex flex-col lg:flex-row gap-12 items-start relative">
@@ -152,15 +218,16 @@ const t = {
 
         {/* --- Currently Reading --- */}
         {reading.length > 0 && (
-            <div class="mb-20">
+            <div class="library-section mb-20">
                 <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.reading}</span>
                     <span class="h-[1px] flex-1" style="background-color: var(--color-project-accent-border)"></span>
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {reading.map(item => {
+                        const genresAttr = JSON.stringify((Array.isArray(item.genres) ? item.genres : []).map((g: string) => g.trim()).filter(Boolean));
                         return (
-                            <div class="group relative bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-card-border)] p-6 transition-all hover:shadow-2xl hover:shadow-[var(--color-project-accent)]/5">
+                            <div class="library-filter-item group relative bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-card-border)] p-6 transition-all hover:shadow-2xl hover:shadow-[var(--color-project-accent)]/5" data-genres={genresAttr}>
                                 <div class="flex gap-6">
                                     <div class="w-24 h-36 flex-shrink-0 bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-lg transform group-hover:scale-105 transition-transform duration-500">
                                         {item.cover ? (
@@ -193,7 +260,7 @@ const t = {
 
         {/* --- Finished Archives --- */}
         {finished.length > 0 && (
-            <div class="mb-20">
+            <div class="library-section mb-20">
                 <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.finished}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
@@ -201,8 +268,9 @@ const t = {
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-12">
                     {finished.map((item: any) => {
                         if (item.type === 'series') {
+                            const seriesGenres = Array.from(new Set((item.books || []).flatMap((b: any) => Array.isArray(b.genres) ? b.genres : []).map((g: string) => g.trim()).filter(Boolean)));
                             return (
-                                <div class="series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName}>
+                                <div class="library-filter-item series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName} data-genres={JSON.stringify(seriesGenres)}>
                                     {/* --- Stack View --- */}
                                     <div class="series-stack-view group relative flex flex-col items-center">
                                         <button
@@ -277,8 +345,9 @@ const t = {
                             );
                         }
 
+                        const itemGenres = Array.isArray(item.genres) ? item.genres.map((g: string) => g.trim()).filter(Boolean) : [];
                         return (
-                            <div class="group relative flex flex-col items-center">
+                            <div class="library-filter-item group relative flex flex-col items-center" data-genres={JSON.stringify(itemGenres)}>
                                 <button
                                     type="button"
                                     class="open-review-btn w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)]"
@@ -303,7 +372,7 @@ const t = {
 
         {/* --- Shortlist --- */}
         {shortlist.length > 0 && (
-            <div class="mb-20">
+            <div class="library-section mb-20">
                 <h2 class="text-xs font-black uppercase tracking-[0.3em] mb-10 flex items-center gap-4" style="color: var(--color-project-accent)">
                     <span>{t.shortlist}</span>
                     <span class="h-[1px] flex-1 bg-black/10 dark:bg-white/10"></span>
@@ -311,8 +380,9 @@ const t = {
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-12">
                     {shortlist.map((item: any) => {
                         if (item.type === 'series') {
+                            const seriesGenres = Array.from(new Set((item.books || []).flatMap((b: any) => Array.isArray(b.genres) ? b.genres : []).map((g: string) => g.trim()).filter(Boolean)));
                             return (
-                                <div class="series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName}>
+                                <div class="library-filter-item series-container col-span-1 border-none bg-transparent p-0 transition-all duration-500" data-series-id={item.seriesName} data-genres={JSON.stringify(seriesGenres)}>
                                     {/* --- Stack View --- */}
                                     <div class="series-stack-view group relative flex flex-col items-center">
                                         <button
@@ -386,8 +456,9 @@ const t = {
                             );
                         }
 
+                        const itemGenres = Array.isArray(item.genres) ? item.genres.map((g: string) => g.trim()).filter(Boolean) : [];
                         return (
-                            <div class="group relative flex flex-col items-center">
+                            <div class="library-filter-item group relative flex flex-col items-center" data-genres={JSON.stringify(itemGenres)}>
                                 <div class="relative w-full aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md mb-4 group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 border border-transparent hover:border-[var(--color-project-accent-border)] grayscale group-hover:grayscale-0 opacity-60 group-hover:opacity-100 transition-all duration-500">
                                     {item.cover ? (
                                         <img src={urlFor(item.cover).width(300).auto('format').quality(85).url()} alt={item.title} width="200" height="300" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -457,6 +528,8 @@ const t = {
 
 <script>
     let activeEscapeHandler: ((e: KeyboardEvent) => void) | null = null;
+    let activeFilterClickHandler: ((e: MouseEvent) => void) | null = null;
+
     function initLibrary() {
         const panel = document.getElementById('review-panel') as HTMLElement | null;
         if (!panel) return;
@@ -465,6 +538,103 @@ const t = {
         // Teleport the panel to body to ensure fixed positioning works regardless of parent transforms
         if (panelEl.parentElement !== document.body) {
             document.body.appendChild(panelEl);
+        }
+
+        // --- Collapsed Genre Filter State ---
+        const filterWrapper = document.getElementById('library-filter-wrapper');
+        const filterToggle = document.getElementById('library-filter-toggle');
+        const filterMenu = document.getElementById('library-filter-menu');
+        const filterBadge = document.getElementById('library-filter-badge');
+        const filterReset = document.getElementById('library-filter-reset') as HTMLButtonElement | null;
+        const filterEmpty = document.getElementById('library-filter-empty');
+        const genreChips = document.querySelectorAll<HTMLButtonElement>('.library-genre-chip');
+        const filterItems = document.querySelectorAll<HTMLElement>('.library-filter-item');
+        const librarySections = document.querySelectorAll<HTMLElement>('.library-section');
+        const selectedGenres = new Set<string>();
+
+        function closeFilterMenu() {
+            if (filterMenu && !filterMenu.classList.contains('hidden')) {
+                filterMenu.classList.add('hidden');
+                filterToggle?.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function applyGenreFilters() {
+            let visibleCount = 0;
+            filterItems.forEach((item) => {
+                if (selectedGenres.size === 0) {
+                    item.classList.remove('hidden');
+                    visibleCount++;
+                    return;
+                }
+                let itemGenres: string[] = [];
+                try {
+                    itemGenres = JSON.parse(item.dataset.genres || '[]');
+                } catch {}
+                const matches = itemGenres.some((g) => selectedGenres.has(g));
+                item.classList.toggle('hidden', !matches);
+                if (matches) visibleCount++;
+            });
+
+            librarySections.forEach((section) => {
+                const sectionItems = section.querySelectorAll<HTMLElement>('.library-filter-item');
+                const hasVisible = Array.from(sectionItems).some((el) => !el.classList.contains('hidden'));
+                section.classList.toggle('hidden', !hasVisible);
+            });
+
+            if (filterEmpty) {
+                filterEmpty.classList.toggle('hidden', visibleCount > 0 || filterItems.length === 0);
+            }
+            if (filterBadge) {
+                filterBadge.textContent = String(selectedGenres.size);
+                filterBadge.classList.toggle('hidden', selectedGenres.size === 0);
+            }
+            if (filterReset) {
+                filterReset.disabled = selectedGenres.size === 0;
+            }
+        }
+
+        if (filterToggle && filterMenu && filterWrapper) {
+            filterToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const willOpen = filterMenu.classList.contains('hidden');
+                filterMenu.classList.toggle('hidden', !willOpen);
+                filterToggle.setAttribute('aria-expanded', String(willOpen));
+            });
+
+            genreChips.forEach((chip) => {
+                chip.addEventListener('click', () => {
+                    const genre = chip.dataset.genre;
+                    if (!genre) return;
+                    if (selectedGenres.has(genre)) {
+                        selectedGenres.delete(genre);
+                        chip.setAttribute('aria-pressed', 'false');
+                        chip.classList.remove('is-selected');
+                    } else {
+                        selectedGenres.add(genre);
+                        chip.setAttribute('aria-pressed', 'true');
+                        chip.classList.add('is-selected');
+                    }
+                    applyGenreFilters();
+                });
+            });
+
+            filterReset?.addEventListener('click', () => {
+                selectedGenres.clear();
+                genreChips.forEach((chip) => {
+                    chip.setAttribute('aria-pressed', 'false');
+                    chip.classList.remove('is-selected');
+                });
+                applyGenreFilters();
+            });
+
+            if (activeFilterClickHandler) document.removeEventListener('click', activeFilterClickHandler);
+            activeFilterClickHandler = (e: MouseEvent) => {
+                if (!filterWrapper.contains(e.target as Node)) {
+                    closeFilterMenu();
+                }
+            };
+            document.addEventListener('click', activeFilterClickHandler);
         }
 
         const closeBtns = panelEl.querySelectorAll('.close-panel-btn');
@@ -654,6 +824,11 @@ const t = {
         if (activeEscapeHandler) document.removeEventListener('keydown', activeEscapeHandler);
         activeEscapeHandler = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
+            if (filterMenu && !filterMenu.classList.contains('hidden')) {
+                filterMenu.classList.add('hidden');
+                filterToggle?.setAttribute('aria-expanded', 'false');
+                return;
+            }
             if (panelEl.classList.contains('translate-x-0')) {
                 closePanel();
                 return;
@@ -674,12 +849,21 @@ const t = {
             document.removeEventListener('keydown', activeEscapeHandler);
             activeEscapeHandler = null;
         }
+        if (activeFilterClickHandler) {
+            document.removeEventListener('click', activeFilterClickHandler);
+            activeFilterClickHandler = null;
+        }
         const panel = document.body.querySelector('#review-panel');
         if (panel) panel.remove();
     });
 </script>
 
 <style>
+    .library-genre-chip.is-selected {
+        background-color: var(--color-project-accent-bg);
+        border-color: var(--color-project-accent-border);
+        color: var(--color-project-accent);
+    }
     .shadow-3xl {
         box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5);
     }

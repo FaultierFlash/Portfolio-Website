@@ -72,6 +72,13 @@ export default defineType({
               type: 'array',
               of: [{ type: 'string' }],
             }),
+            defineField({
+              name: 'relatedProject',
+              title: 'Related Project Case Study (Optional)',
+              type: 'reference',
+              to: [{ type: 'project' }],
+              description: 'Optional web-only deep link shown on the interactive CV page (hidden in print/PDF).',
+            }),
           ],
           preview: {
             select: {
@@ -178,6 +185,13 @@ export default defineType({
               title: 'Details (German)',
               type: 'array',
               of: [{ type: 'string' }],
+            }),
+            defineField({
+              name: 'relatedProject',
+              title: 'Related Project Case Study (Optional)',
+              type: 'reference',
+              to: [{ type: 'project' }],
+              description: 'Optional link displayed as a subtle Case Study badge in the Web CV (hidden in print/PDF export).',
             }),
           ],
           preview: {

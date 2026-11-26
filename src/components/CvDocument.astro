@@ -10,7 +10,10 @@ interface Props {
 
 const { cvData, locale } = Astro.props;
 const isDe = locale === 'de';
-const { personalInfo, experience, education, skills, volunteering, mode, manualPdfUrl } = cvData;
+const { personalInfo, experience, education, skills, volunteering, mode, manualPdfUrl, updatedAt } = cvData;
+const formattedUpdatedAt = updatedAt
+  ? new Date(updatedAt).toLocaleDateString(isDe ? 'de-DE' : 'en-US', { year: 'numeric', month: 'short' })
+  : null;
 
 const downloadUrl = mode === 'manual' && manualPdfUrl ? manualPdfUrl : null;
 const websiteHref = personalInfo.website
@@ -45,6 +48,11 @@ const formatMd = (text: string) => {
       </h2>
       <p class="text-xs text-slate-500 dark:text-slate-400">
         {isDe ? 'Standard A4-Format · 100% Nativer Vektor-Export' : 'Standard A4 Format · 100% Native Vector Export'}
+        {formattedUpdatedAt && (
+          <span class="ml-1.5 text-slate-400 dark:text-slate-500">
+            · {isDe ? `Aktualisiert ${formattedUpdatedAt}` : `Updated ${formattedUpdatedAt}`}
+          </span>
+        )}
       </p>
     </div>
 
@@ -65,6 +73,7 @@ const formatMd = (text: string) => {
         id="cv-download-btn"
         href={downloadUrl || (isDe ? '/Marlon_Hendrik_Mueller_Lebenslauf.pdf' : '/Marlon_Hendrik_Mueller_CV.pdf')}
         download={isDe ? 'Marlon_Hendrik_Mueller_Lebenslauf.pdf' : 'Marlon_Hendrik_Mueller_CV.pdf'}
+        data-umami-event="cv-pdf-download"
         class="px-5 py-2.5 rounded-xl bg-[#FF7D1A] hover:bg-[#ff8f38] text-white text-xs sm:text-sm font-bold shadow-lg shadow-[#FF7D1A]/20 transition-all flex items-center gap-2 cursor-pointer transform hover:scale-[1.02] active:scale-95 no-underline"
       >
         <svg id="cv-download-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -273,10 +282,21 @@ const formatMd = (text: string) => {
           <div class="space-y-3.5">
             {experience?.map((item: any) => (
               <div class="space-y-1 text-xs">
-                <div class="flex items-baseline justify-between gap-1">
-                  <h3 class="font-bold text-slate-900 dark:text-slate-200">
-                    {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.company}</span>
-                  </h3>
+                <div class="flex items-baseline justify-between gap-2">
+                  <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+                    <h3 class="font-bold text-slate-900 dark:text-slate-200">
+                      {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.company}</span>
+                    </h3>
+                    {item.relatedProject?.slug && (
+                      <a
+                        href={`/${locale}/projects/${item.relatedProject.slug}`}
+                        class="print:hidden inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border border-[#FF7D1A]/35 bg-[#FF7D1A]/10 text-[#FF7D1A] hover:bg-[#FF7D1A]/20 text-[9px] font-bold tracking-wide transition-colors no-underline shrink-0"
+                        title={item.relatedProject.title || undefined}
+                      >
+                        <span>{isDe ? 'Projekt' : 'Case Study'} ↗</span>
+                      </a>
+                    )}
+                  </div>
                   <span class="text-[10px] text-slate-500 font-medium whitespace-nowrap shrink-0">{item.period}</span>
                 </div>
                 {item.highlights && item.highlights.length > 0 && (
@@ -301,10 +321,21 @@ const formatMd = (text: string) => {
           <div class="space-y-3">
             {volunteering?.map((item: any) => (
               <div class="space-y-1 text-xs">
-                <div class="flex items-baseline justify-between gap-1">
-                  <h3 class="font-bold text-slate-900 dark:text-slate-200">
-                    {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.organization}</span>
-                  </h3>
+                <div class="flex items-baseline justify-between gap-2">
+                  <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+                    <h3 class="font-bold text-slate-900 dark:text-slate-200">
+                      {item.role} <span class="text-slate-600 dark:text-slate-400 font-normal">· {item.organization}</span>
+                    </h3>
+                    {item.relatedProject?.slug && (
+                      <a
+                        href={`/${locale}/projects/${item.relatedProject.slug}`}
+                        class="print:hidden inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border border-[#FF7D1A]/35 bg-[#FF7D1A]/10 text-[#FF7D1A] hover:bg-[#FF7D1A]/20 text-[9px] font-bold tracking-wide transition-colors no-underline shrink-0"
+                        title={item.relatedProject.title || undefined}
+                      >
+                        <span>{isDe ? 'Projekt' : 'Case Study'} ↗</span>
+                      </a>
+                    )}
+                  </div>
                   <span class="text-[10px] text-slate-500 font-medium whitespace-nowrap shrink-0">{item.period}</span>
                 </div>
                 {item.details && item.details.length > 0 && (

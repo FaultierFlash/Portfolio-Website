@@ -7,11 +7,20 @@ interface Props {
   projectPages: { href: string; text: string }[];
   navLinks: { href: string; text: string }[];
   overrides?: Record<string, string>;
+  books?: { title: string; author?: string; series?: string; genres?: string[] }[];
 }
 
-const { currentLocale, projectPages, navLinks, overrides } = Astro.props;
+const { currentLocale, projectPages, navLinks, overrides, books = [] } = Astro.props;
 const t = useTranslations(currentLocale, overrides);
 const isDe = currentLocale === "de";
+
+const paletteBooks = books.map((book) => ({
+  type: "book",
+  title: book.title,
+  subtitle: [book.author, book.series].filter(Boolean).join(" · ") || (isDe ? "Persönliche Bibliothek" : "Personal Library"),
+  href: `/${currentLocale}/library`,
+  keywords: [book.title, book.author, book.series, ...(book.genres || [])].filter(Boolean).join(" ").toLowerCase(),
+}));
 
 // Compile all static search items
 const items = [
@@ -71,6 +80,22 @@ const items = [
   // Actions
   {
     type: "action",
+    title: isDe ? "Lebenslauf als PDF herunterladen" : "Download CV PDF",
+    subtitle: isDe ? "Direkter Vektor-PDF-Export" : "Direct native vector PDF download",
+    actionId: "download-cv-pdf",
+    href: isDe ? "/Marlon_Hendrik_Mueller_Lebenslauf.pdf" : "/Marlon_Hendrik_Mueller_CV.pdf",
+    download: isDe ? "Marlon_Hendrik_Mueller_Lebenslauf.pdf" : "Marlon_Hendrik_Mueller_CV.pdf",
+    keywords: "download cv pdf resume lebenslauf herunterladen export",
+  },
+  {
+    type: "action",
+    title: isDe ? "E-Mail-Adresse kopieren" : "Copy Email Address",
+    subtitle: "contact@marlonmueller.eu",
+    actionId: "copy-email",
+    keywords: "email mail contact kopieren copy address adresse",
+  },
+  {
+    type: "action",
     title: t("theme.toggle") || (isDe ? "Hell-/Dunkelmodus umschalten" : "Toggle Light/Dark Theme"),
     subtitle: isDe ? "Erscheinungsbild wechseln" : "Change website appearance",
     actionId: "toggle-theme",
@@ -109,7 +134,7 @@ const items = [
       <input
         type="text"
         id="palette-search-input"
-        aria-label={isDe ? "Seiten, Projekte oder Aktionen durchsuchen" : "Search pages, projects, or actions"}
+        aria-label={isDe ? "Seiten, Projekte, Bücher oder Aktionen durchsuchen" : "Search pages, projects, books, or actions"}
         aria-controls="palette-results"
         placeholder={isDe ? "Suchen oder Befehl eingeben..." : "Search or type a command..."}
         autocomplete="off"
@@ -123,6 +148,7 @@ const items = [
       role="listbox"
       aria-label={isDe ? "Suchergebnisse" : "Search results"}
       data-items={JSON.stringify(items)}
+      data-books={JSON.stringify(paletteBooks)}
     >
       <!-- Rendered dynamically on client side -->
     </div>
@@ -177,7 +203,8 @@ const items = [
     page: 1,
     project: 2,
     action: 3,
-    legal: 4
+    legal: 4,
+    book: 5,
   };
 
   function initCommandPalette() {
@@ -186,6 +213,7 @@ const items = [
     const input = document.getElementById("palette-search-input") as HTMLInputElement | null;
     const resultsContainer = document.getElementById("palette-results");
     const triggerBtn = document.getElementById("search-palette-trigger");
+    const mobileTriggerBtn = document.getElementById("mobile-search-palette-trigger");
 
     if (!modal || !resultsContainer || !input) return;
     if (modal.dataset.paletteInitialized === "true") return;
@@ -193,8 +221,9 @@ const items = [
 
     const currentLang = modal.getAttribute("data-locale") || "en";
 
-    // Load static items array from data attribute
+    // Load core items & separated library book index
     const allItems = JSON.parse(resultsContainer.dataset.items || "[]");
+    const allBooks = JSON.parse(resultsContainer.dataset.books || "[]");
     
     // Initial sort
     allItems.sort((a: any, b: any) => {
@@ -221,6 +250,8 @@ const items = [
       modal?.setAttribute("aria-hidden", "true");
       document.body.classList.remove("no-scroll-mobile");
       if (input) input.value = "";
+      filteredItems = [...allItems];
+      activeIndex = 0;
       if (lastFocusedEl && document.contains(lastFocusedEl)) {
         lastFocusedEl.focus();
       }
@@ -236,9 +267,11 @@ const items = [
     }
 
     // Toggle Palette triggers
-    triggerBtn?.addEventListener("click", (e) => {
-      e.preventDefault();
-      openPalette();
+    [triggerBtn, mobileTriggerBtn].forEach((btn) => {
+      btn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        openPalette();
+      });
     });
 
     backdrop?.addEventListener("click", closePalette);
@@ -248,21 +281,42 @@ const items = [
       const query = input.value.toLowerCase().trim();
       let matched = [];
       if (!query) {
+        // Keep default list clean without flooding books
         matched = [...allItems];
       } else {
-        matched = allItems.filter((item: any) => {
+        const coreMatched = allItems.filter((item: any) => {
           return (
             item.title.toLowerCase().includes(query) ||
             item.subtitle.toLowerCase().includes(query) ||
             item.keywords.toLowerCase().includes(query)
           );
         });
-      }
+        coreMatched.sort((a: any, b: any) => {
+          return (groupSortOrder[a.type] || 99) - (groupSortOrder[b.type] || 99);
+        });
 
-      // Sort matched items by group order
-      matched.sort((a: any, b: any) => {
-        return (groupSortOrder[a.type] || 99) - (groupSortOrder[b.type] || 99);
-      });
+        const bookMatched = allBooks
+          .filter((item: any) => {
+            return (
+              item.title.toLowerCase().includes(query) ||
+              item.subtitle.toLowerCase().includes(query) ||
+              item.keywords.toLowerCase().includes(query)
+            );
+          })
+          .slice(0, 6);
+
+        if (bookMatched.length > 0) {
+          bookMatched.push({
+            type: "book",
+            title: currentLang === "de" ? "Bibliothek öffnen →" : "Open Library →",
+            subtitle: currentLang === "de" ? "Alle Bücher & Notizen anzeigen" : "Browse full archive & thoughts",
+            href: `/${currentLang}/library`,
+            keywords: "",
+          });
+        }
+
+        matched = [...coreMatched, ...bookMatched];
+      }
 
       filteredItems = matched;
       activeIndex = 0;
@@ -319,6 +373,21 @@ const items = [
 
     function triggerItem(item: any) {
       closePalette();
+      if (item.actionId === "download-cv-pdf" && item.href) {
+        const a = document.createElement("a");
+        a.href = item.href;
+        a.download = item.download || "Marlon_Hendrik_Mueller_CV.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        (window as any).umami?.track?.("cv-pdf-download", { source: "command-palette" });
+        return;
+      }
+      if (item.actionId === "copy-email") {
+        navigator.clipboard?.writeText("contact@marlonmueller.eu").catch(() => {});
+        showSoundToast(currentLang === "de" ? "contact@marlonmueller.eu kopiert" : "Copied contact@marlonmueller.eu");
+        return;
+      }
       if (item.href) {
         // Redirection
         window.location.href = item.href;
@@ -379,7 +448,8 @@ const items = [
         page: currentLang === 'de' ? "Navigation" : "Navigation",
         project: currentLang === 'de' ? "Projekte" : "Projects",
         action: currentLang === 'de' ? "Aktionen" : "Actions",
-        legal: currentLang === 'de' ? "Rechtliches" : "Legal"
+        legal: currentLang === 'de' ? "Rechtliches" : "Legal",
+        book: currentLang === 'de' ? "Bücher / Bibliothek" : "Books / Library"
       };
 
       let html = "";
@@ -401,6 +471,8 @@ const items = [
           ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon" aria-hidden="true"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon><line x1="12" y1="22" x2="12" y2="15.5"></line><polyline points="22 8.5 12 15.5 2 8.5"></polyline><polyline points="2 15.5 12 8.5 22 15.5"></polyline><line x1="12" y1="2" x2="12" y2="8.5"></line></svg>`
           : item.type === "action"
           ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+          : item.type === "book"
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`
           : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-icon" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
 
         html += `

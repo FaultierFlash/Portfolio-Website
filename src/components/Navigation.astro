@@ -85,6 +85,15 @@ const {
         </svg>
       </a>
     )}
+    <button
+      id="mobile-search-palette-trigger"
+      class="control-btn"
+      type="button"
+      aria-label={currentLocale === "de" ? "Suche & Befehle öffnen" : "Open Search & Command Palette"}
+      title={currentLocale === "de" ? "Suche (Strg+K)" : "Search (Cmd+K)"}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    </button>
     <ThemeToggle id="mobile-theme-toggle" />
   </div>
 
@@ -211,8 +220,16 @@ const {
           </svg>
         </a>
       )}
-      <button id="search-palette-trigger" class="control-btn" aria-label="Open Command Palette" title="Command Palette (Cmd+K)">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <button
+        id="search-palette-trigger"
+        class="control-btn search-palette-pill"
+        type="button"
+        aria-label={currentLocale === "de" ? "Befehlspalette öffnen (Strg+K)" : "Open Command Palette (Cmd+K)"}
+        title={currentLocale === "de" ? "Suche & Befehle (Strg+K)" : "Search & Commands (Cmd+K)"}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span class="search-pill-label">{currentLocale === "de" ? "Suche" : "Search"}</span>
+        <kbd class="search-pill-kbd font-mono">⌘K</kbd>
       </button>
       <LanguageSwitcher />
       <ThemeToggle />
@@ -610,6 +627,31 @@ const {
   .control-btn:hover {
     background-color: var(--color-project-accent-bg, rgba(255, 125, 26, 0.08));
     color: var(--color-project-accent, #FF7D1A);
+  }
+  .search-palette-pill {
+    gap: 0.45rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border, rgba(148, 163, 184, 0.35));
+    background-color: rgba(148, 163, 184, 0.06);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .search-pill-label {
+    letter-spacing: 0.01em;
+  }
+  .search-pill-kbd {
+    font-size: 0.65rem;
+    line-height: 1;
+    padding: 0.18rem 0.35rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-border, rgba(148, 163, 184, 0.35));
+    opacity: 0.75;
+  }
+  @media (max-width: 960px) and (min-width: 769px) {
+    .search-pill-label {
+      display: none;
+    }
   }
   .dropdown-wrapper {
     position: relative;

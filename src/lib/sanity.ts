@@ -352,16 +352,66 @@ export async function getLabEntries(locale?: string) {
   return await sanityClient.fetch(query, locale ? { locale } : {});
 }
 
+export interface CommandPaletteBook {
+  title: string;
+  author?: string;
+  series?: string;
+  genres?: string[];
+}
+
+const commandPaletteBooksCache: { data: CommandPaletteBook[] | null; timestamp: number } = {
+  data: null,
+  timestamp: 0,
+};
+const PALETTE_BOOKS_TTL_MS = 5 * 60 * 1000;
+
+export async function getCommandPaletteBooks(): Promise<CommandPaletteBook[]> {
+  const now = Date.now();
+  if (commandPaletteBooksCache.data && now - commandPaletteBooksCache.timestamp < PALETTE_BOOKS_TTL_MS) {
+    return commandPaletteBooksCache.data;
+  }
+
+  const query = `*[_type == "book"] | order(coalesce(sortDate, "0000-00-00") desc) {
+    title,
+    author,
+    series,
+    genres
+  }`;
+
+  try {
+    const books = await sanityClient.fetch<CommandPaletteBook[]>(query);
+    commandPaletteBooksCache.data = Array.isArray(books) ? books : [];
+    commandPaletteBooksCache.timestamp = now;
+    return commandPaletteBooksCache.data;
+  } catch (err) {
+    console.error('Failed to fetch books for command palette:', err);
+    return commandPaletteBooksCache.data || [];
+  }
+}
+
 export async function getCvData(locale: string = 'en') {
   const query = `{
     "cv": *[_type == "cvSettings"][0] {
+      _updatedAt,
       mode,
       "manualPdfUrl": manualPdf.asset->url,
       personalInfo,
-      experience,
+      experience[] {
+        ...,
+        relatedProject->{
+          slug,
+          title
+        }
+      },
       education,
       skills,
-      volunteering
+      volunteering[] {
+        ...,
+        relatedProject->{
+          slug,
+          title
+        }
+      }
     },
     "home": *[_type == "homePage"][0] {
       profileImage
@@ -395,6 +445,7 @@ export async function getCvData(locale: string = 'en') {
   }
 
   return {
+    updatedAt: cv?._updatedAt || null,
     mode: cv?.mode || 'generated',
     manualPdfUrl: cv?.manualPdfUrl || null,
     personalInfo: {
@@ -416,6 +467,14 @@ export async function getCvData(locale: string = 'en') {
       highlights: isDe
         ? item.highlightsDe || item.highlightsEn || []
         : item.highlightsEn || item.highlightsDe || [],
+      relatedProject: item.relatedProject?.slug?.current
+        ? {
+            slug: item.relatedProject.slug.current,
+            title: isDe
+              ? item.relatedProject.title?.de || item.relatedProject.title?.en || ''
+              : item.relatedProject.title?.en || item.relatedProject.title?.de || '',
+          }
+        : null,
     })),
     education: (cv?.education || []).map((item: any) => ({
       degree: isDe ? item.degreeDe || item.degreeEn : item.degreeEn || item.degreeDe,
@@ -437,6 +496,14 @@ export async function getCvData(locale: string = 'en') {
       organization: item.organization || '',
       period: isDe ? item.periodDe || item.periodEn : item.periodEn || item.periodDe,
       details: isDe ? item.detailsDe || item.detailsEn || [] : item.detailsEn || item.detailsDe || [],
+      relatedProject: item.relatedProject?.slug?.current
+        ? {
+            slug: item.relatedProject.slug.current,
+            title: isDe
+              ? item.relatedProject.title?.de || item.relatedProject.title?.en || ''
+              : item.relatedProject.title?.en || item.relatedProject.title?.de || '',
+          }
+        : null,
     })),
   };
 }
