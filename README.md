@@ -62,7 +62,7 @@ This builds the embedded studio into `public/studio/`.
 ## Lab Notebook Simulation Playgrounds
 
 - Entries in `labEntry` support `interactivePlayground` (`airflow` | `solar` | `topography`) and optional JSON `initialParams`.
-- Recommended deep-link slugs for subtle corner links from interactive site backgrounds (shown only when `notesSettings.enabled === true`): `sim-airflow`, `sim-solar`, `sim-topography`.
+- Recommended deep-link slugs for subtle corner links from interactive site backgrounds (shown per-environment via `notesSettings.enabled` on Production vs. `notesSettings.enabledInDev` on Dev/Preview/Local): `sim-airflow`, `sim-solar`, `sim-topography`.
 - The Solar System playground exposes pluggable orbital integrators (**Symplectic Verlet**, **Explicit Euler**, **RK4**) for stability and energy-drift comparison.
 
 ## Project Structure

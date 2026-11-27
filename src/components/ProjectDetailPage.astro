@@ -90,7 +90,7 @@ const [{ html: parsedBody, toc }, continuity] = await Promise.all([
       : { html: "", toc: [] }
   ),
   slug
-    ? getProjectContinuity(slug, projectData.order, lang)
+    ? getProjectContinuity(slug, projectData.order, lang, Astro.url)
     : Promise.resolve({ prevProject: null, nextProject: null, relatedLabEntries: [] }),
 ]);
 

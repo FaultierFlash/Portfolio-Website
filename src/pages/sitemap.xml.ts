@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { sanityClient } from '../lib/sanity';
+import { sanityClient, isNotesEnabledForEnv } from '../lib/sanity';
 import { escapeHtml } from '../lib/html';
 
 export const prerender = false; // Run dynamically on request
@@ -10,7 +10,7 @@ function toIsoDate(value?: string | null): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString().split('T')[0];
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ url }) => {
   const domain = 'https://marlonmueller.eu';
 
   let showNotes = false;
@@ -23,7 +23,7 @@ export const GET: APIRoute = async () => {
 
   try {
     const data = await sanityClient.fetch(`{
-      "notesSettings": *[_type == "notesSettings"][0]{ enabled, _updatedAt },
+      "notesSettings": *[_type == "notesSettings"][0]{ enabled, enabledInDev, _updatedAt },
       "latestNote": *[_type == "labEntry" && status == "published"] | order(_updatedAt desc)[0]{ _updatedAt },
       "homePage": *[_type == "homePage"][0]{ _updatedAt },
       "cvSettings": *[_type == "cvSettings"][0]{ _updatedAt },
@@ -36,7 +36,7 @@ export const GET: APIRoute = async () => {
       }
     }`);
 
-    showNotes = data?.notesSettings?.enabled === true;
+    showNotes = isNotesEnabledForEnv(data?.notesSettings, url);
     homeLastmod = toIsoDate(data?.homePage?._updatedAt);
     cvLastmod = toIsoDate(data?.cvSettings?._updatedAt);
     libraryLastmod = toIsoDate(data?.latestBook?._updatedAt || data?.librarySettings?._updatedAt);

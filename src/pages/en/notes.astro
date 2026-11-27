@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, type Locale } from "../../i18n/utils";
-import { getLabEntries, getNotesSettings, getTranslationOverrides } from "../../lib/sanity";
+import { getLabEntries, getNotesSettings, getTranslationOverrides, isNotesEnabledForEnv, isNonProductionEnvironment } from "../../lib/sanity";
 import LabNotebook from "../../components/LabNotebook.astro";
 
 const lang = (Astro.currentLocale as Locale) || "en";
@@ -14,8 +14,9 @@ const [entries, notesSettings, overrides] = await Promise.all([
 const t = useTranslations(lang, overrides);
 
 const isPreview = Astro.url.searchParams.get("preview") === "true";
-const isPubliclyEnabled = notesSettings?.enabled === true;
+const isPubliclyEnabled = isNotesEnabledForEnv(notesSettings, Astro.url);
 const isEnabled = isPubliclyEnabled || isPreview;
+const isNonProd = isNonProductionEnvironment(Astro.url);
 const pageTitle = notesSettings?.titleEn || t("nav.notes");
 const pageSubtitle = notesSettings?.subtitleEn || "";
 const pageDescription =
@@ -36,7 +37,7 @@ const dLabels = {
   title={pageTitle}
   description={pageDescription}
   overrides={overrides}
-  noindex={!isPubliclyEnabled || isPreview}
+  noindex={!isPubliclyEnabled || isPreview || isNonProd}
   noCache={isPreview}
 >
   <div class="notes-page-container">

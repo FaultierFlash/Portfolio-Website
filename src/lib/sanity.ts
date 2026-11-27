@@ -191,7 +191,64 @@ export async function getProjectBySlug(slug: string | undefined, locale: string)
   return await sanityClient.fetch(query, { slug, lang: locale });
 }
 
-export async function getProjectContinuity(slug: string, currentOrder: number | undefined, locale: string) {
+export function isNonProductionEnvironment(url?: URL | string | null): boolean {
+  if (!import.meta.env.PROD) {
+    return true;
+  }
+
+  const netlifyContext = (process.env.CONTEXT || '').toLowerCase();
+  if (
+    netlifyContext === 'branch-deploy' ||
+    netlifyContext === 'deploy-preview' ||
+    netlifyContext === 'dev'
+  ) {
+    return true;
+  }
+
+  const branch = (process.env.BRANCH || '').toLowerCase();
+  if (branch && branch !== 'main' && branch !== 'master') {
+    return true;
+  }
+
+  if (url) {
+    try {
+      const parsed = url instanceof URL ? url : new URL(String(url), 'https://marlonmueller.eu');
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '::1' ||
+        host.endsWith('.localhost') ||
+        (host.endsWith('.netlify.app') && host.includes('--'))
+      ) {
+        return true;
+      }
+    } catch {
+      // Fall through to fail-safe production default
+    }
+  }
+
+  return false;
+}
+
+export function isNotesEnabledForEnv(
+  settings: { enabled?: boolean; enabledInDev?: boolean } | null | undefined,
+  url?: URL | string | null
+): boolean {
+  if (!settings) {
+    return false;
+  }
+  return isNonProductionEnvironment(url)
+    ? settings.enabledInDev === true
+    : settings.enabled === true;
+}
+
+export async function getProjectContinuity(
+  slug: string,
+  currentOrder: number | undefined,
+  locale: string,
+  requestUrl?: URL | string | null
+) {
   const query = `{
     "all": *[_type == "project" && $lang in languages] | order(order asc) {
       title,
@@ -199,7 +256,10 @@ export async function getProjectContinuity(slug: string, currentOrder: number | 
       accentColor,
       order
     },
-    "notesEnabled": *[_type == "notesSettings"][0].enabled == true,
+    "notesSettings": *[_type == "notesSettings"][0]{
+      enabled,
+      enabledInDev
+    },
     "relatedLabEntries": *[_type == "labEntry" && status == "published" && relatedProject->slug.current == $slug && (!defined(language) || language == $lang)] | order(date desc)[0...4] {
       title,
       slug,
@@ -212,7 +272,7 @@ export async function getProjectContinuity(slug: string, currentOrder: number | 
   const idx = list.findIndex((p: any) => p?.slug?.current === slug);
   const prevProject = idx > 0 ? list[idx - 1] : null;
   const nextProject = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null;
-  const notesEnabled = res?.notesEnabled === true;
+  const notesEnabled = isNotesEnabledForEnv(res?.notesSettings, requestUrl);
   const relatedLabEntries = notesEnabled ? (res?.relatedLabEntries || []) : [];
   void currentOrder;
   return { prevProject, nextProject, relatedLabEntries };
@@ -255,6 +315,7 @@ export async function getLibrarySettings() {
 export async function getNotesSettings() {
   const query = `*[_type == "notesSettings"][0] {
     enabled,
+    enabledInDev,
     titleEn,
     titleDe,
     subtitleEn,
